@@ -3,9 +3,27 @@ on:
   push:
     branches: [main]
   pull_request:
+permissions:
+  contents: read
 jobs:
   validate:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: fisher_test
+          POSTGRES_USER: fisher
+          POSTGRES_PASSWORD: fisher_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fisher -d fisher_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://fisher:fisher_ci_only@localhost:5432/fisher_test
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -15,7 +33,15 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
-      - run: pnpm install --no-frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+      - name: Validate PostgreSQL migration
+        run: |
+          PGPASSWORD=fisher_ci_only psql -h localhost -U fisher -d fisher_test -v ON_ERROR_STOP=1 -f packages/database/drizzle/0000_foundation.sql
+          PGPASSWORD=fisher_ci_only psql -h localhost -U fisher -d fisher_test -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm test
+      - name: Build
+        run: pnpm build
