@@ -37,8 +37,7 @@ jobs:
         run: pnpm install --no-frozen-lockfile
       - name: Validate PostgreSQL migration
         run: |
-          PGPASSWORD=fisher_ci_only psql -h localhost -U fisher -d fisher_test -v ON_ERROR_STOP=1 -f packages/database/drizzle/0000_foundation.sql
-          PGPASSWORD=fisher_ci_only psql -h localhost -U fisher -d fisher_test -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';"
+          FISHER_DISPOSABLE_DB_ACK=disposable-test-only bash scripts/verify-database.sh
       - name: Typecheck
         run: pnpm typecheck
       - name: Test
