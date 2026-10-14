@@ -1,0 +1,4 @@
+import {describe,it,expect} from 'vitest';import {canBookFor,canReadResult} from './policy';
+const principal={userId:'caregiver'};
+const grants=[{userId:'caregiver',patientId:'patient',verified:true,revoked:false,canBook:true,canViewResults:false}];
+describe('patient access policy',()=>{it('separates booking from results',()=>{expect(canBookFor(principal,'patient',grants)).toBe(true);expect(canReadResult(principal,'patient',true,grants)).toBe(false)});it('requires release and explicit permission',()=>{expect(canReadResult(principal,'patient',false,[{...grants[0]!,canViewResults:true}])).toBe(false);expect(canReadResult(principal,'patient',true,[{...grants[0]!,canViewResults:true}])).toBe(true)});it('denies revoked access',()=>{expect(canBookFor(principal,'patient',[{...grants[0]!,revoked:true}])).toBe(false)})});
