@@ -17,18 +17,18 @@
 
 ## Incomplete / not verified
 - No pnpm lockfile or verified reproducible dependency installation.
-- CI, TypeScript builds, SQL migration and rollback have not been executed successfully against an isolated checkout.
+- CI now provisions disposable PostgreSQL and attempts the initial migration, but CI outcomes, TypeScript builds, SQL migration and rollback have not been verified successfully against an isolated checkout.
 - Identity provider integration, OIDC token verification, session management, privileged MFA, and server-enforced API guards are missing.
-- Domain schema needs further review for integrity constraints, data retention, migrations and patient authorization enforcement.
+- Drizzle schema and initial SQL DDL are committed; drift detection, migration tracking, database immutability and authorization enforcement still require implementation and verification.
 - Shared accessible component library, complete UX flows and field offline synchronization are missing.
-- No full OpenAPI generator, durable queue/outbox implementation, API domain services or integration/E2E tests.
+- No full OpenAPI generator, durable queue/outbox implementation, API domain services or integration/E2E tests. Initial schema declaration tests have been committed but not executed.
 - Deployment configuration, secrets, monitoring and production readiness checks are incomplete.
 
 **Safety gate:** No real patient, clinical, payment or operational data. Do not deploy as a healthcare service.
 
 ## Next acceptance work
-1. Reproducible install and lockfile; fix any build/typecheck/CI failures.
-2. Verify disposable PostgreSQL migrations and constraints; establish forward-only migration tooling.
+1. Reproducible install and committed lockfile; run CI and fix all build/typecheck/migration failures.
+2. Verify disposable PostgreSQL migrations, constraints and schema/SQL parity; establish forward-only migration tooling.
 3. Implement authenticated OIDC integration and server-side authorization with negative integration tests.
 4. Complete shared design system, contracts, and documented UX flows.
 5. Implement/test durable jobs, integration boundaries, observability and deployable staging.
