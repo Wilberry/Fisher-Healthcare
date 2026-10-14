@@ -10,16 +10,18 @@
 - Shared design tokens.
 - Initial PostgreSQL domain schema in Drizzle and matching initial SQL DDL (not migration-tested).
 - Initial patient relationship authorization policy separating booking from result visibility, with unit tests.
+- Explicit staff capability policy with negative tests; no administrator bypass for clinical result release.
 - Zod boundary contracts for quote requests, currency and booking status, with unit tests.
-- Disposable PostgreSQL Docker Compose file.
+- Disposable PostgreSQL Docker Compose file and guarded migration verification script.
+- Second SQL migration for integrity constraints and append-only audit/custody event protection.
 - GitHub Actions CI workflow and architecture decision records.
 - Verification plan: [Phase 1 verification](phase-1-verification-plan.md).
 
 ## Incomplete / not verified
 - No pnpm lockfile or verified reproducible dependency installation.
-- CI now provisions disposable PostgreSQL and attempts the initial migration, but CI outcomes, TypeScript builds, SQL migration and rollback have not been verified successfully against an isolated checkout.
+- CI now provisions disposable PostgreSQL and attempts both SQL migrations, but CI outcomes, TypeScript builds, SQL migrations and rollback have not been verified successfully against an isolated checkout.
 - Identity provider integration, OIDC token verification, session management, privileged MFA, and server-enforced API guards are missing.
-- Drizzle schema and initial SQL DDL are committed; drift detection, migration tracking, database immutability and authorization enforcement still require implementation and verification.
+- Drizzle schema and initial SQL DDL are committed; a second migration introduces database event immutability. Schema drift detection, migration tracking, event protection verification and end-to-end authorization enforcement still require implementation and verification.
 - Shared accessible component library, complete UX flows and field offline synchronization are missing.
 - No full OpenAPI generator, durable queue/outbox implementation, API domain services or integration/E2E tests. Initial schema declaration tests have been committed but not executed.
 - Deployment configuration, secrets, monitoring and production readiness checks are incomplete.
