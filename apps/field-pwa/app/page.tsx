@@ -1,0 +1,1 @@
+export default function Field() { return <main><h1>Fisher Field</h1><p>Field operations foundation. Assigned work will appear only after secure staff authentication and task-scoped authorization are implemented.</p><strong>Not ready for clinical or field use.</strong></main>; }
