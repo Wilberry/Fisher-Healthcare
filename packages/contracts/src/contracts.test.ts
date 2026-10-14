@@ -1,0 +1,1 @@
+import {describe,it,expect} from 'vitest';import {moneySchema,serviceTierSchema} from './index';describe('boundary validation',()=>{it('rejects negative amounts',()=>{expect(moneySchema.safeParse({currency:'NGN',amountKobo:-1}).success).toBe(false)});it('rejects unknown service tier',()=>{expect(serviceTierSchema.safeParse('instant').success).toBe(false)})});
