@@ -18,6 +18,7 @@ suite.sequential('authenticated resource access (disposable PostgreSQL only)', (
   let privateKey: Awaited<ReturnType<typeof generateKeyPair>>['privateKey'];
   let tokenOwner: string;
   let tokenAdmin: string;
+  let tokenAdminWithoutMfa: string;
   let tokenExpired: string;
   const ownerSub = `synthetic-owner-${randomUUID()}`;
   const adminSub = `synthetic-admin-${randomUUID()}`;
@@ -33,11 +34,12 @@ suite.sequential('authenticated resource access (disposable PostgreSQL only)', (
     OIDC_ISSUER: process.env.OIDC_ISSUER,
     OIDC_AUDIENCE: process.env.OIDC_AUDIENCE,
     OIDC_JWKS_URI: process.env.OIDC_JWKS_URI,
-    NODE_ENV: process.env.NODE_ENV
+    NODE_ENV: process.env.NODE_ENV,
+    FISHER_ALLOW_HTTP_JWKS_FOR_TESTS: process.env.FISHER_ALLOW_HTTP_JWKS_FOR_TESTS
   };
 
-  async function sign(subject: string, seconds = 300): Promise<string> {
-    return new SignJWT({ purpose: 'synthetic-foundation-test' })
+  async function sign(subject: string, seconds = 300, mfa = false): Promise<string> {
+    return new SignJWT({ purpose: 'synthetic-foundation-test', ...(mfa ? { amr: ['mfa'] } : {}) })
       .setProtectedHeader({ alg: 'RS256', kid: 'fisher-test-key' })
       .setIssuer('https://identity.fisher.test')
       .setAudience('fisher-api')
@@ -67,6 +69,7 @@ suite.sequential('authenticated resource access (disposable PostgreSQL only)', (
     });
     const port = (jwksServer.address() as AddressInfo).port;
     process.env.NODE_ENV = 'test';
+    process.env.FISHER_ALLOW_HTTP_JWKS_FOR_TESTS = 'true';
     process.env.OIDC_ISSUER = 'https://identity.fisher.test';
     process.env.OIDC_AUDIENCE = 'fisher-api';
     process.env.OIDC_JWKS_URI = `http://localhost:${port}/jwks`;
@@ -100,7 +103,8 @@ suite.sequential('authenticated resource access (disposable PostgreSQL only)', (
     );
 
     tokenOwner = await sign(ownerSub);
-    tokenAdmin = await sign(adminSub);
+    tokenAdmin = await sign(adminSub, 300, true);
+    tokenAdminWithoutMfa = await sign(adminSub);
     tokenExpired = await sign(ownerSub, -10);
     app = await NestFactory.create(AppModule, { logger: false });
     app.setGlobalPrefix('api/v1');
@@ -148,6 +152,11 @@ suite.sequential('authenticated resource access (disposable PostgreSQL only)', (
       [ownerId, resultId]
     );
     expect(audit.rows.length).toBe(1);
+  });
+
+  it('denies staff actions without verified multi-factor authentication', async () => {
+    await request(app.getHttpServer()).get('/api/v1/access/staff/capabilities/staff:manage')
+      .set('Authorization', `Bearer ${tokenAdminWithoutMfa}`).expect(403);
   });
 
   it('denies administrators clinical release capability', async () => {
