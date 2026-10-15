@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 : "${DATABASE_URL:?Set DATABASE_URL to a disposable PostgreSQL database URL}"
-case "${FISHER_DISPOSABLE_DB_ACK:-}" in
-  disposable-test-only) ;;
-  *) echo "Refusing migration without FISHER_DISPOSABLE_DB_ACK=disposable-test-only" >&2; exit 2;;
-esac
-psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -1 -f packages/database/drizzle/0000_foundation.sql
-psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -1 -f packages/database/drizzle/0001_integrity.sql
-psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'" | grep -qx '16'
-echo "Verified 16 application tables and applied integrity migration."
+test "${FISHER_DISPOSABLE_DB_ACK:-}" = "disposable-test-only" || {
+  echo 'Refusing verification without FISHER_DISPOSABLE_DB_ACK=disposable-test-only' >&2; exit 2;
+}
+# Apply reviewed migrations through the same checksummed runner used for staging.
+FISHER_MIGRATE_ACK=apply-reviewed-migrations pnpm --filter @fisher/database migrate
+pnpm --filter @fisher/database migrate:check
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -f scripts/verify-postgres.sql
+bash scripts/verify-migration-rollback.sh
+echo 'PostgreSQL migrations, authorization constraints, immutability and rollback checks completed.'
