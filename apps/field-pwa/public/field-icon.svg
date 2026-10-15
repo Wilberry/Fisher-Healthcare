@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-labelledby="title">
+<title>Fisher Healthcare Field</title>
+<rect width="192" height="192" rx="44" fill="#241b50"/>
+<path d="M96 39v114M39 96h114" stroke="#e8f7f4" stroke-width="18" stroke-linecap="round"/>
+<circle cx="96" cy="96" r="18" fill="#0d9488"/>
+</svg>
