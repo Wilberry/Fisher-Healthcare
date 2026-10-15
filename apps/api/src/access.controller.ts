@@ -2,6 +2,7 @@ import { Controller, Get, Param, ParseUUIDPipe, Req, UseGuards, BadRequestExcept
 import { AccessService, STAFF_CAPABILITIES } from './access.service';
 import { IdentityGuard, type AuthenticatedRequest } from './identity.guard';
 import type { Capability } from '@fisher/auth';
+import { requireStaffMfa } from './identity';
 
 @Controller('access')
 @UseGuards(IdentityGuard)
@@ -22,11 +23,13 @@ export class AccessController {
 
   @Get('staff/capabilities')
   async capabilities(@Req() req: AuthenticatedRequest) {
+    requireStaffMfa(req.identity!);
     return { capabilities: await this.access.staffCapabilities(req.identity!.subject) };
   }
 
   @Get('staff/capabilities/:capability')
   async capability(@Req() req: AuthenticatedRequest, @Param('capability') requested: string) {
+    requireStaffMfa(req.identity!);
     if (!STAFF_CAPABILITIES.some(capability => capability === requested)) {
       throw new BadRequestException('Unknown capability');
     }
