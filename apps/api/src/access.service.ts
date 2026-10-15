@@ -48,16 +48,25 @@ export class AccessService implements OnModuleDestroy {
   }
 
   async requireReleasedResultAccess(identitySubject: string, resultId: string): Promise<void> {
-    const authorized = await this.exists(
-      `SELECT 1 FROM results res
-         INNER JOIN patient_relationships rel ON rel.patient_id=res.patient_id
-         INNER JOIN users usr ON usr.id=rel.user_id
-       WHERE usr.identity_subject=$1 AND res.id=$2::uuid
-         AND res.released_at IS NOT NULL AND res.released_by IS NOT NULL
-         AND rel.can_view_results AND rel.verified_at IS NOT NULL AND rel.revoked_at IS NULL
-       LIMIT 1`, [identitySubject, resultId]
+    if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
+    // The authorization decision and its successful-access audit event share one SQL statement.
+    // No result document metadata or clinical payload is returned to this diagnostic endpoint.
+    const result = await this.pool.query(
+      `WITH allowed AS (
+         SELECT usr.id AS actor_id FROM results res
+           INNER JOIN patient_relationships rel ON rel.patient_id=res.patient_id
+           INNER JOIN users usr ON usr.id=rel.user_id
+         WHERE usr.identity_subject=$1 AND res.id=$2::uuid
+           AND res.released_at IS NOT NULL AND res.released_by IS NOT NULL
+           AND rel.can_view_results AND rel.verified_at IS NOT NULL AND rel.revoked_at IS NULL
+         LIMIT 1
+       )
+       INSERT INTO audit_events(actor_id, action, resource_type, resource_id)
+       SELECT actor_id, 'result.access_authorized', 'result', $2::uuid FROM allowed
+       RETURNING id`,
+      [identitySubject, resultId]
     );
-    if (!authorized) throw new ForbiddenException('Resource access denied');
+    if (result.rowCount !== 1) throw new ForbiddenException('Resource access denied');
   }
 
   async staffCapabilities(identitySubject: string): Promise<Capability[]> {
