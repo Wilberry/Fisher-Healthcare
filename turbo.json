@@ -21,12 +21,12 @@
     },
     "typecheck": {
       "dependsOn": [
-        "^typecheck"
+        "^build"
       ]
     },
     "test": {
       "dependsOn": [
-        "^test"
+        "^build"
       ]
     }
   }
