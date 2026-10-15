@@ -14,13 +14,21 @@
     "@nestjs/platform-express": "^10.4.15",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "jose": "^5.9.6"
+    "jose": "^5.9.6",
+    "@fisher/auth": "workspace:*",
+    "@fisher/contracts": "workspace:*",
+    "pg": "^8.13.1",
+    "@nestjs/swagger": "^7.4.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8",
-    "@types/express": "^4.17.21"
+    "@types/express": "^4.17.21",
+    "@types/pg": "^8.11.10",
+    "@nestjs/testing": "^10.4.15",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2"
   }
 }
