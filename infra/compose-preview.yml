@@ -1,0 +1,52 @@
+# Explicitly scoped non-clinical preview on loopback only. No real PHI or customer transactions.
+name: fisher-phase1-preview
+x-build: &preview-build
+  context: ..
+  dockerfile: infra/docker/Dockerfile
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: fisher_preview
+      POSTGRES_USER: fisher
+      POSTGRES_PASSWORD: fisher_preview_local_only
+    ports: ["127.0.0.1:5434:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fisher -d fisher_preview"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes: [fisher_preview_data:/var/lib/postgresql/data]
+  api:
+    build: *preview-build
+    command: ["node", "apps/api/dist/main.js"]
+    environment:
+      FISHER_PREVIEW_ACK: "${FISHER_PREVIEW_ACK:?Set FISHER_PREVIEW_ACK to disposable-no-phi}"
+      PORT: "4000"
+      DATABASE_URL: postgresql://fisher:fisher_preview_local_only@postgres:5432/fisher_preview
+      OIDC_ISSUER: "${OIDC_ISSUER:-}"
+      OIDC_AUDIENCE: "${OIDC_AUDIENCE:-}"
+      OIDC_JWKS_URI: "${OIDC_JWKS_URI:-}"
+    ports: ["127.0.0.1:4000:4000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+  patient-web:
+    build: *preview-build
+    command: ["node","apps/patient-web/node_modules/next/dist/bin/next","start","apps/patient-web","-p","3000","-H","0.0.0.0"]
+    ports: ["127.0.0.1:3000:3000"]
+  operations-web:
+    build: *preview-build
+    command: ["node","apps/operations-web/node_modules/next/dist/bin/next","start","apps/operations-web","-p","3001","-H","0.0.0.0"]
+    ports: ["127.0.0.1:3001:3001"]
+  field-pwa:
+    build: *preview-build
+    command: ["node","apps/field-pwa/node_modules/next/dist/bin/next","start","apps/field-pwa","-p","3002","-H","0.0.0.0"]
+    ports: ["127.0.0.1:3002:3002"]
+volumes:
+  fisher_preview_data:
