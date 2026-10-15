@@ -1,12 +1,12 @@
-# Development roadmap and release gates
+# Fisher Healthcare Development Roadmap
 
-**Status:** Authoritative phased delivery plan. Phases are dependency-driven; dates and estimates require staffing and partner validation. Completion is based on evidence, not percentage claims.
+**Programme status:** Phased platform development in progress. The roadmap defines the company's proposed delivery sequence, scope, and release assurance requirements. Milestone dates will be established alongside staffing, commercial partnerships, and operational capacity.
 
 ## Phase 1 — Product foundation, UX and architecture
 
-**Objectives:** Establish reproducible engineering foundations and sign off domain rules.
+**Strategic objective:** Establish the software engineering, product design, data architecture, and security foundations required for subsequent service development.
 
-**Deliverables:**
+**Planned capabilities and deliverables:**
 - Product requirements traceability matrix and service blueprints.
 - Patient, operations and field information architecture; responsive UI components; accessibility rules.
 - pnpm/Turborepo workspace, Next.js apps, NestJS API and worker shells with health checks.
@@ -16,41 +16,41 @@
 - CI lint, typecheck, unit/integration tests, dependency/security scanning.
 - Environment and secret handling, containerized local development and staging plan.
 
-**Acceptance gate:** Fresh checkout boots; all CI checks pass; schema migrate/rollback tested; forbidden resource access denied; design flows reviewed; core business invariants documented.
+**Phase completion criteria:** Fresh checkout boots; all CI checks pass; schema migrate/rollback tested; forbidden resource access denied; design flows reviewed; core business invariants documented.
 
 ## Phase 2 — Patient booking and payment
 
-**Deliverables:** Public site, catalogue, service zones, lab offerings, test preparation, patient/family profiles, booking drafts, slot holds, Regular/Premium quotes, verified checkout, receipts, customer dashboard shell, booking timeline, notifications, WhatsApp-assisted intake.
+**Planned capabilities and deliverables:** Public site, catalogue, service zones, lab offerings, test preparation, patient/family profiles, booking drafts, slot holds, Regular/Premium quotes, verified checkout, receipts, customer dashboard shell, booking timeline, notifications, WhatsApp-assisted intake.
 
-**Acceptance gate:** Full synthetic booking works; expired holds cannot oversell; duplicate callbacks cannot double-charge; caregiver result permissions are separated; cancellations follow policy.
+**Phase completion criteria:** Full synthetic booking works; expired holds cannot oversell; duplicate callbacks cannot double-charge; caregiver result permissions are separated; cancellations follow policy.
 
 ## Phase 3 — Dispatch, collection and custody
 
-**Deliverables:** Operations queues, staffing and shifts, assignment and zone batching, field PWA, specimen IDs/labels, collection checklists, handoff records, lab manifests, transport status, incident/exception management, offline event synchronization.
+**Planned capabilities and deliverables:** Operations queues, staffing and shifts, assignment and zone batching, field PWA, specimen IDs/labels, collection checklists, handoff records, lab manifests, transport status, incident/exception management, offline event synchronization.
 
-**Acceptance gate:** Complete multi-specimen collection is traceable; wrong actor cannot alter custody; retries do not duplicate events; field recovery tested; operational staff can resolve failed collection.
+**Phase completion criteria:** Complete multi-specimen collection is traceable; wrong actor cannot alter custody; retries do not duplicate events; field recovery tested; operational staff can resolve failed collection.
 
 ## Phase 4 — Laboratory, results and finance
 
-**Deliverables:** Internal laboratory onboarding and offerings, acceptance/rejection workflows, controlled result intake/release, patient dashboard result history, secure email delivery, physical-copy add-on workflow, payment reconciliation, refunds, lab payables/settlements and reporting.
+**Planned capabilities and deliverables:** Internal laboratory onboarding and offerings, acceptance/rejection workflows, controlled result intake/release, patient dashboard result history, secure email delivery, physical-copy add-on workflow, payment reconciliation, refunds, lab payables/settlements and reporting.
 
-**Acceptance gate:** Result access is patient-scoped and audited; dashboard/email paths tested independently; rejected specimen does not corrupt unrelated tests; financial ledger reconciles.
+**Phase completion criteria:** Result access is patient-scoped and audited; dashboard/email paths tested independently; rejected specimen does not corrupt unrelated tests; financial ledger reconciles.
 
 ## Phase 5 — Production readiness and controlled Lagos pilot
 
-**Deliverables:** Partner agreements, clinically approved SOPs, Nigerian privacy/regulatory review, security assessment, production infrastructure, encrypted backups and restore drills, incident runbooks, observability, load and failure tests, training and small supervised real-order pilot.
+**Planned capabilities and deliverables:** Partner agreements, clinically approved SOPs, Nigerian privacy/regulatory review, security assessment, production infrastructure, encrypted backups and restore drills, incident runbooks, observability, load and failure tests, training and small supervised real-order pilot.
 
-**Acceptance gate:** No open critical security/patient-safety defects; documented regulatory and clinical sign-off; disaster recovery proven; pilot completion and exception handling evidenced; public launch authorization recorded.
+**Phase completion criteria:** No open critical security/patient-safety defects; documented regulatory and clinical sign-off; disaster recovery proven; pilot completion and exception handling evidenced; public launch authorization recorded.
 
 ## Phase 6 — Public launch and growth
 
-**Deliverables:** Public Lagos availability, operational reporting, service-zone tuning, recurring booking convenience, expanded partner operations, scoped lab portal, referral processes, and additional coverage as capacity permits.
+**Planned capabilities and deliverables:** Public Lagos availability, operational reporting, service-zone tuning, recurring booking convenience, expanded partner operations, scoped lab portal, referral processes, and additional coverage as capacity permits.
 
-**Acceptance gate:** Monitored production stability, reconciliation accuracy, customer support capacity, laboratory performance and documented expansion readiness.
+**Phase completion criteria:** Monitored production stability, reconciliation accuracy, customer support capacity, laboratory performance and documented expansion readiness.
 
-## Cross-phase workstreams
+## Programme-wide workstreams
 
-| Workstream | Required every phase |
+| Workstream | Ongoing programme commitment |
 | --- | --- |
 | Product | Requirements and acceptance criteria updated |
 | Design | Mobile responsiveness, accessible states and copy review |
@@ -60,14 +60,14 @@
 | Operations | Runbooks, observability, incident escalation |
 | Documentation | API, ADR, migrations and deployment guides current |
 
-## Definition of done
+## Quality and delivery assurance
 
-Feature is complete only when behavior matches acceptance criteria, authorization and edge cases are tested, migrations are safe, metrics/logging avoid sensitive data, API and user documentation are updated, CI is green, and an accountable reviewer approves. A phase is complete only with reproducible verification evidence.
+Fisher Healthcare's engineering assurance framework requires each delivered capability to meet its approved functional, security, accessibility, and operational criteria. Phase closure is supported by verified test evidence, reviewed architecture and data changes, updated specifications, and documented release approval.
 
-## Dependencies and decision checkpoints
+## Commercial and operational dependencies
 
-Before production: confirmed lab partners, supported test menu, specimen collection and transport SOPs, collection coverage, price agreements, refund rules, result release ownership, consent model, vendor data processing arrangements, hosting region, staffing capacity and incident response. These are open operational decisions, not assumptions.
+Production service activation depends on contracted laboratory partners, a validated test catalogue, clinically approved collection and transport procedures, defined coverage areas, pricing and refund policies, result release governance, patient consent requirements, approved service providers, infrastructure arrangements, staffing capacity, and incident response readiness.
 
-## Change control
+## Programme governance
 
-Product baseline changes require a decision record, affected requirement IDs, updated API/schema specifications and explicit phase impact. Engineering must not silently reinterpret business requirements.
+The programme will maintain aligned product specifications, technical contracts, architecture records, and release milestones. Changes to the agreed service model or platform design will be assessed for their implications across customer experience, clinical operations, security, cost, and delivery schedule.
