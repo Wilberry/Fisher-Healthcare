@@ -5,7 +5,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "migrate": "tsx src/migrate.ts apply",
+    "migrate:check": "tsx src/migrate.ts check"
   },
   "dependencies": {
     "drizzle-orm": "^0.36.4",
@@ -16,7 +18,8 @@
     "@types/pg": "^8.11.10",
     "@types/node": "^22.10.0",
     "typescript": "^5.7.3",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "tsx": "^4.19.2"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts"
