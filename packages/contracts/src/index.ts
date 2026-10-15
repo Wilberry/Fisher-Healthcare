@@ -5,3 +5,5 @@ export const quoteRequestSchema=z.object({patientId:z.string().uuid().optional()
 export const bookingStatusSchema=z.enum(['draft','awaiting_payment','confirmed','assigned','collection_in_progress','collected','lab_processing','results_ready','completed','cancelled','exception']);
 export type QuoteRequest=z.infer<typeof quoteRequestSchema>;
 export type BookingStatus=z.infer<typeof bookingStatusSchema>;
+
+export * from './foundation';
