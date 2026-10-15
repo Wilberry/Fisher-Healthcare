@@ -7,7 +7,8 @@
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
     "migrate": "tsx src/migrate.ts apply",
-    "migrate:check": "tsx src/migrate.ts check"
+    "migrate:check": "tsx src/migrate.ts check",
+    "lint": "eslint src"
   },
   "dependencies": {
     "drizzle-orm": "^0.36.4",
