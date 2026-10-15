@@ -2,10 +2,11 @@ import 'reflect-metadata';
 import { createServer, type Server } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
-import { generateKeyPair, exportJWK, SignJWT, type KeyLike } from 'jose';
+import { generateKeyPair, exportJWK, SignJWT } from 'jose';
 import { Pool } from 'pg';
 import request from 'supertest';
-import { NestFactory, type INestApplication } from '@nestjs/core';
+import { NestFactory } from '@nestjs/core';
+import type { INestApplication } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from './module';
 
@@ -14,7 +15,7 @@ suite.sequential('authenticated resource access (disposable PostgreSQL only)', (
   let pool: Pool;
   let app: INestApplication;
   let jwksServer: Server;
-  let privateKey: KeyLike;
+  let privateKey: Awaited<ReturnType<typeof generateKeyPair>>['privateKey'];
   let tokenOwner: string;
   let tokenAdmin: string;
   let tokenExpired: string;
