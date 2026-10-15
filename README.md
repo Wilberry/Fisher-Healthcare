@@ -1,48 +1,76 @@
 # Fisher Healthcare
 
-**Healthcare diagnostics sample collection and logistics | Lagos, Nigeria**
+**Healthcare diagnostics, home and workplace sample collection, and laboratory logistics | Lagos, Nigeria**
 
 > Sample collection, without the hospital wait.
 
-Fisher Healthcare coordinates home and office diagnostic sample collection, professional phlebotomy, secure transport to partner laboratories, laboratory processing, and secure results delivery. Customers can book for themselves or authorized family members. Results are available on the patient dashboard and through a secure email delivery process.
+## Company and product overview
 
-**Status:** Pre-implementation. This repository is the authoritative product and engineering documentation baseline. No implementation is implied by the specifications.
+Fisher Healthcare is developing an integrated healthcare diagnostics service that connects patients with professional sample collection and accredited partner laboratory services. The platform is designed to coordinate bookings, collection scheduling, specimen transportation, laboratory processing, secure result delivery, customer support, and financial settlement within a unified operating system.
 
-## Documentation index
+The initial market is Lagos, Nigeria, with expansion determined by service coverage, laboratory partnerships, and operational readiness.
 
-1. [Product requirements](docs/01-product-requirements.md) — mission, personas, functional requirements, acceptance criteria.
-2. [Architecture and technology stack](docs/02-architecture-and-stack.md) — approved design, deployment, monorepo, integration boundaries.
-3. [Roles and authorization](docs/03-roles-and-permissions.md) — access control, family relationships, staff separation.
-4. [API and endpoint specification](docs/04-api-contracts.md) — proposed REST endpoints, common contracts, security.
-5. [Domain model and workflows](docs/05-domain-model-and-workflows.md) — entities, state transitions, custody, result release, ledger.
-6. [Engineering roadmap](docs/06-development-roadmap.md) — phases, dependencies, deliverables and acceptance gates.
-7. [Security, privacy and operations](docs/07-security-and-operations.md) — sensitive data, audit, incident handling and reliability.
-8. [Engineering standards](docs/08-engineering-standards.md) — development workflow, quality, testing, CI/CD and governance.
-9. [Design system and UX](docs/09-design-and-ux.md) — navigation, responsive flows, accessibility and brand implementation.
-10. [Decision register](docs/10-decisions-and-open-items.md) — approved decisions and items awaiting operational confirmation.
+## Product vision
 
-## Product scope
+To make routine diagnostic testing more accessible, convenient, and dependable through coordinated at-home and workplace collection, reliable laboratory partnerships, and secure digital access to results.
 
-**Initial interfaces:** patient and caregiver web app; internal operations command center; mobile-first field PWA. Laboratory relationships and laboratory processing coordination are administered internally. A scoped partner portal is included in the expansion roadmap.
+## Planned service experience
 
-**Service tiers:** Regular (batched, normally next-day collections based on available slots) and Premium (priority same-day collection where available). Turnaround estimates must be test-, laboratory-, cutoff- and capacity-specific. The strategy's 12-hour Premium target is conditional, not a universal guarantee.
+Fisher Healthcare will offer a digital booking experience for individuals and authorized family members. Customers will be able to explore supported diagnostic tests, review preparation requirements, choose an available collection window, receive a transparent price quotation, and complete payment through a unified checkout.
 
-**Channels:** website ordering and WhatsApp-assisted intake, with a single authoritative order record.
+Qualified collection personnel will attend scheduled visits and document specimen collection and handoff. Specimens will be transferred to partner laboratories for testing and clinical validation. Released results will be accessible through the patient's secure dashboard and through an approved secure email delivery process.
 
-**Commercial model:** customer pays a combined laboratory and logistics amount; Fisher Healthcare reconciles payment and settles laboratories separately.
+The service model includes **Regular** collection, organized around scheduled batching, and **Premium** priority collection where staffing, laboratory capacity, and service windows permit. Collection and result turnaround commitments will be determined by actual availability and partner laboratory requirements.
 
-## Delivery principles
+## Platform portfolio
 
-- No production patient data in development or tests.
-- Patient safety, specimen traceability, consent, access control and financial accuracy are release gates.
-- Domain logic lives in the backend, not solely in UI clients.
-- Every material decision and API change must update these docs.
-- Implement phases sequentially with testable acceptance criteria; do not claim a phase complete until evidence exists.
+| Platform | Proposed scope |
+| --- | --- |
+| Patient and caregiver platform | Test discovery, booking, family profiles, payment, order history, secure results, and support |
+| Operations management platform | Orders, dispatch, staffing, service coverage, specimens, laboratory coordination, exceptions, finance, and reporting |
+| Field operations application | Assigned visits, collection workflows, specimen labeling, chain of custody, and incident recording |
+| Laboratory partner capabilities | Internal coordination at launch, with dedicated partner access considered in the expansion phase |
 
-## Repository status
+## Technology strategy
 
-Documentation-first baseline. Source directories will be created during Phase 1. The repository is not yet a deployed service.
+Fisher Healthcare is adopting a TypeScript-based modular platform with Next.js interfaces, a NestJS application API, PostgreSQL, Drizzle ORM, secure identity integration, private document storage, and dedicated background processing. The architecture emphasizes traceability, patient privacy, operational resilience, and controlled expansion.
 
-## Source context
+The full technical design is maintained in the [Architecture and Technology Stack](docs/02-architecture-and-stack.md).
 
-Product intent originates from the September 2026 Fisher Healthcare Business, Product & Launch Strategy and approved product discussions. Where the strategy leaves pricing, laboratory contracts, coverage or clinical SOPs unspecified, this documentation marks them as operational dependencies rather than inventing values.
+## Development programme
+
+| Phase | Strategic objective |
+| --- | --- |
+| Phase 1 | Establish the product architecture, design foundations, core data model, security baseline, and engineering environment |
+| Phase 2 | Deliver patient discovery, booking, family management, payment, and customer account functionality |
+| Phase 3 | Deliver dispatch operations, field collection, specimen tracking, and custody management |
+| Phase 4 | Deliver laboratory coordination, secure result access, and financial reconciliation |
+| Phase 5 | Complete production readiness, clinical and operational validation, and the controlled Lagos pilot |
+| Phase 6 | Launch publicly and expand service capacity and partner operations |
+
+Development milestones are governed by the [Development Roadmap](docs/06-development-roadmap.md). Completion is recorded against documented acceptance criteria and verification evidence.
+
+## Product and engineering documentation
+
+| Document | Coverage |
+| --- | --- |
+| [Product Requirements](docs/01-product-requirements.md) | Customer experience, service capabilities, internal operations, and acceptance scenarios |
+| [Architecture and Technology Stack](docs/02-architecture-and-stack.md) | System structure, technology selections, domain boundaries, and deployment model |
+| [Roles and Permissions](docs/03-roles-and-permissions.md) | Patient, caregiver, employee, and operational authorization |
+| [API Specifications](docs/04-api-contracts.md) | Planned customer, administrative, field, and financial interfaces |
+| [Domain Models and Workflows](docs/05-domain-model-and-workflows.md) | Business entities, booking lifecycle, specimen custody, results, and payments |
+| [Development Roadmap](docs/06-development-roadmap.md) | Phased delivery programme and completion criteria |
+| [Security and Operations](docs/07-security-and-operations.md) | Clinical governance, privacy, resilience, and incident management |
+| [Engineering Standards](docs/08-engineering-standards.md) | Software quality, testing, release controls, and documentation governance |
+| [Design and User Experience](docs/09-design-and-ux.md) | Patient, operations, and field interface design standards |
+| [Decisions and Open Items](docs/10-decisions-and-open-items.md) | Approved product decisions and pending commercial or operational determinations |
+
+## Delivery governance
+
+The documentation in this repository defines the company's intended product capabilities, architecture, and delivery programme. Product and technical decisions will be reflected in the relevant specifications as the platform develops. Engineering milestones will be accepted only after the corresponding security, functional, and operational criteria have been verified.
+
+## Current development position
+
+**Phase 1 — Engineering foundation in progress.** The repository contains initial application scaffolding, domain schemas, authorization policy foundations, and supporting engineering configuration. The platform is not yet operational or approved for live healthcare service delivery.
+
+[Phase 1 Implementation Status](docs/phase-1-implementation-status.md) · [Phase 1 Verification Plan](docs/phase-1-verification-plan.md)
