@@ -5,7 +5,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "test": "node -e \"console.log('Token tests pending')\""
+    "test": "node -e \"console.log('Token tests pending')\"",
+    "lint": "eslint src"
   },
   "devDependencies": {
     "typescript": "^5.7.3"
