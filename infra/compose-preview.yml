@@ -17,9 +17,19 @@ services:
       timeout: 3s
       retries: 10
     volumes: [fisher_preview_data:/var/lib/postgresql/data]
+  migrations:
+    build: *preview-build
+    command: ["sh", "-ec", "test \"$FISHER_PREVIEW_ACK\" = disposable-no-phi; FISHER_MIGRATE_ACK=apply-reviewed-migrations node packages/database/dist/migrate.js apply"]
+    environment:
+      FISHER_PREVIEW_ACK: "${FISHER_PREVIEW_ACK:?Set FISHER_PREVIEW_ACK to disposable-no-phi}"
+      DATABASE_URL: postgresql://fisher:fisher_preview_local_only@postgres:5432/fisher_preview
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
   api:
     build: *preview-build
-    command: ["node", "apps/api/dist/main.js"]
+    command: ["sh", "-ec", "test \"$FISHER_PREVIEW_ACK\" = disposable-no-phi; exec node apps/api/dist/main.js"]
     environment:
       FISHER_PREVIEW_ACK: "${FISHER_PREVIEW_ACK:?Set FISHER_PREVIEW_ACK to disposable-no-phi}"
       PORT: "4000"
@@ -29,8 +39,8 @@ services:
       OIDC_JWKS_URI: "${OIDC_JWKS_URI:-}"
     ports: ["127.0.0.1:4000:4000"]
     depends_on:
-      postgres:
-        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 20s
