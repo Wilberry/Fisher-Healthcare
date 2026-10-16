@@ -21,7 +21,7 @@ export const slotInput=z.object({
  capacity:z.number().int().min(1).max(10000)
 }).strict().refine(v=>{
  const start=Date.parse(v.startsAt),end=Date.parse(v.endsAt),cutoff=Date.parse(v.cutoffAt);
- return start>end-259200000 && start<end && cutoff<=start &&
+ return Number.isFinite(start) && Number.isFinite(end) && Number.isFinite(cutoff) && start<end && cutoff<=start && cutoff>Date.now() &&
    start>Date.now() && start<Date.now()+90*24*60*60*1000;
 },{message:'Invalid slot dates or cutoff'});
 export const approvalInput=z.object({

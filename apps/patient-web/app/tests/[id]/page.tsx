@@ -14,7 +14,11 @@ export default async function TestDetail({params}:{params:Promise<{id:string}>})
     <><p className="fisher-eyebrow">{String(item.code??'Diagnostic service')}</p>
     <h1 className="fisher-section-title">{String(item.name)}</h1>
     <p className="fisher-lead">Specimen type: {String(item.specimen_type??'Confirmed during booking')}</p>
-    <Notice title="Preparation advice">Preparation, fasting requirements and expected turnaround must be confirmed with the approved laboratory and collection team. Do not change medications on the basis of this page.</Notice>
+    <Notice title="Laboratory-reviewed preparation guidance">
+     {typeof item.preparation_text==='string' && item.preparation_text.length>=5?
+      item.preparation_text:'Laboratory preparation guidance is being reviewed.'}
+    </Notice>
+    <p>Confirm instructions and collection eligibility with the clinical team before your appointment. Do not change prescribed medication without advice from your clinician.</p>
     <div className="fisher-grid fisher-collection-grid">{offerings.map((value,i)=>{
      if(!value || typeof value!=='object')return null;
      const o=value as Record<string,unknown>;

@@ -18,6 +18,7 @@ SET LOCAL search_path TO fisher_phase2_rollback_probe, public;
 \i packages/database/drizzle/0009_collection_addresses.sql
 \i packages/database/drizzle/0010_support_cases.sql
 \i packages/database/drizzle/0011_payment_status_extension.sql
+\i packages/database/drizzle/0012_catalog_approval_workflow.sql
 ROLLBACK;
 SELECT CASE WHEN to_regnamespace('fisher_phase2_rollback_probe') IS NULL
  THEN 'ROLLBACK_OK' ELSE 'ROLLBACK_FAILED' END;
