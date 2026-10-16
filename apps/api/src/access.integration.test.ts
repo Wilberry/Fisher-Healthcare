@@ -133,6 +133,21 @@ suite.sequential('authenticated resource access (disposable PostgreSQL only)', (
       .set('Authorization', `Bearer ${tokenExpired}`).expect(401);
   });
 
+  it('rejects an otherwise valid signature issued for a different API audience', async () => {
+    const wrongAudience = await new SignJWT({ purpose: 'synthetic-negative-test' })
+      .setProtectedHeader({ alg: 'RS256', kid: 'fisher-test-key' })
+      .setIssuer('https://identity.fisher.test')
+      .setAudience('another-service')
+      .setSubject(ownerSub)
+      .setIssuedAt()
+      .setExpirationTime('5m')
+      .sign(privateKey);
+    await request(app.getHttpServer())
+      .get('/api/v1/identity/session')
+      .set('Authorization', `Bearer ${wrongAudience}`)
+      .expect(401);
+  });
+
   it('verifies a signed identity and enforces current booking authority', async () => {
     await request(app.getHttpServer()).get('/api/v1/identity/session')
       .set('Authorization', `Bearer ${tokenOwner}`).expect(200);
@@ -156,6 +171,18 @@ suite.sequential('authenticated resource access (disposable PostgreSQL only)', (
       [ownerId, resultId]
     );
     expect(audit.rows.length).toBe(1);
+  });
+
+  it('withholds unreleased results even from the correct verified patient', async () => {
+    await pool.query('UPDATE results SET released_at=NULL, released_by=NULL WHERE id=$1', [resultId]);
+    try {
+      await request(app.getHttpServer())
+        .get(`/api/v1/access/results/${resultId}/authorization`)
+        .set('Authorization', `Bearer ${tokenOwner}`).expect(403);
+    } finally {
+      await pool.query('UPDATE results SET released_at=now(), released_by=$2 WHERE id=$1',
+        [resultId, adminId]);
+    }
   });
 
   it('denies staff actions without verified multi-factor authentication', async () => {
