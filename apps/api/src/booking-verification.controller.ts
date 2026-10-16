@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { z } from 'zod';
 import { BookingVerificationService } from './booking-verification.service';
@@ -10,6 +10,8 @@ const evidence=z.object({evidenceReference:z.string().regex(/^[A-Za-z0-9._:-]{10
 @UseGuards(IdentityGuard)
 export class BookingVerificationController {
  constructor(private readonly workflow:BookingVerificationService){}
+ @Get('pending')
+ pending(@Req() req:AuthenticatedRequest){return this.workflow.pendingRelationships(req.identity!);}
  @Post(':id/approve-booking')
  approve(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() body:unknown){
   const parsed=evidence.safeParse(body);
@@ -24,6 +26,8 @@ export class BookingVerificationController {
 @UseGuards(IdentityGuard)
 export class AddressVerificationController {
  constructor(private readonly workflow:BookingVerificationService){}
+ @Get('pending')
+ pending(@Req() req:AuthenticatedRequest){return this.workflow.pendingAddresses(req.identity!);}
  @Post(':id/approve')
  approve(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() body:unknown){
   const parsed=evidence.safeParse(body);

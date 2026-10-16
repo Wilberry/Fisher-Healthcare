@@ -72,4 +72,29 @@ export class BookingVerificationService implements OnModuleDestroy {
   }finally{c.release();}
  }
 
+ async pendingRelationships(identity:AuthenticatedIdentity){
+  if(process.env.FISHER_PHASE2_BOOKING_MODE!=='synthetic'||process.env.NODE_ENV==='production')
+   throw new ServiceUnavailableException('Operational relationship review inactive');
+  requireStaffMfa(identity);
+  await this.access.requireStaffCapability(identity.subject,'orders:manage');
+  if(!this.pool)throw new ServiceUnavailableException('Database unavailable');
+  const r=await this.pool.query(`SELECT r.id,r.relationship,p.display_name,
+    r.patient_id,r.created_at FROM patient_relationships r
+    JOIN patients p ON p.id=r.patient_id
+    WHERE r.verified_at IS NULL AND r.revoked_at IS NULL
+    ORDER BY r.created_at LIMIT 100`);
+  return {data:r.rows};
+ }
+ async pendingAddresses(identity:AuthenticatedIdentity){
+  if(process.env.FISHER_PHASE2_BOOKING_MODE!=='synthetic'||process.env.NODE_ENV==='production')
+   throw new ServiceUnavailableException('Operational address review inactive');
+  requireStaffMfa(identity);
+  await this.access.requireStaffCapability(identity.subject,'orders:manage');
+  if(!this.pool)throw new ServiceUnavailableException('Database unavailable');
+  const r=await this.pool.query(`SELECT a.id,a.patient_id,a.zone_id,a.label,
+    a.address_line,a.locality,a.created_at FROM patient_addresses a
+    WHERE a.verified_at IS NULL AND a.revoked_at IS NULL
+    ORDER BY a.created_at LIMIT 100`);
+  return {data:r.rows};
+ }
 }

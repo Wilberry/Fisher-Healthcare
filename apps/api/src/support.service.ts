@@ -101,7 +101,7 @@ export class SupportService implements OnModuleDestroy {
     await c.query('UPDATE support_cases SET status=$2,updated_at=now() WHERE id=$1',[caseId,action]);
     await c.query(`UPDATE support_work_items SET status=$2 WHERE case_id=$1`,[caseId,action]);
     await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
-     VALUES($1,'support.case_'+$2,'support_case',$3,jsonb_build_object('evidenceReference',$4))`,
+     VALUES($1,'support.case_' || $2,'support_case',$3,jsonb_build_object('evidenceReference',$4))`,
      [reviewer.id,action,caseId,reference]);
     await c.query('COMMIT');
     return {caseId,status:action};
