@@ -39,6 +39,30 @@
 
 **Next evidence:** Repeat the exact-commit local verifier on the repaired branch. The lockfile remains an uncommitted diagnostic artifact until reviewed and committed. Phase 1 acceptance is still open.
 
+## Round 3 — 16 October 2026
+
+**Pinned commit:** `4f2dcf61818c2e248e6bbe8a440c80e15084324f`  
+**Observed outcome:** Build and database gates passed; the full local verification then stopped at the operations-web component test.
+
+| Gate | Observed outcome |
+| --- | --- |
+| Dependency installation | Passed |
+| Workspace lint | Passed |
+| Workspace TypeScript checks | Passed |
+| Production builds | Passed |
+| PostgreSQL migrations and database verification | Passed |
+| UI unit tests | Failed — `operations-web` rendered JSX through the classic runtime, producing `ReferenceError: React is not defined` |
+| Remaining tests, OpenAPI, dependency audit and HTTP smoke tests | Not confirmed; verifier stopped on test failure |
+
+**Generated working-tree state:** `apps/field-pwa/next-env.d.ts`, `apps/field-pwa/tsconfig.json`, `apps/operations-web/next-env.d.ts`, `apps/operations-web/tsconfig.json`, `apps/patient-web/next-env.d.ts`, and the previously generated untracked `pnpm-lock.yaml` were modified locally by build/tooling processes. No files were reset or deleted.
+
+**Remediation committed to the working branch:**
+- Explicit Vitest TSX configuration with the automatic React JSX runtime for patient, operations and field apps.
+- A non-destructive preflight that recognizes only the six known Next-generated tracked paths, validates modified content against the committed baseline, and preserves those modifications.
+- Continued strict rejection of arbitrary source edits, with any run containing generated or uncommitted artifacts classified as diagnostic until normalization and exact-commit acceptance.
+
+Phase 1 remains **OPEN**; the reported passed gates are specifically those observed on the Round 3 commit, not on later fixes.
+
 ### Next evidence required
 
 Run one consolidated local verification at the new pinned repair commit, with the generated lockfile preserved. If any later stage fails, retain the failure logs and apply source corrections on this branch. Phase 1 acceptance requires a reviewed committed lockfile and a clean full-suite rerun.
