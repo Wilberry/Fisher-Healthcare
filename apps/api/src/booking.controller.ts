@@ -13,6 +13,8 @@ function parse<T>(schema:{safeParse(v:unknown):{success:boolean;data?:T}},v:unkn
 export class BookingPublicController {
  constructor(private readonly bookings:BookingService){}
  @Get('catalog/tests') catalogue(@Query('search') search?:string){return this.bookings.catalogue(search);}
+ @Get('catalog/labs') labs(){return this.bookings.labs();}
+ @Get('catalog/tests/:id') test(@Param('id',ParseUUIDPipe) id:string){return this.bookings.testDetails(id);}
  @Get('service-zones') zones(){return this.bookings.zones();}
  @Post('availability/search') availability(@Body() body:unknown){
   const i=parse(bookingQuoteInput.pick({zoneId:true,labId:true,serviceTier:true}).strict(),body);

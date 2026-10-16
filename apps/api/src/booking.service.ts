@@ -62,6 +62,25 @@ export class BookingService implements OnModuleDestroy {
    ['%'+search.replace(/[%_\\]/g,'')+'%']);
   return {data:r.rows};
  }
+ async labs(){
+  const r=await this.db.query(`SELECT l.id,l.name,
+   COUNT(o.id)::integer AS active_offerings FROM laboratories l
+   JOIN lab_offerings o ON o.lab_id=l.id AND o.active
+   JOIN tests t ON t.id=o.test_id AND t.active
+   WHERE l.active GROUP BY l.id,l.name ORDER BY l.name LIMIT 50`);
+  return {data:r.rows};
+ }
+ async testDetails(id:string){
+  const r=await this.db.query(`SELECT t.id,t.name,t.code,t.specimen_type,
+   json_agg(json_build_object('labId',l.id,'labName',l.name,
+    'priceKobo',o.price_kobo,'turnaroundHours',o.turnaround_hours)
+    ORDER BY l.name) AS offerings
+   FROM tests t JOIN lab_offerings o ON o.test_id=t.id AND o.active
+   JOIN laboratories l ON l.id=o.lab_id AND l.active
+   WHERE t.id=$1 AND t.active GROUP BY t.id,t.name,t.code,t.specimen_type`,[id]);
+  if(!r.rows[0])throw new NotFoundException('Test not offered');
+  return {data:r.rows[0]};
+ }
  async zones(){
   const r=await this.db.query('SELECT id,code,name FROM service_zones WHERE active ORDER BY name');
   return {data:r.rows};
