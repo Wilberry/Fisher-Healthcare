@@ -56,6 +56,31 @@ Evidence is saved under `.verification/postgres-preflight-*/`, particularly `pos
 
 The full verifier also captures `postgres.log`, `postgres-state.txt`, and `local-resources.txt` on failure, before cleaning up its own uniquely named container.
 
+## Focused dependency audit before the full run
+
+Once an earlier full verification has passed functionality but failed dependency
+security, avoid repeating long builds just to confirm the resolution graph.
+From the repository branch with the exact expected SHA:
+
+```bash
+FISHER_EXPECTED_COMMIT="<approved 40-character SHA>" \
+  bash scripts/verify-phase1-dependencies-local.sh
+```
+
+The focused runner requires Node 22 and pnpm 9.15.9. It saves a copy of the
+untracked lockfile before regenerating it, confirms patched transitive versions
+using `scripts/check-dependency-resolution.mjs`, and executes **both** the
+production-only and full dependency audits. It does not build applications,
+start or delete Docker containers, or modify tracked/generated Next.js files.
+Its logs and summary are saved in the ignored `.verification/security-*/` folder.
+A nonzero audit result is reported as a real failure, never an automatic waiver.
+
+Until the upstream `braces` advisory is resolved or explicitly dispositioned,
+the full audit may remain red even if the production audit clears. Do not mark
+Phase 1 as accepted solely because the production dependency graph passes.
+Only resume the expensive full acceptance script once the remaining security
+findings are understood and a valid resolution is approved.
+
 ## Repository and acceptance requirements
 
 The first clean run may generate `pnpm-lock.yaml` and `docs/api/openapi.json`. These outputs require review and a subsequent commit. **A successful first run without a committed lockfile is not a reproducible phase acceptance.**
