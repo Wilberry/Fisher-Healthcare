@@ -1,38 +1,45 @@
-# Phase 1 implementation status
+# Fisher Healthcare — Phase 1 Implementation Status
 
-**Status: IN PROGRESS — acceptance gate OPEN.**
+**Programme phase:** Product foundation, user experience and technical architecture  
+**Current status:** **Implementation continuing; acceptance gate OPEN**  
+**Verification authority:** Local exact-commit engineering tests (GitHub Actions unavailable due to billing)
 
-## Committed foundations
-- pnpm/Turborepo workspace and strict TypeScript baseline.
-- Minimal Next.js patient, operations and field app entrypoints (not functional applications).
-- NestJS API bootstrap and basic health endpoint.
-- Worker bootstrap with no active processing.
-- Shared design tokens.
-- Initial PostgreSQL domain schema in Drizzle and matching initial SQL DDL (not migration-tested).
-- Initial patient relationship authorization policy separating booking from result visibility, with unit tests.
-- Explicit staff capability policy with negative tests; no administrator bypass for clinical result release.
-- Fail-closed OIDC JWT verifier and guarded API identity session diagnostic endpoint, with authorization-header tests. Provider configuration and end-to-end identity verification remain pending.
-- Zod boundary contracts for quote requests, currency and booking status, with unit tests.
-- Disposable PostgreSQL Docker Compose file and guarded migration verification script.
-- Second SQL migration for integrity constraints and append-only audit/custody event protection.
-- GitHub Actions CI workflow and architecture decision records.
-- Verification plan: [Phase 1 verification](phase-1-verification-plan.md).
+## Foundation delivered in source
 
-## Incomplete / not verified
-- No pnpm lockfile or verified reproducible dependency installation.
-- CI now provisions disposable PostgreSQL and attempts both SQL migrations, but CI outcomes, TypeScript builds, SQL migrations and rollback have not been verified successfully against an isolated checkout.
-- OIDC JWT verification and an authentication-only API guard are implemented at the source level; real provider configuration, token/key-rotation integration tests, session lifecycle, privileged MFA, database-backed authorization and protected domain API guards remain missing.
-- Drizzle schema and initial SQL DDL are committed; a second migration introduces database event immutability. Schema drift detection, migration tracking, event protection verification and end-to-end authorization enforcement still require implementation and verification.
-- Shared accessible component library, complete UX flows and field offline synchronization are missing.
-- No full OpenAPI generator, durable queue/outbox implementation, API domain services or integration/E2E tests. Initial schema declaration tests have been committed but not executed.
-- Deployment configuration, secrets, monitoring and production readiness checks are incomplete.
+| Workstream | Implemented foundation | Acceptance status |
+| --- | --- | --- |
+| Product and architecture | Product specifications, phased roadmap, architectural decision records, domain workflows, service experience blueprints | Documented; business and clinical reviews remain |
+| Applications | Next.js patient, operations and field interfaces, shared branding and accessible component primitives | Source committed; production build and accessibility review pending |
+| Backend | NestJS API, health and identity endpoints, standard error handling, OpenAPI generator | Source committed; API build, generated specification review and smoke tests pending |
+| Identity and authorization | OIDC signature verification, issuer/audience validation, staff MFA policy, database-backed patient and staff permissions | Synthetic test code committed; execution and provider onboarding pending |
+| Data services | PostgreSQL/Drizzle schema, append-only audit/custody constraints, checksummed migrations, synthetic-only fixtures | SQL committed; real migration and rollback tests pending |
+| Background processing | PostgreSQL durable outbox, lease fencing, retries and dead-letter behavior | Implementation and synthetic concurrency tests committed; execution pending |
+| Engineering standards | TypeScript, monorepo tasks, ESLint, unit/integration tests and synthetic isolation controls | Exact-commit local evidence pending |
+| Observability | Restricted structured operational event logger designed not to accept patient payloads | Source and unit tests committed; execution pending |
+| Infrastructure | Preview Docker configuration, disposable PostgreSQL verification, local build and smoke-test script | Local execution pending |
 
-**Safety gate:** No real patient, clinical, payment or operational data. Do not deploy as a healthcare service.
+## Verification approach
 
-## Next acceptance work
-1. Reproducible install and committed lockfile; run CI and fix all build/typecheck/migration failures.
-2. Verify disposable PostgreSQL migrations, constraints and schema/SQL parity; establish forward-only migration tooling.
-3. Verify OIDC authentication against an actual provider and implement database-backed server-side authorization with negative integration tests.
-4. Complete shared design system, contracts, and documented UX flows.
-5. Implement/test durable jobs, integration boundaries, observability and deployable staging.
-6. Run and record end-to-end verification against exact commit, then request Phase 1 acceptance.
+GitHub Actions is disabled as an automatic acceptance mechanism because billing currently blocks its use. The company will conduct Phase 1 engineering verification on a controlled local workstation using the [Phase 1 local verification procedure](operations/phase-1-local-verification.md).
+
+The local verifier is committed as `scripts/verify-phase1-local.sh`. It builds sequentially and starts only one isolated PostgreSQL container; it does not stop unrelated Docker services.
+
+## Open acceptance items
+
+1. Generate, review, and commit a reproducible `pnpm-lock.yaml`.
+2. Run the exact-commit local verification pipeline and resolve all installation, typecheck, lint, test, migration, rollback, security audit, build and smoke-test failures.
+3. Generate and review `docs/api/openapi.json`; commit a reproducible API contract snapshot.
+4. Confirm PostgreSQL schema constraints, migration tracking, results ownership, audit immutability, and worker concurrency behavior through executed tests.
+5. Confirm patient and staff authorization with synthetic tokens, including revoked access, cross-patient denial and verified multi-factor staff access.
+6. Review responsive patient, operations and field foundations for accessibility and security boundaries.
+7. Record the final local verification results against a fixed commit and complete Phase 1 approval.
+
+## Scope boundaries
+
+Phase 1 does not activate customer orders, real collection assignments, clinical result downloads, online payments or partner laboratory processing. Production identity-provider contracts, secure result document delivery, operational and clinical processes, and payment settlement have dedicated future milestones.
+
+**Safety status:** No live patient, clinical, payment, or operational data is authorized in the development and test environments. Fisher Healthcare is not yet approved for live healthcare delivery.
+
+## Phase closure
+
+Phase 1 can be marked complete only when all acceptance requirements are verified and recorded. A committed implementation, absence of CI errors, or unexecuted test specification is not sufficient evidence of completion.
