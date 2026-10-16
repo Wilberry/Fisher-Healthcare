@@ -13,7 +13,8 @@
     "next": "^15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@fisher/ui": "workspace:*"
+    "@fisher/ui": "workspace:*",
+    "jose": "^5.9.6"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
