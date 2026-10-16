@@ -7,3 +7,6 @@ coverage/
 !.env.example
 *.tsbuildinfo
 .DS_Store
+
+# Exact-commit local verification outputs; never commit logs or database evidence
+.verification/
