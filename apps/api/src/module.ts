@@ -7,6 +7,8 @@ import { AccessController } from './access.controller';
 import { FoundationController } from './foundation.controller';
 import { BookingService } from './booking.service';
 import { BookingPatientController, BookingPublicController } from './booking.controller';
+import { PaymentService } from './payment.service';
+import { PaymentPatientController, PaymentWebhookController } from './payment.controller';
 
 @Controller('health')
 class HealthController {
@@ -17,7 +19,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController],
-  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService]
+  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController],
+  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PaymentService]
 })
 export class AppModule {}
