@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { authCookieOptions, cookieNames, exchangeCode, loginConfig, unseal, seal, safeLocalRedirect } from '../../../lib/patient-auth';
+import { authCookieOptions, cookieNames, exchangeCode, loginConfig, unseal, seal, safeLocalRedirect, provisionPatientAccount } from '../../../lib/patient-auth';
 export async function GET(request:NextRequest){
  const cfg=loginConfig();
  if(!cfg)return NextResponse.json({error:'Patient sign-in unavailable'},{status:503});
@@ -15,6 +15,7 @@ export async function GET(request:NextRequest){
  }
  try{
   const session=await exchangeCode(code,pending);
+  await provisionPatientAccount(session.accessToken);
   const destination=new URL(safeLocalRedirect(pending.next),cfg.origin);
   const response=NextResponse.redirect(destination);
   response.cookies.delete(cookieNames().pending);

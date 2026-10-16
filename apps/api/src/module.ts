@@ -11,6 +11,8 @@ import { PaymentService } from './payment.service';
 import { PaymentPatientController, PaymentWebhookController } from './payment.controller';
 import { PatientsController } from './patients.controller';
 import { PatientsService } from './patients.service';
+import { AccountProvisioningService } from './account-provisioning.service';
+import { AccountProvisioningController } from './account-provisioning.controller';
 
 @Controller('health')
 class HealthController {
@@ -21,7 +23,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController],
-  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PaymentService, PatientsService]
+  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController],
+  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PaymentService, PatientsService, AccountProvisioningService]
 })
 export class AppModule {}

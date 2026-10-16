@@ -120,3 +120,15 @@ export function crossSiteRequest(request:Request):boolean{
  const origin=request.headers.get('origin');
  return !origin || origin!==new URL(request.url).origin;
 }
+
+export async function provisionPatientAccount(accessToken:string):Promise<void>{
+ const root=process.env.FISHER_API_SERVER_URL;
+ if(!root)throw new Error('API server unavailable');
+ const base=new URL(root);
+ if(!['http:','https:'].includes(base.protocol))throw new Error('API URL invalid');
+ if(process.env.NODE_ENV==='production' && base.protocol!=='https:')throw new Error('Secure API required');
+ const url=new URL('/api/v1/me/bootstrap',base);
+ const result=await fetch(url,{method:'POST',headers:{authorization:'Bearer '+accessToken},
+  cache:'no-store',signal:AbortSignal.timeout(8000)});
+ if(!result.ok)throw new Error('Patient account provisioning unavailable');
+}
