@@ -1,9 +1,12 @@
+import { ApiBearerAuth, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { Controller, Get, Param, ParseUUIDPipe, Req, UseGuards, BadRequestException } from '@nestjs/common';
 import { AccessService, STAFF_CAPABILITIES } from './access.service';
 import { IdentityGuard, type AuthenticatedRequest } from './identity.guard';
 import type { Capability } from '@fisher/auth';
 import { requireStaffMfa } from './identity';
 
+@ApiBearerAuth()
+@ApiUnauthorizedResponse({ description: 'Bearer authentication required' })
 @Controller('access')
 @UseGuards(IdentityGuard)
 export class AccessController {
