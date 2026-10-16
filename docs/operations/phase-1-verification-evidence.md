@@ -145,3 +145,18 @@ The local lockfile resolution reported Vitest 4.1.12 expecting Vite 6/7/8 while 
 - Updated both package build commands to invoke the build-only configuration. No local generated files were removed, and dependency security checks were not bypassed.
 
 **Acceptance status:** OPEN. The next verification should first run the two affected package tests and then re-execute the full exact-commit script, collecting security and smoke evidence plus any remaining database or test failures. The uncommitted resolved lockfile and generated configuration still require review and final committed acceptance.
+
+## Round 8 — 16 October 2026
+
+**Pinned commit:** `dc26f0cd5773cc95f32cb4ee4d9bcd0bc385783e`  
+**Local run:** `phase1-20261016-203835`, from the user-provided local summary and audit logs.
+
+**Passed:** Focused `@fisher/auth` (7) and `@fisher/contracts` (5) tests; the consolidated run's lint, typecheck, build, OpenAPI generation, API/web smoke, PostgreSQL migrations and complete workspace test steps.
+
+**Failed security acceptance:** Production audit **27** advisories (2 low, 13 moderate, **12 high**, 0 critical); full audit **29** advisories (2 low, 14 moderate, **13 high**, 0 critical). The full dependency security gate remains strict and failed correctly.
+
+The production high-severity findings resolve to four installed dependency versions: `multer@2.0.2` (six advisories), `lodash@4.17.21` (one), `js-yaml@4.1.0` (three), and `postcss@8.4.31` (two). All four packages already had patched minimums documented, but these did not take effect under the pinned pnpm 9 workspace configuration. The additional full-only high finding is the unpatched `braces@3.0.3` used by Next.js ESLint tooling.
+
+**Repair committed after Round 8:** Move overrides to root `package.json` under `pnpm.overrides` for pinned pnpm 9.15.9; keep `pnpm-workspace.yaml` focused on workspace membership. Fail early with `scripts/check-dependency-resolution.mjs` unless the resolved lockfile has effective overrides and all four vulnerable production dependency groups and Vite satisfy their fixed minimums.
+
+**Remaining requirements:** Prove resolution with a local refreshed lockfile and both audits; separately handle the unpatched `braces` development-only advisory without weakening or bypassing the full audit; review and commit generated lockfile, OpenAPI and known Next.js framework changes; run final verification on the resulting clean pinned commit. None of these later actions is marked complete by Round 8's summary.
