@@ -86,6 +86,7 @@ export class GuestBookingService implements OnModuleDestroy {
   if(!parsed.success)throw new BadRequestException('Invalid verification payload');
   const {requestId,code}=parsed.data;
   const pool=this.database(),c=await pool.connect();
+  let committed=false;
   try{
    await c.query('BEGIN');
    try{
@@ -94,23 +95,22 @@ export class GuestBookingService implements OnModuleDestroy {
      [requestId])).rows[0];
     if(!row)throw new UnauthorizedException('Invalid or expired verification');
     if(!cfg.allow.includes(row.email))throw new UnauthorizedException('Unapproved synthetic recipient');
-    if(row.verified_at){await c.query('COMMIT');return {requestId,status:'pending_review'};}
+    if(row.verified_at){await c.query('COMMIT');committed=true;return {requestId,status:'pending_review'};}
     if(row.attempts>=5||row.expires_at<=new Date())throw new UnauthorizedException('Invalid or expired verification');
     const matches=timingSafeEqual(Buffer.from(row.code_hash,'hex'),Buffer.from(digest(code,cfg.pepper),'hex'));
     if(!matches){
      await c.query('UPDATE guest_booking_requests SET attempts=attempts+1 WHERE id=$1',[requestId]);
-     await c.query('COMMIT');
+     await c.query('COMMIT');committed=true;
      throw new UnauthorizedException('Invalid or expired verification');
     }
     await c.query(`UPDATE guest_booking_requests SET verified_at=clock_timestamp(),
        status='pending_review',updated_at=clock_timestamp() WHERE id=$1`,[requestId]);
     await c.query('INSERT INTO outbox(event_type,payload) VALUES($1,$2::jsonb)',
      ['guest.booking_verified',JSON.stringify({requestId})]);
-    await c.query('COMMIT');
+    await c.query('COMMIT');committed=true;
     return {requestId,status:'pending_review'};
    }catch(e){
-    // A deliberate wrong-code commit has already ended its transaction.
-    if((e as Error).message!=='Invalid or expired verification')await c.query('ROLLBACK');
+    if(!committed)await c.query('ROLLBACK');
     throw e;
    }
   }finally{c.release();}

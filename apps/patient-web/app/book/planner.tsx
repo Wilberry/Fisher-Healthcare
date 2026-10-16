@@ -78,6 +78,7 @@ export function BookingPlanner({tests,labs,zones}:Props){
    <p>Valid until {new Date(quote.expiresAt).toLocaleString('en-NG',{timeZone:'Africa/Lagos'})} (Lagos time), unless the slot fills first.</p>
    <p>To reserve a slot, sign in and confirm current authorization for the patient. This service is in synthetic development only.</p>
    <a className="fisher-button fisher-button--primary" href={'/book/confirm?quoteId='+encodeURIComponent(quote.quoteId)}>Continue with verified patient</a>
+   <p><a href={'/book/guest?quoteId='+encodeURIComponent(quote.quoteId)}>Continue as a guest with email verification (assisted request)</a></p>
   </section>}
  </div>;
 }
