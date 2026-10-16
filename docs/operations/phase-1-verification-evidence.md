@@ -103,3 +103,30 @@ The critical findings trace to old Vitest and Tinypool paths; high findings incl
 **Security handling:** The remaining upstream unpatched `braces` advisory cannot be cleared by a harmless version bump. See [Phase 1 Dependency Remediation](../security/phase-1-dependency-remediation.md) for current dependency exposure, remediation status and acceptance requirements.
 
 **Acceptance status: OPEN.** The dependency upgrades, remaining vulnerability count, and runtime smoke tests have not yet been verified at the new commit. A final clean exact-commit run and a committed lockfile are still required.
+
+## Round 6 — 16 October 2026
+
+**Pinned commit:** `67970de0690d9b3e60a4d9548cf8efec1eb45776`  
+**Observed outcome:** FAIL at disposable PostgreSQL startup; actual underlying cause remains undetermined because the prior verifier removed its container without preserving Docker logs.
+
+| Gate | Actual result for Round 6 |
+| --- | --- |
+| Lockfile resolution and frozen installation | Passed |
+| Lint | Passed — 11/11 tasks |
+| TypeScript verification | Passed — 15/15 tasks including prerequisite builds |
+| Production build | Passed — 11/11 tasks |
+| Disposable PostgreSQL startup | **Failed** — readiness not reached |
+| Migration, integration tests, OpenAPI, production/full audit and HTTP smoke checks | **Not reached in this run** |
+
+The local lockfile resolution reported Vitest 4.1.12 expecting Vite 6/7/8 while `vite@5.4.21` was installed as a peer. This is a dependency compatibility warning, not the observed PostgreSQL failure. The security-remediation commit therefore remains unverified for the database, test and audit gates.
+
+**Subsequent engineering changes:**
+- Added `vite@^6.4.3` as an explicit development peer dependency in the API workspace; this still requires local verification.
+- Added a fast, single-container, no-build diagnostic (`scripts/diagnose-postgres-local.sh`) which records PostgreSQL logs, container exit/OOM state, Docker capacity and host resource snapshots. It removes only its uniquely named synthetic test container after saving evidence.
+- Updated the full verifier to capture Docker startup and shutdown evidence before cleaning up its own container, detect early exit, and make the failed state visible.
+- Reordered the consolidated verification to generate OpenAPI, collect production/full security audits and run API/web smoke checks **before** PostgreSQL migrations/tests. A database startup issue will therefore not obscure independent runtime/security checks during the next full run.
+- Bound local API smoke testing explicitly to `127.0.0.1`, without changing deployment defaults or stopping unrelated containers.
+
+**Next action:** Run only the quick PostgreSQL diagnostic first on the local workstation. Do not repeat a four-minute build until the container startup condition has been observed. If it passes, proceed to consolidated exact-commit verification; if it fails, preserve the generated diagnostic directory and address the actual resource or Docker problem. No presumed root cause or security acceptance is recorded.
+
+**Phase 1 acceptance:** OPEN. The generated untracked lockfile and Next.js generated modifications are preserved; they require review and a committed clean final run.
