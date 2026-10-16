@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, OnModuleDestroy, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, OnModuleDestroy, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { Pool } from 'pg';
 import { BookingService } from './booking.service';
 
@@ -85,8 +85,8 @@ export class PaymentService implements OnModuleDestroy {
   try{u=new URL(checkoutUrl);}catch{throw new ServiceUnavailableException('Invalid checkout URL');}
   if(u.protocol!=='https:' || u.hostname!=='checkout.paystack.com')
    throw new ServiceUnavailableException('Untrusted checkout URL');
-  await this.db.query("UPDATE payments SET status='pending',updated_at=now() WHERE id=$1 AND status='initiating'",[paymentId!]);
-  return {paymentId:paymentId!,bookingId,authorizationUrl:checkoutUrl};
+  await this.db.query("UPDATE payments SET status='pending',updated_at=now() WHERE id=$1 AND status='initiating'",[paymentId]);
+  return {paymentId,bookingId,authorizationUrl:checkoutUrl};
  }
  private async verifyWithProvider(reference:string,key:string):Promise<Verified>{
   if(!/^[A-Za-z0-9._-]{1,200}$/.test(reference))throw new BadRequestException('Invalid reference');

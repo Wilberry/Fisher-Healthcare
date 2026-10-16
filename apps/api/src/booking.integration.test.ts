@@ -80,7 +80,7 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
   const result=await bookings.commit(who.sub,draft.value.draftId,'synthetic_booking_key_01');
   winner={sub:who.sub,draftId:draft.value.draftId,bookingId:result.bookingId};
   expect(result.status).toBe('awaiting_payment');
-  const second=await bookings.commit(who.sub,draft.value.draftId);
+  const second=await bookings.commit(who.sub,draft.value.draftId,'synthetic_booking_key_01');
   expect(second.bookingId).toBe(result.bookingId);
   const orders=await pool.query('SELECT COUNT(*)::integer AS count FROM orders WHERE slot_id=$1',[slotId]);
   expect(orders.rows[0].count).toBe(1);
