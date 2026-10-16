@@ -18,13 +18,19 @@ export function BookingConfirmation({quoteId,eligible,paymentAvailable}:Props){
  const [created,setCreated]=useState<{bookingId:string;status:string}|null>(null);
  const [checkout,setCheckout]=useState('');
  const checkoutKey=useRef<string|null>(null);
+ const draftRef=useRef<string|null>(null);
+ const commitKey=useRef<string|null>(null);
  async function commit(){
   if(busy||!patientId||created)return;
   setBusy(true);setError('');
   try{
-   const draft=await post('/api/phase2/private/draft',{quoteId,patientId,addressId});
-   if(typeof draft.draftId!=='string')throw new Error('Draft creation incomplete');
-   const booking=await post('/api/phase2/private/commit',{draftId:draft.draftId},crypto.randomUUID());
+   if(!draftRef.current){
+    const draft=await post('/api/phase2/private/draft',{quoteId,patientId,addressId});
+    if(typeof draft.draftId!=='string')throw new Error('Draft creation incomplete');
+    draftRef.current=draft.draftId;
+   }
+   commitKey.current??=crypto.randomUUID();
+   const booking=await post('/api/phase2/private/commit',{draftId:draftRef.current},commitKey.current);
    if(typeof booking.bookingId!=='string'||typeof booking.status!=='string')
     throw new Error('Unable to confirm booking status');
    setCreated({bookingId:booking.bookingId,status:booking.status});
@@ -47,13 +53,13 @@ export function BookingConfirmation({quoteId,eligible,paymentAvailable}:Props){
   {!created?<fieldset><legend>Authorized patient</legend>
    <label className="fisher-booking-label" htmlFor="patient">Who is the appointment for?</label>
    <select id="patient" value={patientId} onChange={e=>{
-     const next=e.target.value;setPatientId(next);
+     const next=e.target.value;setPatientId(next);draftRef.current=null;commitKey.current=null;
      setAddressId(eligible.find(v=>v.id===next)?.addresses[0]?.id??'');
     }}>
     {eligible.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
    </select>
    <label className="fisher-booking-label" htmlFor="collection-address">Verified collection location</label>
-   <select id="collection-address" value={addressId} onChange={e=>setAddressId(e.target.value)}>
+   <select id="collection-address" value={addressId} onChange={e=>{setAddressId(e.target.value);draftRef.current=null;commitKey.current=null;}}>
     {availableAddresses.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
    </select>
    <p>Quotation validity and slot capacity will be checked again on the server. Payment is never inferred from a browser redirect.</p>

@@ -8,7 +8,7 @@ const suite=process.env.FISHER_DISPOSABLE_DB_ACK==='disposable-test-only'
   && process.env.DATABASE_URL?describe:describe.skip;
 suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',()=>{
  const one={sub:'synthetic-a-'+randomUUID(),id:randomUUID(),patientId:randomUUID(),addressId:randomUUID()};
- const two={sub:'synthetic-b-'+randomUUID(),id:randomUUID(),patientId:randomUUID()};
+ const two={sub:'synthetic-b-'+randomUUID(),id:randomUUID(),patientId:randomUUID(),addressId:randomUUID()};
  const labId=randomUUID(),testId=randomUUID(),zoneId=randomUUID(),slotId=randomUUID();
  let pool:Pool,bookings:BookingService,payments:PaymentService;
  let winner:{sub:string;draftId:string;bookingId:string};
