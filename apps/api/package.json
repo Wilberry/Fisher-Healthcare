@@ -20,7 +20,8 @@
     "@fisher/auth": "workspace:*",
     "@fisher/contracts": "workspace:*",
     "pg": "^8.13.1",
-    "@nestjs/swagger": "^7.4.2"
+    "@nestjs/swagger": "^7.4.2",
+    "@fisher/observability": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
