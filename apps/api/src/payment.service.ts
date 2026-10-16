@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, OnModuleDestroy, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
-import { Pool, type PoolClient } from 'pg';
+import { Pool } from 'pg';
 import { BookingService } from './booking.service';
 
 const VERIFY_BASE='https://api.paystack.co/transaction/verify/';
@@ -47,8 +47,8 @@ export class PaymentService implements OnModuleDestroy {
   if(!eligible.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(eligible.email))
    throw new ConflictException('Verified contact email required');
   const c=await this.db.connect();
-  let ref:string;
-  let paymentId:string;
+  let ref='';
+  let paymentId='';
   try{
    await c.query('BEGIN');
    const o=await c.query<{status:string;payment_expires_at:Date;total_kobo:number}>(
