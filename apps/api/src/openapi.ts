@@ -42,6 +42,31 @@ function validateDocument(document: OpenAPIObject): void {
     }
   }
 
+  const phase2Get = [
+    '/api/v1/catalog/tests','/api/v1/catalog/labs','/api/v1/service-zones',
+    '/api/v1/patients','/api/v1/me/bookings','/api/v1/me/notifications',
+    '/api/v1/bookings/{id}','/api/v1/bookings/{id}/receipt','/api/v1/payments/{id}'
+  ];
+  const phase2Post = [
+    '/api/v1/availability/search','/api/v1/quotes','/api/v1/booking-drafts',
+    '/api/v1/bookings','/api/v1/payments/checkout','/api/v1/webhooks/payments/paystack'
+  ];
+  for(const path of phase2Get) {
+    if(!document.paths[path]?.get)throw new OpenApiContractError('Phase 2 GET route missing: '+path);
+  }
+  for(const path of phase2Post) {
+    if(!document.paths[path]?.post)throw new OpenApiContractError('Phase 2 POST route missing: '+path);
+  }
+  for(const [path,method] of [
+    ['/api/v1/patients','get'],['/api/v1/me/bookings','get'],
+    ['/api/v1/bookings/{id}','get'],['/api/v1/payments/{id}','get'],
+    ['/api/v1/bookings','post'],['/api/v1/booking-drafts','post'],
+    ['/api/v1/payments/checkout','post']
+  ] as const) {
+    const auth=document.paths[path]?.[method]?.security;
+    if(!auth?.some(s=>Object.hasOwn(s,'bearer')))
+      throw new OpenApiContractError('Missing Phase 2 bearer metadata: '+path);
+  }
   if (!document.components?.securitySchemes?.bearer) {
     throw new OpenApiContractError('Required bearer authentication scheme is not documented');
   }

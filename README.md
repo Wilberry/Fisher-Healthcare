@@ -76,3 +76,7 @@ The documentation in this repository defines the company's intended product capa
 [Phase 1 Implementation Status](docs/phase-1-implementation-status.md) · [Phase 1 Verification Plan](docs/phase-1-verification-plan.md) · [Local Verification Procedure](docs/operations/phase-1-local-verification.md)
 
 Phase 1 acceptance verification is conducted locally while GitHub Actions is unavailable due to billing restrictions. The consolidated verification entry point is `scripts/verify-phase1-local.sh`; results require exact-commit review before merging into `main`.
+
+
+## Concurrent Phase 2 work
+Phase 2 is being implemented independently on `feat/phase2-patient-booking-payment`, founded on a fixed Phase 1 commit while Phase 1 local verification remains open. This is **not** a launch authorization. The customer discovery/booking code, payment safeguards, known gaps and verification boundary are recorded in [Phase 2 Engineering Status](docs/phase-2-implementation-status.md). Phase 2 must satisfy its own local exact-commit acceptance and cannot merge before accepted Phase 1 foundations.
