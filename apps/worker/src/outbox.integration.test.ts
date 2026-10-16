@@ -55,6 +55,42 @@ suite.sequential('PostgreSQL outbox fencing', () => {
     expect(row.rows[0]?.last_error).toBe('UNSUPPORTED_EVENT');
   });
 
+  it('reclaims an expired lease while rejecting the old worker acknowledgment', async () => {
+    const id = await enqueue();
+    const first = await claimNext(pool, 5);
+    expect(first?.id).toBe(id);
+    await pool.query(
+      `UPDATE outbox SET lease_expires_at=now()-interval '1 second' WHERE id=$1`,
+      [id]
+    );
+    const replacement = await claimNext(pool, 5);
+    expect(replacement?.id).toBe(id);
+    expect(replacement?.lease_token).not.toBe(first?.lease_token);
+    expect(await completeClaim(pool, first!)).toBe(false);
+    expect(await completeClaim(pool, replacement!)).toBe(true);
+  });
+
+  it('dead-letters handler failures after the configured attempt limit', async () => {
+    const id = await enqueue();
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      if (attempt > 1) {
+        await pool.query('UPDATE outbox SET available_at=now() WHERE id=$1', [id]);
+      }
+      const claim = await claimNext(pool, 5);
+      expect(claim?.id).toBe(id);
+      expect(claim?.attempts).toBe(attempt);
+      expect(await failClaim(pool, claim!, 'HANDLER_FAILED', 5)).toBe(true);
+    }
+    const row = await pool.query(
+      'SELECT dead_lettered_at, attempts, last_error FROM outbox WHERE id=$1',
+      [id]
+    );
+    expect(row.rows[0]?.attempts).toBe(5);
+    expect(row.rows[0]?.dead_lettered_at).toBeTruthy();
+    expect(row.rows[0]?.last_error).toBe('HANDLER_FAILED');
+    expect(await claimNext(pool)).toBeUndefined();
+  });
+
   it('requeues a handler failure with bounded retry delay', async () => {
     const id = await enqueue();
     const claim = await claimNext(pool);
