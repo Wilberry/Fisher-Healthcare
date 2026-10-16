@@ -90,12 +90,12 @@ export class GuestBookingService implements OnModuleDestroy {
   try{
    await c.query('BEGIN');
    try{
-    const row=(await c.query<{email:string;code_hash:string;attempts:number;verified_at:Date|null;expires_at:Date}>(
-     'SELECT email,code_hash,attempts,verified_at,expires_at FROM guest_booking_requests WHERE id=$1 FOR UPDATE',
+    const row=(await c.query<{email:string;code_hash:string;attempts:number;verified_at:Date|null;expires_at:Date;status:string}>(
+     'SELECT email,code_hash,attempts,verified_at,expires_at,status FROM guest_booking_requests WHERE id=$1 FOR UPDATE',
      [requestId])).rows[0];
     if(!row)throw new UnauthorizedException('Invalid or expired verification');
     if(!cfg.allow.includes(row.email))throw new UnauthorizedException('Unapproved synthetic recipient');
-    if(row.verified_at){await c.query('COMMIT');committed=true;return {requestId,status:'pending_review'};}
+    if(row.verified_at){await c.query('COMMIT');committed=true;return {requestId,status:row.status};}
     if(row.attempts>=5||row.expires_at<=new Date())throw new UnauthorizedException('Invalid or expired verification');
     const matches=timingSafeEqual(Buffer.from(row.code_hash,'hex'),Buffer.from(digest(code,cfg.pepper),'hex'));
     if(!matches){

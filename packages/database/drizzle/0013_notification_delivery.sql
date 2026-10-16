@@ -4,6 +4,8 @@ ALTER TABLE notification_intents
   ADD COLUMN lease_token uuid,
   ADD COLUMN lease_expires_at timestamptz,
   ADD COLUMN first_attempt_at timestamptz,
+  ADD COLUMN next_attempt_at timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN recipient_email varchar(320),
   ADD COLUMN last_attempt_at timestamptz;
 ALTER TABLE notification_intents ADD CONSTRAINT notification_lease_pair
  CHECK ((lease_token IS NULL) = (lease_expires_at IS NULL));

@@ -81,7 +81,13 @@ export const notificationIntents=pgTable('notification_intents',{
  channel:varchar('channel',{length:20}).notNull(),template:varchar('template',{length:60}).notNull(),
  status:varchar('status',{length:20}).notNull().default('pending'),
  createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
- sentAt:timestamp('sent_at',{withTimezone:true}),providerReceipt:text('provider_receipt')
+ sentAt:timestamp('sent_at',{withTimezone:true}),providerReceipt:text('provider_receipt'),
+ attempts:integer('attempts').notNull().default(0),
+ leaseToken:uuid('lease_token'),leaseExpiresAt:timestamp('lease_expires_at',{withTimezone:true}),
+ firstAttemptAt:timestamp('first_attempt_at',{withTimezone:true}),
+ lastAttemptAt:timestamp('last_attempt_at',{withTimezone:true}),
+ nextAttemptAt:timestamp('next_attempt_at',{withTimezone:true}).notNull().defaultNow(),
+ recipientEmail:varchar('recipient_email',{length:320})
 },t=>[uniqueIndex('notification_order_channel_template').on(t.orderId,t.channel,t.template)]);
 export const paymentReviewAlerts=pgTable('payment_review_alerts',{
  id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),
@@ -131,3 +137,21 @@ export const catalogReviewRequests=pgTable('catalog_review_requests',{
  approvedAt:timestamp('approved_at',{withTimezone:true}),
  createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
 },t=>[uniqueIndex('catalog_review_resource_unique').on(t.resourceType,t.resourceId)]);
+
+export const guestBookingRequests=pgTable('guest_booking_requests',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ email:varchar('email',{length:320}).notNull(),
+ quoteId:uuid('quote_id').notNull().references(()=>bookingQuotes.id),
+ codeHash:varchar('code_hash',{length:64}).notNull(),
+ expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),
+ attempts:integer('attempts').notNull().default(0),
+ verifiedAt:timestamp('verified_at',{withTimezone:true}),
+ status:varchar('status',{length:24}).notNull().default('awaiting_email'),
+ ...timestamps
+},t=>[index('guest_booking_throttle').on(t.email,t.createdAt)]);
+export const guestBookingWorkItems=pgTable('guest_booking_work_items',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ requestId:uuid('request_id').notNull().references(()=>guestBookingRequests.id).unique(),
+ status:varchar('status',{length:24}).notNull().default('pending'),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+});
