@@ -96,7 +96,8 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
  });
  it('verifies a synthetic webhook twice without duplicate ledger entries or reservations',async()=>{
   const originalFetch=globalThis.fetch;
-  vi.stubGlobal('fetch',vi.fn(async (url:string,options?:RequestInit)=>{
+  let verifiedAmount=35000;
+  const providerFetch=vi.fn(async (url:string,options?:RequestInit)=>{
    if(url.endsWith('/transaction/initialize')){
     const b=JSON.parse(String(options?.body)) as {reference:string};
     return {ok:true,json:async()=>({status:true,data:{
@@ -107,16 +108,28 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
    if(url.includes('/transaction/verify/')){
     const reference=decodeURIComponent(url.split('/').at(-1)!);
     return {ok:true,json:async()=>({status:true,data:{
-     reference,amount:35000,currency:'NGN',domain:'test',status:'success',paid_at:'2026-10-16T00:00:00Z'
+     reference,amount:verifiedAmount,currency:'NGN',domain:'test',status:'success',paid_at:'2026-10-16T00:00:00Z'
     }})};
    }
    throw new Error('Unexpected external call');
-  }));
+  });
+  vi.stubGlobal('fetch',providerFetch);
   try{
    const checkout=await payments.checkout(winner.sub,winner.bookingId,'synthetic_checkout_key_01');
+   const repeated=await payments.checkout(winner.sub,winner.bookingId,'synthetic_checkout_key_01');
+   expect(repeated.paymentId).toBe(checkout.paymentId);
+   expect(repeated.authorizationUrl).toBe(checkout.authorizationUrl);
+   expect(providerFetch.mock.calls.filter(args=>args[0].endsWith('/transaction/initialize'))).toHaveLength(1);
+   await expect(payments.checkout(winner.sub,winner.bookingId,'synthetic_another_key_01')).rejects.toThrow();
    const reference=(await pool.query('SELECT provider_reference FROM payments WHERE id=$1',[checkout.paymentId])).rows[0].provider_reference as string;
    const raw=Buffer.from(JSON.stringify({event:'charge.success',data:{reference}}));
    const signature=createHmac('sha512',process.env.PAYSTACK_SECRET_KEY!).update(raw).digest('hex');
+   await expect(payments.webhook(raw,'invalid')).rejects.toThrow();
+   verifiedAmount=35001;
+   await expect(payments.webhook(raw,signature)).rejects.toThrow();
+   const unpaid=await pool.query('SELECT status FROM payments WHERE id=$1',[checkout.paymentId]);
+   expect(unpaid.rows[0].status).toBe('pending');
+   verifiedAmount=35000;
    await payments.webhook(raw,signature);
    await payments.webhook(raw,signature);
    const entries=await pool.query('SELECT amount_kobo FROM ledger_entries WHERE transaction_id=$1',[checkout.paymentId]);
@@ -127,6 +140,64 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
    expect(events.rows[0].count).toBe(1);
   }finally{vi.stubGlobal('fetch',originalFetch);}
  });
+
+ it('expired slot holds do not create orders and free the remaining capacity',async()=>{
+  const slot=randomUUID();
+  await pool.query(`INSERT INTO collection_slots(id,zone_id,lab_id,tier,starts_at,ends_at,cutoff_at,capacity,active)
+   VALUES($1,$2,$3,'regular',now()+interval '3 days',now()+interval '3 days 1 hour',
+   now()+interval '48 hours',1,true)`,[slot,zoneId,labId]);
+  const q=await bookings.quote({zoneId,slotId:slot,labId,serviceTier:'regular',testIds:[testId]});
+  const draft=await bookings.draft(one.sub,q.quoteId,one.patientId);
+  await pool.query("UPDATE slot_holds SET expires_at=clock_timestamp()-interval '1 second' WHERE draft_id=$1",[draft.draftId]);
+  await expect(bookings.commit(one.sub,draft.draftId,'synthetic_expired_hold_key')).rejects.toThrow('SLOT_HOLD_EXPIRED');
+  const vacancies=await bookings.availability(zoneId,labId,'regular');
+  expect(vacancies.data.find(s=>s.id===slot)?.remaining).toBe(1);
+  const orders=await pool.query('SELECT COUNT(*)::integer AS count FROM orders WHERE booking_draft_id=$1',[draft.draftId]);
+  expect(orders.rows[0].count).toBe(0);
+ });
+ it('late verified payment is recorded for manual review without confirming an appointment',async()=>{
+  const slot=randomUUID();
+  await pool.query(`INSERT INTO collection_slots(id,zone_id,lab_id,tier,starts_at,ends_at,cutoff_at,capacity,active)
+   VALUES($1,$2,$3,'regular',now()+interval '4 days',now()+interval '4 days 1 hour',
+    now()+interval '72 hours',1,true)`,[slot,zoneId,labId]);
+  const q=await bookings.quote({zoneId,slotId:slot,labId,serviceTier:'regular',testIds:[testId]});
+  const draft=await bookings.draft(two.sub,q.quoteId,two.patientId);
+  const order=await bookings.commit(two.sub,draft.draftId,'synthetic_late_booking_key');
+  const originalFetch=globalThis.fetch;
+  vi.stubGlobal('fetch',vi.fn(async (url:string,opts?:RequestInit)=>{
+   if(url.endsWith('/transaction/initialize')){
+    const body=JSON.parse(String(opts?.body)) as {reference:string};
+    return {ok:true,json:async()=>({status:true,data:{
+      reference:body.reference,authorization_url:'https://checkout.paystack.com/late-synthetic'
+    }})};
+   }
+   if(url.includes('/transaction/verify/')){
+    const reference=decodeURIComponent(url.split('/').at(-1)!);
+    return {ok:true,json:async()=>({status:true,data:{
+      reference,amount:35000,currency:'NGN',domain:'test',
+      status:'success',paid_at:'2026-10-16T00:00:00Z'
+    }})};
+   }
+   throw new Error('Unexpected provider request');
+  }));
+  try{
+   const checkout=await payments.checkout(two.sub,order.bookingId,'synthetic_late_checkout_key');
+   await pool.query("UPDATE orders SET payment_expires_at=clock_timestamp()-interval '1 second' WHERE id=$1",
+    [order.bookingId]);
+   const ref=(await pool.query('SELECT provider_reference FROM payments WHERE id=$1',[checkout.paymentId])).rows[0].provider_reference as string;
+   const raw=Buffer.from(JSON.stringify({event:'charge.success',data:{reference:ref}}));
+   const signature=createHmac('sha512',process.env.PAYSTACK_SECRET_KEY!).update(raw).digest('hex');
+   await payments.webhook(raw,signature);
+   const row=await pool.query('SELECT status FROM orders WHERE id=$1',[order.bookingId]);
+   expect(row.rows[0].status).toBe('exception');
+   const paid=await pool.query('SELECT status FROM payments WHERE id=$1',[checkout.paymentId]);
+   expect(paid.rows[0].status).toBe('paid');
+   const event=await pool.query("SELECT id FROM outbox WHERE event_type='payment.manual_review' AND payload->>'paymentId'=$1",
+    [checkout.paymentId]);
+   expect(event.rows).toHaveLength(1);
+  }finally{vi.stubGlobal('fetch',originalFetch);}
+ });
+
  it('does not grant caregivers result rights through booking access',async()=>{
   const relationship=await pool.query('SELECT can_book,can_view_results FROM patient_relationships WHERE user_id=$1',[one.id]);
   expect(relationship.rows[0]).toMatchObject({can_book:true,can_view_results:false});
