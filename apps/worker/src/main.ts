@@ -1,7 +1,7 @@
 import { writeOperationalRecord } from '@fisher/observability';
 import { Pool } from 'pg';
 import { processOne } from './outbox';
-import { bookingEventHandlers, supportCaseHandlers } from './booking-notifications';
+import { bookingEventHandlers, supportCaseHandlers, guestBookingHandlers } from './booking-notifications';
 import { dispatchNotification } from './notification-delivery';
 
 async function main(): Promise<void> {
@@ -22,7 +22,7 @@ async function main(): Promise<void> {
   try {
     while (running) {
       try {
-        const handled = await processOne(pool, {...bookingEventHandlers(pool),...supportCaseHandlers(pool)});
+        const handled = await processOne(pool, {...bookingEventHandlers(pool),...supportCaseHandlers(pool),...guestBookingHandlers(pool)});
         const mailed=await dispatchNotification(pool);
         if (!handled && !mailed) await new Promise(resolve => setTimeout(resolve, 1200));
       } catch {

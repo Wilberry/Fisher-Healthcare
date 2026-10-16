@@ -56,3 +56,22 @@ export function supportCaseHandlers(pool:Pool):Readonly<Record<string,OutboxHand
   }
  };
 }
+
+export function guestBookingHandlers(pool:Pool):Readonly<Record<string,OutboxHandler>>{
+ return {
+  'guest.booking_verified':async payload=>{
+   if(!payload||typeof payload!=='object'||!('requestId' in payload)||
+     typeof payload.requestId!=='string' ||
+     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.requestId))
+    throw new Error('Invalid guest handoff request');
+   const item=await pool.query(`INSERT INTO guest_booking_work_items(request_id)
+      SELECT id FROM guest_booking_requests WHERE id=$1 AND verified_at IS NOT NULL
+       AND status IN ('pending_review','in_review')
+      ON CONFLICT(request_id) DO NOTHING RETURNING id`,[payload.requestId]);
+   if(item.rowCount===0){
+    const previous=await pool.query('SELECT id FROM guest_booking_work_items WHERE request_id=$1',[payload.requestId]);
+    if(!previous.rows.length)throw new Error('Guest verification missing');
+   }
+  }
+ };
+}
