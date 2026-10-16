@@ -45,7 +45,8 @@ export default async function StaffConsole(){
         const type=typeof item.resource_type==='string'?item.resource_type:undefined;
         return <li key={id+j}><strong>{String(item.display_name??item.label??item.category??type??item.status??'Review')}</strong>
          <span>{id} · {String(item.status??'Pending')}</span>
-         <StaffAction id={id} action={q.getAction(item)} resourceType={q.resource?type:undefined}/>
+         <StaffAction id={id} action={q.getAction(item)}
+          {...(q.resource && type ? {resourceType:type} : {})}/>
         </li>;
        })}</ul>:<p>No pending records for your role.</p>}
       </Card>;
