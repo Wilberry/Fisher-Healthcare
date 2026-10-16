@@ -81,7 +81,7 @@ export default function Home() {
           <p className="fisher-eyebrow">Built for people and their families</p>
           <h2 className="fisher-section-title">A more connected diagnostic experience.</h2>
         </div>
-        <p className="fisher-lead">Fisher Healthcare aims to remove unnecessary friction between patients, sample collection, and partner laboratories. Our planned platform will support authorized family bookings while keeping each patient's clinical result access private and independently protected.</p>
+        <p className="fisher-lead">Fisher Healthcare aims to remove unnecessary friction between patients, sample collection, and partner laboratories. Our planned platform will support authorized family bookings while keeping each patient&apos;s clinical result access private and independently protected.</p>
       </div>
     </section>
   </SiteShell>;
