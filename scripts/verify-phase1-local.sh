@@ -58,8 +58,12 @@ require timeout
 # A failed first run may leave generated artifacts untracked; these do not count as acceptance.
 STATUS_LINES="$(git status --porcelain --untracked-files=all)"
 if [[ -n "$STATUS_LINES" ]]; then
-  UNEXPECTED_CHANGES="$(printf '%s\n' "$STATUS_LINES" | grep -vE '^\\?\\? (pnpm-lock\\.yaml|docs/api/openapi\\.json)$' || true)"
-  [[ -z "$UNEXPECTED_CHANGES" ]] || die "Unexpected worktree changes; do not reset or stash them automatically"
+  while IFS= read -r changed; do
+    case "$changed" in
+      '?? pnpm-lock.yaml'|'?? docs/api/openapi.json') ;;
+      *) die "Unexpected worktree change: $changed. Do not reset or stash changes automatically" ;;
+    esac
+  done <<< "$STATUS_LINES"
 fi
 [[ "$(git rev-parse --is-inside-work-tree)" == "true" ]] || die "No Git worktree"
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
