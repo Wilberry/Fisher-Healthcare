@@ -122,11 +122,15 @@ export class PaymentService implements OnModuleDestroy {
   const c=await this.db.connect();
   try{
    await c.query('BEGIN');
-   // Lock order before payment to match checkout lock order, preventing lock cycles.
+   // Resolve immutable order/slot identity before acquiring locks; lock slot, then order, then payment.
    const identified=await c.query<{id:string;order_id:string;amount_kobo:number}>(
     'SELECT id,order_id,amount_kobo FROM payments WHERE provider_reference=$1',[reference]);
    if(!identified.rows[0])throw new ConflictException('Unknown payment reference');
    const p=identified.rows[0];
+   // Capacity reconciliation and payment confirmation must serialize with new holds.
+   const link=await c.query<{slot_id:string|null}>('SELECT slot_id FROM orders WHERE id=$1',[p.order_id]);
+   if(!link.rows[0]?.slot_id)throw new ConflictException('Booking has no collection slot');
+   await c.query('SELECT id FROM collection_slots WHERE id=$1 FOR UPDATE',[link.rows[0].slot_id]);
    const order=await c.query<{status:string;payment_expires_at:Date;total_kobo:number}>(
     'SELECT status,payment_expires_at,total_kobo FROM orders WHERE id=$1 FOR UPDATE',[p.order_id]);
    const locked=await c.query<{status:string}>(
@@ -138,9 +142,11 @@ export class PaymentService implements OnModuleDestroy {
    await c.query('INSERT INTO payment_webhook_events(event_hash,provider_reference) VALUES($1,$2) ON CONFLICT DO NOTHING',
     [hash,reference]);
    await c.query("UPDATE payments SET status='paid',updated_at=now() WHERE id=$1",[p.id]);
-   const confirm=order.rows[0].status==='awaiting_payment' && order.rows[0].payment_expires_at>new Date();
-   if(confirm)await c.query("UPDATE orders SET status='confirmed',updated_at=now() WHERE id=$1",[p.order_id]);
-   else if(order.rows[0].status!=='confirmed')
+   const confirmed=await c.query(
+    "UPDATE orders SET status='confirmed',updated_at=now() WHERE id=$1 AND status='awaiting_payment' AND payment_expires_at>clock_timestamp() RETURNING id",
+    [p.order_id]);
+   const confirm=confirmed.rowCount===1;
+   if(!confirm && order.rows[0].status!=='confirmed')
     await c.query("UPDATE orders SET status='exception',updated_at=now() WHERE id=$1",[p.order_id]);
    // Equal and opposite, append-only accounting entries. Later reconciliation handles provider fees.
    await c.query(`INSERT INTO ledger_entries(transaction_id,account,amount_kobo)
