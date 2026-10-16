@@ -198,6 +198,15 @@ export class BookingService implements OnModuleDestroy {
     AND rel.verified_at IS NOT NULL AND rel.revoked_at IS NULL)`,[subject,id]);
   if(!r.rows[0])throw new NotFoundException('Booking not found');return {data:r.rows[0]};
  }
+ async notifications(subject:string){
+  const r=await this.db.query(`SELECT n.id,n.channel,n.template,n.status,n.created_at,n.sent_at,
+   n.order_id AS booking_id FROM notification_intents n JOIN orders o ON o.id=n.order_id
+   WHERE EXISTS(SELECT 1 FROM patient_relationships rel JOIN users u ON u.id=rel.user_id
+   WHERE rel.patient_id=o.patient_id AND u.identity_subject=$1 AND rel.can_book
+     AND rel.verified_at IS NOT NULL AND rel.revoked_at IS NULL)
+   ORDER BY n.created_at DESC LIMIT 50`,[subject]);
+  return {data:r.rows};
+ }
  async history(subject:string){
   const r=await this.db.query(`SELECT DISTINCT o.id,o.status,o.tier,o.total_kobo,o.currency,o.created_at
    FROM orders o JOIN patient_relationships rel ON rel.patient_id=o.patient_id

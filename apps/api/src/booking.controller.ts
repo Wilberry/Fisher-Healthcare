@@ -36,6 +36,9 @@ export class BookingPatientController {
   if(!key || !/^[A-Za-z0-9_-]{8,128}$/.test(key))throw new BadRequestException('Idempotency-Key required');
   const i=parse(bookingCommitInput,body);return this.bookings.commit(req.identity!.subject,i.draftId,key);
  }
+ @Get('me/notifications') notifications(@Req() req:AuthenticatedRequest){
+  return this.bookings.notifications(req.identity!.subject);
+ }
  @Get('me/bookings') history(@Req() req:AuthenticatedRequest){return this.bookings.history(req.identity!.subject);}
  @Get('bookings/:id') get(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string){
   return this.bookings.booking(req.identity!.subject,id);

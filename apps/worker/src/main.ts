@@ -1,6 +1,7 @@
 import { writeOperationalRecord } from '@fisher/observability';
 import { Pool } from 'pg';
 import { processOne } from './outbox';
+import { bookingEventHandlers } from './booking-notifications';
 
 async function main(): Promise<void> {
   // Default remains disabled until an explicitly provisioned worker is deployed.
@@ -20,7 +21,7 @@ async function main(): Promise<void> {
   try {
     while (running) {
       try {
-        const handled = await processOne(pool);
+        const handled = await processOne(pool, bookingEventHandlers(pool));
         if (!handled) await new Promise(resolve => setTimeout(resolve, 1200));
       } catch {
         // Operational telemetry must not contain database exception details or patient payloads.

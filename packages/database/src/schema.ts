@@ -74,3 +74,18 @@ export const bookingScheduleChanges=pgTable('booking_schedule_changes',{
  actorId:uuid('actor_id').notNull().references(()=>users.id),
  recordedAt:timestamp('recorded_at',{withTimezone:true}).notNull().defaultNow()
 }, t=>[uniqueIndex('booking_schedule_order_key').on(t.orderId,t.idempotencyKey)]);
+
+export const notificationIntents=pgTable('notification_intents',{
+ id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),
+ channel:varchar('channel',{length:20}).notNull(),template:varchar('template',{length:60}).notNull(),
+ status:varchar('status',{length:20}).notNull().default('pending'),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+ sentAt:timestamp('sent_at',{withTimezone:true}),providerReceipt:text('provider_receipt')
+},t=>[uniqueIndex('notification_order_channel_template').on(t.orderId,t.channel,t.template)]);
+export const paymentReviewAlerts=pgTable('payment_review_alerts',{
+ id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),
+ paymentId:uuid('payment_id').notNull().references(()=>payments.id).unique(),
+ reason:varchar('reason',{length:100}).notNull(),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+ resolvedAt:timestamp('resolved_at',{withTimezone:true})
+});
