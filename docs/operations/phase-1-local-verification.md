@@ -31,17 +31,30 @@ On Linux, the PostgreSQL client may be installed via the distribution's `postgre
 
 The single script:
 
-1. Records the exact commit and confirms that the worktree was clean.
-2. Uses Corepack/pnpm 9.15.9. If no lockfile exists, generates one explicitly, then runs a frozen install.
+1. Records the exact commit and validates expected generated worktree files against the committed source.
+2. Uses Corepack/pnpm 9.15.9. For an untracked lockfile, preserves the previous resolution then refreshes it; for a committed lockfile, runs frozen installation without rewriting it.
 3. Executes workspace lint, TypeScript checks, and sequential production builds.
-4. Starts an isolated, resource-limited `postgres:16-alpine` container using a randomly allocated local PostgreSQL port.
-5. Applies and checks the complete checksummed migration history, including constraints and transactional rollback verification.
-6. Runs package and application tests, including synthetic authenticated resource tests and durable outbox fencing/retry tests.
-7. Generates the OpenAPI specification and checks dependency vulnerabilities.
-8. Smoke-tests the compiled API and each Next.js application individually on loopback.
-9. Records the results in `.verification/phase1-YYYYMMDD-HHMMSS/summary.txt` and individual step logs.
+4. Generates OpenAPI and records **separate** production and full dependency audits (both required for acceptance).
+5. Smoke-tests the compiled API and three web apps individually on loopback, even when the security audits report unresolved advisories.
+6. Starts one isolated PostgreSQL 16 container on a temporary loopback port and preserves container logs, exit/OOM state, Docker startup errors and resource information on failure.
+7. Applies checksummed migrations and rollback tests against the disposable database, then runs the full package/integration test suite.
+8. Records outcomes in `.verification/phase1-YYYYMMDD-HHMMSS/summary.txt` and individual logs; exits unsuccessfully when either audit is not clear.
 
 The script cleans up **only its uniquely named disposable container** when finished. It does not run `docker system prune`, stop external containers, or remove shared volumes. To retain the disposable database **only for investigation**, set `FISHER_KEEP_VERIFY_DB=1`; it must then be removed explicitly after investigation.
+
+## Fast PostgreSQL startup diagnostic
+
+On low-memory machines, confirm isolated Docker readiness **before** another complete build. Run from the repo root:
+
+```bash
+FISHER_PHASE1_LOCAL_ACK=synthetic-only bash scripts/diagnose-postgres-local.sh
+```
+
+The diagnostic starts only one uniquely named synthetic `postgres:16-alpine` container, performs a readiness check and a read-only `SELECT current_database()` over the temporary local port, saves its exit/OOM state and Docker logs, then removes only that container. It does not execute pnpm, wipe images/volumes, stop existing containers, or contact production databases.
+
+Evidence is saved under `.verification/postgres-preflight-*/`, particularly `postgres.log`, `state.txt`, `docker-run-error.txt`, and `host-resources.txt`. These are ignored by Git. Inspect these logs to identify the actual failure rather than assuming it is out-of-memory. A passing diagnostic is useful environment evidence but not a substitute for migrations and integration tests.
+
+The full verifier also captures `postgres.log`, `postgres-state.txt`, and `local-resources.txt` on failure, before cleaning up its own uniquely named container.
 
 ## Repository and acceptance requirements
 
