@@ -6,6 +6,7 @@ import { AccessService } from './access.service';
 import { AccessController } from './access.controller';
 import { FoundationController } from './foundation.controller';
 import { BookingService } from './booking.service';
+import { PublicRateLimitService } from './public-rate-limit.service';
 import { BookingPatientController, BookingPublicController } from './booking.controller';
 import { PaymentService } from './payment.service';
 import { PaymentPatientController, PaymentWebhookController } from './payment.controller';
@@ -35,6 +36,6 @@ class HealthController {
 
 @Module({
   controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController, CatalogAdminController, GuestBookingPublicController, GuestBookingStaffController, WorkQueueController],
-  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService, PaymentReviewService]
+  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PublicRateLimitService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService, PaymentReviewService]
 })
 export class AppModule {}

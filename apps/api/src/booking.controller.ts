@@ -2,6 +2,7 @@ import { BadRequestException, Body, Controller, Get, Headers, Param, ParseUUIDPi
 import { ApiBearerAuth, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { bookingDraftInput, bookingCommitInput, bookingQuoteInput, rescheduleInput } from '@fisher/contracts';
 import { BookingService } from './booking.service';
+import { PublicRateLimitService } from './public-rate-limit.service';
 import { IdentityGuard, type AuthenticatedRequest } from './identity.guard';
 
 function parse<T>(schema:{safeParse(v:unknown):{success:boolean;data?:T}},v:unknown):T{
@@ -11,16 +12,20 @@ function parse<T>(schema:{safeParse(v:unknown):{success:boolean;data?:T}},v:unkn
 }
 @Controller()
 export class BookingPublicController {
- constructor(private readonly bookings:BookingService){}
+ constructor(private readonly bookings:BookingService,private readonly rate:PublicRateLimitService){}
  @Get('catalog/tests') catalogue(@Query('search') search?:string){return this.bookings.catalogue(search);}
  @Get('catalog/labs') labs(){return this.bookings.labs();}
  @Get('catalog/tests/:id') test(@Param('id',ParseUUIDPipe) id:string){return this.bookings.testDetails(id);}
  @Get('service-zones') zones(){return this.bookings.zones();}
- @Post('availability/search') availability(@Body() body:unknown){
+ @Post('availability/search') async availability(@Req() req:{ip?:string},@Body() body:unknown){
+  await this.rate.enforce(req.ip,'availability');
   const i=parse(bookingQuoteInput.pick({zoneId:true,labId:true,serviceTier:true}).strict(),body);
   return this.bookings.availability(i.zoneId,i.labId,i.serviceTier);
  }
- @Post('quotes') quote(@Body() body:unknown){return this.bookings.quote(parse(bookingQuoteInput,body));}
+ @Post('quotes') async quote(@Req() req:{ip?:string},@Body() body:unknown){
+  await this.rate.enforce(req.ip,'quote');
+  return this.bookings.quote(parse(bookingQuoteInput,body));
+ }
  @Get('quotes/:id') getQuote(@Param('id',ParseUUIDPipe) id:string){return this.bookings.getQuote(id);}
 }
 @ApiBearerAuth()
