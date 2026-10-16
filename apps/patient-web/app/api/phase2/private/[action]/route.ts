@@ -22,7 +22,7 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{action:
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.patientId))
    return NextResponse.json({error:'Invalid patient identifier'},{status:400});
   const {patientId,...fields}=body as Record<string,unknown>;
-  destination='patients/'+patientId+'/addresses';body=fields;
+  destination='patients/'+String(patientId)+'/addresses';body=fields;
  }
  const key=request.headers.get('idempotency-key')??undefined;
  if((action==='commit' || action==='checkout') && (!key || !/^[A-Za-z0-9_-]{8,128}$/.test(key)))

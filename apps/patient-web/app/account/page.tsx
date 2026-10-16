@@ -29,6 +29,8 @@ export default async function AccountPage(){
        <span>{p.relationship} · {p.can_book&&p.verified?'Booking authorized':'Verification required'}</span>
       </li>)}</ul>:<p>No profiles are currently linked to your verified account.</p>}
       <a href="/account/patients/new">Add a family profile</a>
+      {account.patients.filter(p=>p.can_book&&p.verified).map(p=>
+       <p key={p.id}><a href={'/account/patients/'+p.id+'/addresses/new'}>Request collection address for {p.display_name}</a></p>)}
      </Card>
      <Card><h2>Booking notifications</h2>
       {account.notifications.length?<ul className="fisher-record-list">{account.notifications.map(n=><li key={n.id}>
