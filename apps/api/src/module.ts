@@ -12,6 +12,8 @@ import { PaymentPatientController, PaymentWebhookController } from './payment.co
 import { PatientsController } from './patients.controller';
 import { PatientsService } from './patients.service';
 import { AddressesService } from './addresses.service';
+import { SupportService } from './support.service';
+import { SupportController } from './support.controller';
 import { AccountProvisioningService } from './account-provisioning.service';
 import { AccountProvisioningController } from './account-provisioning.controller';
 import { BookingVerificationController, AddressVerificationController } from './booking-verification.controller';
@@ -26,7 +28,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController],
-  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService]
+  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController],
+  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService]
 })
 export class AppModule {}

@@ -37,3 +37,22 @@ export function bookingEventHandlers(pool:Pool):Readonly<Record<string,OutboxHan
   }
  };
 }
+
+export function supportCaseHandlers(pool:Pool):Readonly<Record<string,OutboxHandler>>{
+ return {
+  'support.case_opened':async payload=>{
+   if(!payload || typeof payload!=='object')throw new Error('Invalid support event');
+   const value=payload as Record<string,unknown>;
+   if(typeof value.caseId!=='string' ||
+     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value.caseId))
+    throw new Error('Invalid support case ID');
+   const r=await pool.query(`INSERT INTO support_work_items(case_id)
+    SELECT id FROM support_cases WHERE id=$1
+    ON CONFLICT(case_id) DO NOTHING RETURNING id`,[value.caseId]);
+   if(r.rowCount===0){
+    const prior=await pool.query('SELECT id FROM support_work_items WHERE case_id=$1',[value.caseId]);
+    if(!prior.rows.length)throw new Error('Unknown support case');
+   }
+  }
+ };
+}
