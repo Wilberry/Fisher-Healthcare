@@ -207,8 +207,10 @@ export class BookingService implements OnModuleDestroy {
  }
  async booking(subject:string,id:string){
   const r=await this.db.query(`SELECT o.id,o.status,o.tier,o.currency,o.total_kobo,
-   o.collection_window_start,o.collection_window_end,o.created_at
-   FROM orders o WHERE o.id=$2 AND EXISTS
+   o.collection_window_start,o.collection_window_end,o.payment_expires_at,o.created_at,
+   o.slot_id,s.zone_id,o.lab_id,p.id AS payment_id,p.status AS payment_status
+   FROM orders o LEFT JOIN collection_slots s ON s.id=o.slot_id
+   LEFT JOIN payments p ON p.order_id=o.id WHERE o.id=$2 AND EXISTS
    (SELECT 1 FROM patient_relationships rel JOIN users u ON u.id=rel.user_id
     WHERE rel.patient_id=o.patient_id AND u.identity_subject=$1 AND rel.can_book
     AND rel.verified_at IS NOT NULL AND rel.revoked_at IS NULL)`,[subject,id]);
