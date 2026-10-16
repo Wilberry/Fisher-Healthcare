@@ -130,3 +130,18 @@ The local lockfile resolution reported Vitest 4.1.12 expecting Vite 6/7/8 while 
 **Next action:** Run only the quick PostgreSQL diagnostic first on the local workstation. Do not repeat a four-minute build until the container startup condition has been observed. If it passes, proceed to consolidated exact-commit verification; if it fails, preserve the generated diagnostic directory and address the actual resource or Docker problem. No presumed root cause or security acceptance is recorded.
 
 **Phase 1 acceptance:** OPEN. The generated untracked lockfile and Next.js generated modifications are preserved; they require review and a committed clean final run.
+
+## Round 7 — 16 October 2026
+
+**Exact-commit check:** `794161165bca7322bc93eefbb73ea53d53817bfa`; the user verified this commit at checkout before the full consolidated run.
+
+**Observed failure:** The last user-provided segment is `pnpm exec turbo run test --concurrency=1`, where `@fisher/auth#test` exited unsuccessfully with Vitest 4.1.12. The authored TypeScript suites `src/permissions.test.ts` (4 tests) and `src/policy.test.ts` (3 tests) both **passed**, but Vitest also discovered `dist/permissions.test.js` and `dist/policy.test.js`. Those JavaScript files are emitted CommonJS tests from the previous `tsc` build; importing Vitest 4 via `require()` caused the two suites to fail before any tests could execute. Turbo reported 8 successful tasks out of 14 at interruption. The provided output does not include the run summary, production/full vulnerability audit results, or HTTP smoke evidence, and those gates therefore cannot be marked passed based on this excerpt.
+
+**Root cause in committed sources:** Both `packages/auth/tsconfig.json` and `packages/contracts/tsconfig.json` built the entire `src/**/*.ts` tree including `*.test.ts`; unlike API/worker/database/observability builds, these two packages had no build-time test exclusion. Vitest's default discovery was not constrained to `src/`.
+
+**Remediation committed for the next round:**
+- Added `packages/auth/vitest.config.ts` and `packages/contracts/vitest.config.ts` with an explicit `src/**/*.test.ts` / `src/**/*.spec.ts` inclusion, excluding generated `dist/` artifacts, even when old compiled tests remain on the developer's disk.
+- Added `tsconfig.build.json` for each package to exclude test files from production JavaScript builds while retaining the original `tsconfig.json` for full TypeScript checking of tests.
+- Updated both package build commands to invoke the build-only configuration. No local generated files were removed, and dependency security checks were not bypassed.
+
+**Acceptance status:** OPEN. The next verification should first run the two affected package tests and then re-execute the full exact-commit script, collecting security and smoke evidence plus any remaining database or test failures. The uncommitted resolved lockfile and generated configuration still require review and final committed acceptance.
