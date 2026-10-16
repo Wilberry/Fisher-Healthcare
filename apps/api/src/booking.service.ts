@@ -141,7 +141,7 @@ export class BookingService implements OnModuleDestroy {
  async getQuote(id:string){
   const r=await this.db.query(`SELECT id,zone_id,slot_id,lab_id,tier,items,tests_total_kobo,
    logistics_fee_kobo,total_kobo,expires_at
-   FROM booking_quotes WHERE id=$1 AND expires_at>now()`,[id]);
+   FROM booking_quotes WHERE id=$1 AND expires_at>clock_timestamp()`,[id]);
   if(!r.rows[0])throw new NotFoundException('Quote unavailable');
   return {data:r.rows[0]};
  }
@@ -287,6 +287,7 @@ export class BookingService implements OnModuleDestroy {
   return {data:r.rows[0]};
  }
  async cancel(subject:string,id:string){
+  this.bookingEnabled();
   return this.tx(async c=>{
    const userId=await this.actor(c,subject);
    const o=(await c.query<{patient_id:string;status:string}>(

@@ -16,6 +16,10 @@ export class PaymentPatientController {
   if(!data.success)throw new BadRequestException('Invalid checkout payload');
   return this.payments.checkout(req.identity!.subject,data.data.bookingId,key);
  }
+ @Post(':id/reconcile')
+ reconcile(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string){
+  return this.payments.reconcile(req.identity!.subject,id);
+ }
  @Get(':id') payment(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string){
   return this.bookings.payment(req.identity!.subject,id);
  }

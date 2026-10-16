@@ -46,6 +46,10 @@ export class PaymentService implements OnModuleDestroy {
   const eligible=await this.bookings.checkoutOrder(subject,bookingId);
   if(!eligible.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(eligible.email))
    throw new ConflictException('Verified contact email required');
+  const allow=(process.env.FISHER_STAGING_CHECKOUT_ALLOWLIST??'').split(',')
+    .map(v=>v.trim().toLowerCase()).filter(Boolean);
+  if(!allow.length || !allow.includes(eligible.email.toLowerCase()))
+   throw new ConflictException('Staging checkout recipient not authorized');
   const c=await this.db.connect();
   let ref='';
   let paymentId='';
@@ -127,7 +131,26 @@ export class PaymentService implements OnModuleDestroy {
   const reference=d.reference;
   const verified=await this.verifyWithProvider(reference,key);
   if(verified.status!=='success')throw new ConflictException('Payment not settled');
-  const hash=createHash('sha256').update(raw).digest('hex');
+  return this.settleVerified(reference,verified,createHash('sha256').update(raw).digest('hex'));
+ }
+ async reconcile(subject:string,paymentId:string){
+  const key=this.stagingKey();
+  const row=await this.db.query<{provider_reference:string;order_id:string;status:string}>(
+   'SELECT provider_reference,order_id,status FROM payments WHERE id=$1',[paymentId]);
+  const payment=row.rows[0];
+  if(!payment)throw new ConflictException('Payment unavailable');
+  // The database remains the source of booking access; a UUID is not authorization.
+  await this.bookings.booking(subject,payment.order_id);
+  if(payment.status==='paid')return {paymentId,status:'paid'};
+  const verified=await this.verifyWithProvider(payment.provider_reference,key);
+  if(verified.status!=='success'){
+   return {paymentId,status:'pending_provider_review'};
+  }
+  await this.settleVerified(payment.provider_reference,verified,
+   createHash('sha256').update('verified:'+payment.provider_reference).digest('hex'));
+  return {paymentId,status:'paid'};
+ }
+ private async settleVerified(reference:string,verified:Verified,hash:string){
   const c=await this.db.connect();
   try{
    await c.query('BEGIN');
