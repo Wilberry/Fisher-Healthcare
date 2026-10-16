@@ -22,6 +22,10 @@ export class PatientsController {
  createAddress(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() body:unknown){
   return this.addresses.create(req.identity!.subject,id,this.addresses.parse(body));
  }
+ @Post(':id/revoke')
+ revoke(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string){
+  return this.patients.revoke(req.identity!.subject,id);
+ }
  @Get(':id') get(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string){
   return this.patients.get(req.identity!.subject,id);
  }

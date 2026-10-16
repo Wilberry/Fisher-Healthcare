@@ -58,4 +58,29 @@ export class PatientsService implements OnModuleDestroy {
   if(!r.rows[0])throw new NotFoundException('Patient profile not found');
   return {data:r.rows[0]};
  }
+ async revoke(subject:string,patientId:string){
+  if(process.env.FISHER_PHASE2_BOOKING_MODE!=='synthetic'||process.env.NODE_ENV==='production')
+   throw new ServiceUnavailableException('Relationship revocation not activated');
+  const c=await this.db.connect();
+  try{
+   await c.query('BEGIN');
+   try{
+    const row=await c.query<{id:string;user_id:string;revoked_at:Date|null}>(`SELECT r.id,r.user_id,r.revoked_at
+     FROM patient_relationships r JOIN users u ON u.id=r.user_id
+     WHERE u.identity_subject=$1 AND r.patient_id=$2 FOR UPDATE OF r`,[subject,patientId]);
+    const entry=row.rows[0];
+    if(!entry)throw new NotFoundException('Patient relationship not found');
+    if(entry.revoked_at){await c.query('COMMIT');return {patientId,status:'revoked'};}
+    await c.query(`UPDATE patient_relationships SET can_book=false,can_view_results=false,
+     revoked_at=clock_timestamp(),updated_at=clock_timestamp() WHERE id=$1`,[entry.id]);
+    await c.query(`UPDATE patient_addresses SET revoked_at=clock_timestamp(),
+     updated_at=clock_timestamp() WHERE owner_user_id=$1 AND patient_id=$2
+      AND revoked_at IS NULL`,[entry.user_id,patientId]);
+    await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id)
+     VALUES($1,'patient.relationship_revoked','patient_relationship',$2)`,[entry.user_id,entry.id]);
+    await c.query('COMMIT');
+    return {patientId,status:'revoked'};
+   }catch(e){await c.query('ROLLBACK');throw e;}
+  }finally{c.release();}
+ }
 }

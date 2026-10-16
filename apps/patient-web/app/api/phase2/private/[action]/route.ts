@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { crossSiteRequest } from '../../../../../lib/patient-auth';
 import { patientApi } from '../../../../../lib/patient-api';
-const routes:Record<string,string>={draft:'booking-drafts',commit:'bookings',checkout:'payments/checkout',patient:'patients',address:'patients',support:'support/cases'};
+const routes:Record<string,string>={draft:'booking-drafts',commit:'bookings',checkout:'payments/checkout',patient:'patients',address:'patients',support:'support/cases',revoke:'patients'};
 export async function POST(request:NextRequest,{params}:{params:Promise<{action:string}>}){
  if(crossSiteRequest(request))return NextResponse.json({error:'Invalid request origin'},{status:403});
  const {action}=await params;
@@ -16,6 +16,14 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{action:
  try{body=JSON.parse(raw) as unknown;}
  catch{return NextResponse.json({error:'Invalid JSON'},{status:400});}
  let destination=path;
+ if(action==='revoke'){
+  if(!body||typeof body!=='object'||Array.isArray(body)||
+    !('patientId' in body)||typeof body.patientId!=='string'||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.patientId)||
+    Object.keys(body).length!==1)
+   return NextResponse.json({error:'Invalid patient relationship'},{status:400});
+  destination='patients/'+String(body.patientId)+'/revoke';body={};
+ }
  if(action==='address'){
   if(!body || typeof body!=='object' || !('patientId' in body) ||
     typeof body.patientId!=='string' ||

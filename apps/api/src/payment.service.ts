@@ -175,7 +175,7 @@ export class PaymentService implements OnModuleDestroy {
     [hash,reference]);
    await c.query("UPDATE payments SET status='paid',updated_at=now() WHERE id=$1",[p.id]);
    const confirmed=await c.query(
-    "UPDATE orders SET status='confirmed',updated_at=now() WHERE id=$1 AND status='awaiting_payment' AND payment_expires_at>clock_timestamp() RETURNING id",
+    "UPDATE orders o SET status='confirmed',updated_at=now() WHERE o.id=$1 AND o.status='awaiting_payment' AND o.payment_expires_at>clock_timestamp() AND EXISTS (SELECT 1 FROM patient_relationships r WHERE r.user_id=o.booked_by AND r.patient_id=o.patient_id AND r.can_book AND r.verified_at IS NOT NULL AND r.revoked_at IS NULL) RETURNING o.id",
     [p.order_id]);
    const confirm=confirmed.rowCount===1;
    if(!confirm && order.rows[0].status!=='confirmed')

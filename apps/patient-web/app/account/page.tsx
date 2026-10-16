@@ -1,6 +1,7 @@
 import { Card, Notice, SiteShell } from '@fisher/ui';
 import { patientAccountData } from '../../lib/patient-api';
 import { naira } from '../../lib/public-api';
+import { RevokePatient } from './revoke-patient';
 export const dynamic='force-dynamic';
 export default async function AccountPage(){
  const account=await patientAccountData();
@@ -27,6 +28,7 @@ export default async function AccountPage(){
       {account.patients.length?<ul className="fisher-record-list">{account.patients.map(p=><li key={p.id}>
        <strong>{p.display_name}</strong>
        <span>{p.relationship} · {p.can_book&&p.verified?'Booking authorized':'Verification required'}</span>
+       <RevokePatient patientId={p.id}/>
       </li>)}</ul>:<p>No profiles are currently linked to your verified account.</p>}
       <a href="/account/patients/new">Add a family profile</a>
       {account.patients.filter(p=>p.can_book&&p.verified).map(p=>
