@@ -23,7 +23,9 @@ export default async function Confirm({searchParams}:{searchParams:Promise<{quot
        id:v.id as string,label:v.label as string
       }));
    return {id:patient.id,label:patient.display_name,addresses};
-  })):[];\n const hasVerifiedAddress=choices.some(v=>v.addresses.length>0);\n const paymentAvailable=process.env.FISHER_PHASE2_BOOKING_MODE==='synthetic' &&
+  })):[]; 
+ const hasVerifiedAddress=choices.some(v=>v.addresses.length>0); 
+ const paymentAvailable=process.env.FISHER_PHASE2_BOOKING_MODE==='synthetic' &&
  process.env.FISHER_PHASE2_PAYMENT_MODE==='staging' && process.env.NODE_ENV!=='production';
  return <SiteShell subtitle="Finalize an appointment" navigation={[
   {href:'/book',label:'Booking planner'},{href:'/account',label:'My account'}

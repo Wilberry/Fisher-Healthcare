@@ -26,7 +26,7 @@ export class SupportService implements OnModuleDestroy {
      if(!accessible.rows.length)throw new NotFoundException('Booking unavailable');
     }
     const duplicate=await c.query<{id:string;category:string;preferred_contact:string;booking_id:string|null;status:string}>(
-     'SELECT id,category,preferred_contact,booking_id FROM support_cases WHERE user_id=$1 AND idempotency_key=$2',
+     'SELECT id,category,preferred_contact,booking_id,status FROM support_cases WHERE user_id=$1 AND idempotency_key=$2',
      [actorId,key]);
     if(duplicate.rows[0]){
      const old=duplicate.rows[0];
@@ -36,9 +36,20 @@ export class SupportService implements OnModuleDestroy {
      return {caseId:old.id,status:old.status};
     }
     const row=await c.query<{id:string}>(`INSERT INTO support_cases(user_id,booking_id,category,preferred_contact,idempotency_key)
-     VALUES($1,$2,$3,$4,$5) RETURNING id`,
+     VALUES($1,$2,$3,$4,$5) ON CONFLICT (user_id,idempotency_key) DO NOTHING RETURNING id`,
      [actorId,input.bookingId??null,input.category,input.preferredContact,key]);
-    const id=row.rows[0]!.id;
+    if(!row.rows[0]){
+     const prior=await c.query<{id:string;category:string;preferred_contact:string;booking_id:string|null;status:string}>(
+      'SELECT id,category,preferred_contact,booking_id,status FROM support_cases WHERE user_id=$1 AND idempotency_key=$2',
+      [actorId,key]);
+     const old=prior.rows[0];
+     if(!old || old.category!==input.category || old.preferred_contact!==input.preferredContact ||
+       old.booking_id!==(input.bookingId??null))
+      throw new ConflictException('Idempotency key collision');
+     await c.query('COMMIT');
+     return {caseId:old.id,status:old.status};
+    }
+    const id=row.rows[0].id;
     await c.query('INSERT INTO outbox(event_type,payload) VALUES($1,$2::jsonb)',
       ['support.case_opened',JSON.stringify({caseId:id})]);
     await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id)
