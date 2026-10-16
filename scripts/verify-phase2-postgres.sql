@@ -14,8 +14,8 @@ BEGIN
  IF current_database()<>'fisher_test' THEN
   RAISE EXCEPTION 'Refusing Phase 2 SQL checks outside fisher_test';
  END IF;
- IF (SELECT COUNT(*) FROM fisher_migrations)<>11 THEN
-  RAISE EXCEPTION 'Expected 11 checksummed migrations 0000 through 0010';
+ IF (SELECT COUNT(*) FROM fisher_migrations)<>12 THEN
+  RAISE EXCEPTION 'Expected 12 checksummed migrations 0000 through 0011';
  END IF;
  FOREACH name IN ARRAY names LOOP
   IF to_regclass('public.'||name) IS NULL THEN
@@ -51,5 +51,9 @@ BEGIN
  EXCEPTION WHEN check_violation THEN bad:=true;
  END;
  IF NOT bad THEN RAISE EXCEPTION 'Unsupported sensitive support category allowed'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='payment_status_allowed' AND
+    pg_get_constraintdef(oid) LIKE '%initiating%' AND pg_get_constraintdef(oid) LIKE '%paid%') THEN
+  RAISE EXCEPTION 'Phase 2 payment state constraint not installed';
+ END IF;
 END $phase2$;
 ROLLBACK;

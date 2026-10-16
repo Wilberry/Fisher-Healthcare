@@ -7,7 +7,7 @@
 This branch deliberately stays separate from Phase 1 verification. It must not be merged, deployed publicly, or populated with real patients, medical or payment data.
 
 ## Implemented in the Phase 2 branch
-- PostgreSQL additive migrations `0004`–`0007` for zones, slots, immutable quotes, holds, drafts, checkout idempotency, reservations, schedule history, provider events, notification intents and manual payment review.
+- PostgreSQL additive migrations `0004`–`0011` for zones, slots, immutable quotes, holds, drafts, checkout idempotency, reservations, schedule history, provider events, notification intents and manual payment review.
 - Public patient site: active test/lab catalogue, test details, coarse zones, availability search, Regular/Premium provisional quote planner.
 - NestJS APIs: active catalogue, labs, zones, slot availability, immutable quote, authenticated booking draft/hold/commit, history, timeline projection, unpaid cancellation/rescheduling, authorized receipts, payment status.
 - Patient enrolment requests, listed profiles and current relationship checks; profile creation grants **no** booking or results authority.
@@ -58,3 +58,7 @@ A successful compilation alone does not close the acceptance gate.
 - Repeated test Paystack checkout with the same authenticated idempotency key can return its persisted original checkout URL; an ambiguous payment initiation never automatically generates a second reference. Full staging reconciliation still requires tests and approval.
 
 **Phase 1 and Phase 2 acceptance remain OPEN.** Neither source implementation nor a draft PR demonstrates local verification.
+
+
+### Payment-status migration compatibility
+Phase 1 restricts `payments.status` to legacy values; Phase 2's `initiating` and `paid` statuses require the reviewed forward-only `0011_payment_status_extension.sql` migration. The Phase 2 verifier checks this constraint as well as the completed migration registry. The Phase 1 verifier and its baseline migration chain remain unchanged.
