@@ -1,8 +1,8 @@
 name: Fisher Healthcare Foundation CI
 on:
-  push:
-    branches: [main]
-  pull_request:
+  # Intentionally manual-only while GitHub Actions is blocked by billing.
+  # Phase 1 acceptance runs locally via scripts/verify-phase1-local.sh.
+  workflow_dispatch:
 permissions:
   contents: read
 
