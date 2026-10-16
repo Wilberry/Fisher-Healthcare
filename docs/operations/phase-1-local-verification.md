@@ -93,6 +93,14 @@ The intended final sequence is:
 4. Record local verification evidence, including failures and fixes, in the Phase 1 acceptance record.
 5. Merge the verified branch only after explicit acceptance. No real patient, clinical, or payment data may be introduced as part of these tests.
 
+## Owner-directed Phase 1 engineering acceptance — 16 October 2026
+
+The source foundation is now **accepted as PASS WITH DOCUMENTED SECURITY EXCEPTION** under the [Phase 1 engineering acceptance record](phase-1-engineering-acceptance.md). The acceptance is tied exclusively to the *actual* local run on clean pinned commit `a504bee8d858712a8ada350a9792a87d23ecbb9a`.
+
+This changes the **engineering milestone decision**, not the verifier's observed outcomes. The full dependency audit and the consolidated script both still returned **FAIL** due to an unresolved high-severity development-only `braces` advisory. The production high/critical audit and all functional checks passed. The existing scripts continue to report failing audit results truthfully. Development may proceed to Phase 2, while [security Issue #2](https://github.com/Wilberry/Fisher-Healthcare/issues/2) stays open.
+
+There is **no production deployment, live-data, security-compliance or clinical-operation approval** in this milestone decision. A new revision must undergo its own relevant checks, and all applicable release gates remain in effect.
+
 ## Known outstanding integrations
 
 Synthetic JWT integration tests are not evidence that a production identity provider, staff MFA, patient sessions, clinical document storage, or external payment and laboratory systems are operational. Such connections require their own provider contracts, threat review, and staging acceptance. Phase 1 covers only the approved foundation and keeps clinical and payment workflows disabled.
