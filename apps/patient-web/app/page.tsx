@@ -9,6 +9,9 @@ const steps = [
 
 export default function Home() {
   return <SiteShell subtitle="Diagnostics brought closer" navigation={[
+    { href: '/tests', label: 'Test catalogue' },
+    { href: '/book', label: 'Plan a booking' },
+    { href: '/account', label: 'My account' },
     { href: '#how-it-works', label: 'How it works' },
     { href: '#services', label: 'Our services' },
     { href: '#about', label: 'About us' }
