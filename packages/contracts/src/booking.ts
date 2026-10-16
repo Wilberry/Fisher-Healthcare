@@ -29,3 +29,10 @@ export function quoteTotals(prices: readonly number[], logisticsFeeKobo: number)
   }
   return { testsTotalKobo, logisticsFeeKobo, totalKobo, currency: 'NGN' as const };
 }
+
+export const createPatientSchema = z.object({
+ displayName: z.string().trim().min(2).max(160),
+ relationship: z.enum(['self','dependent','caregiver']),
+ dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+}).strict();
+export type CreatePatient = z.infer<typeof createPatientSchema>;

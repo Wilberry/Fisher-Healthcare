@@ -1,13 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Pool } from 'pg';
-import { z } from 'zod';
+import { createPatientSchema, type CreatePatient } from '@fisher/contracts';
 
-const createPatient=z.object({
- displayName:z.string().trim().min(2).max(160),
- relationship:z.enum(['self','dependent','caregiver']),
- dateOfBirth:z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
-}).strict();
-type CreatePatient=z.infer<typeof createPatient>;
 @Injectable()
 export class PatientsService implements OnModuleDestroy {
  private readonly pool?:Pool;
@@ -15,7 +9,7 @@ export class PatientsService implements OnModuleDestroy {
  async onModuleDestroy(){await this.pool?.end();}
  private get db(){if(!this.pool)throw new ServiceUnavailableException('Patients unavailable');return this.pool;}
  parse(value:unknown):CreatePatient {
-  const parsed=createPatient.safeParse(value);
+  const parsed=createPatientSchema.safeParse(value);
   if(!parsed.success)throw new BadRequestException('Invalid patient profile');
   if(parsed.data.dateOfBirth){
    const dob=new Date(parsed.data.dateOfBirth+'T00:00:00Z');
