@@ -69,10 +69,12 @@ Development milestones are governed by the [Development Roadmap](docs/06-develop
 
 The documentation in this repository defines the company's intended product capabilities, architecture, and delivery programme. Product and technical decisions will be reflected in the relevant specifications as the platform develops. Engineering milestones will be accepted only after the corresponding security, functional, and operational criteria have been verified.
 
-## Current development position
+## Project status
 
-**Phase 1 engineering: PASS WITH DOCUMENTED SECURITY EXCEPTION.** Exact-commit local verification of `a504bee8d858712a8ada350a9792a87d23ecbb9a` passed functional checks and the production high/critical dependency audit. The full dependency audit remained **FAIL** (one unpatched, development-only high-severity `braces` advisory, seven moderate and one low finding). A project-owner-directed engineering milestone exception is documented; this is not a claim that the audit passed. Live patient data and production deployment are not approved.
+**Current development phase: Phase 2 — Patient Booking and Customer Experience.** Phase 2 is the active engineering workstream, covering diagnostic test discovery, patient and authorized family profiles, appointment availability and booking, pricing and checkout, payment integration, customer account functionality, and the supporting APIs and workflows. Implementation progress and acceptance evidence will be tracked against the [Development Roadmap](docs/06-development-roadmap.md) and the Phase 2 delivery scope. Phase 2 is **in development**; engineering acceptance has not yet been recorded.
 
-[Phase 1 Implementation Status](docs/phase-1-implementation-status.md) · [Engineering Acceptance Record](docs/operations/phase-1-engineering-acceptance.md) · [Phase 1 Verification Plan](docs/phase-1-verification-plan.md) · [Local Verification Procedure](docs/operations/phase-1-local-verification.md)
+**Phase 1 baseline:** Engineering verification was recorded as **PASS WITH DOCUMENTED SECURITY EXCEPTION** at commit `a504bee8d858712a8ada350a9792a87d23ecbb9a`. Functional checks and the production high/critical dependency audit passed, but the full dependency audit **failed** due to a development-only high-severity `braces` advisory, seven moderate findings, and one low finding. The milestone exception does not constitute a passing full security audit.
 
-Phase 1 acceptance verification is conducted locally while GitHub Actions is unavailable due to billing restrictions. The consolidated verification entry point is `scripts/verify-phase1-local.sh`; results require exact-commit review before merging into `main`.
+[Phase 1 Engineering Acceptance Record](docs/operations/phase-1-engineering-acceptance.md) · [Phase 1 Implementation Status](docs/phase-1-implementation-status.md) · [Phase 2 Development Roadmap](docs/06-development-roadmap.md)
+
+**Release restrictions remain in effect:** live patient data and production deployment are not approved. Local exact-commit verification remains required for engineering acceptance while GitHub Actions is unavailable due to billing restrictions.
