@@ -17,3 +17,17 @@ export class BookingVerificationController {
   return this.workflow.approve(req.identity!,id,parsed.data.evidenceReference);
  }
 }
+
+@Controller('ops/patient-addresses')
+@ApiBearerAuth()
+@ApiUnauthorizedResponse({description:'Staff identity and MFA required'})
+@UseGuards(IdentityGuard)
+export class AddressVerificationController {
+ constructor(private readonly workflow:BookingVerificationService){}
+ @Post(':id/approve')
+ approve(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string,@Body() body:unknown){
+  const parsed=evidence.safeParse(body);
+  if(!parsed.success)throw new BadRequestException('Verified evidence reference required');
+  return this.workflow.approveAddress(req.identity!,id,parsed.data.evidenceReference);
+ }
+}

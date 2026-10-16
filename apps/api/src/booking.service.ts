@@ -4,7 +4,7 @@ import { quoteTotals, type BookingQuoteInput, type QuoteItem } from '@fisher/con
 
 type Slot={id:string;zone_id:string;lab_id:string;tier:'regular'|'premium';capacity:number;cutoff_at:Date;starts_at:Date;ends_at:Date};
 type Quote={id:string;zone_id:string;slot_id:string;lab_id:string;tier:'regular'|'premium';items:QuoteItem[];total_kobo:number;expires_at:Date};
-type Draft={id:string;quote_id:string;patient_id:string;user_id:string;status:string;order_id:string|null;commit_key:string|null};
+type Draft={id:string;quote_id:string;patient_id:string;user_id:string;status:string;order_id:string|null;commit_key:string|null;address_id:string|null};
 
 @Injectable()
 export class BookingService implements OnModuleDestroy {
@@ -31,6 +31,16 @@ export class BookingService implements OnModuleDestroy {
    WHERE user_id=$1 AND patient_id=$2 AND can_book AND verified_at IS NOT NULL AND revoked_at IS NULL
    FOR SHARE`,[userId,patientId]);
   if(!r.rows.length)throw new ForbiddenException('Patient booking authority denied');
+ }
+ private async approvedAddress(c:PoolClient,addressId:string,patientId:string,userId:string,zoneId:string){
+  const r=await c.query<{id:string;zone_id:string;label:string;address_line:string;locality:string}>(`SELECT
+   a.id,a.zone_id,a.label,a.address_line,a.locality FROM patient_addresses a
+   JOIN service_zones z ON z.id=a.zone_id
+   WHERE a.id=$1 AND a.patient_id=$2 AND a.owner_user_id=$3
+    AND a.zone_id=$4 AND a.verified_at IS NOT NULL AND a.revoked_at IS NULL
+    AND z.active=true FOR SHARE OF a`,[addressId,patientId,userId,zoneId]);
+  if(!r.rows[0])throw new ConflictException('COLLECTION_ADDRESS_NOT_VERIFIED');
+  return r.rows[0];
  }
  private async slot(c:PoolClient,id:string):Promise<Slot>{
   const r=await c.query<Slot>(`SELECT s.id,s.zone_id,s.lab_id,s.tier,s.capacity,s.cutoff_at,s.starts_at,s.ends_at
@@ -135,7 +145,7 @@ export class BookingService implements OnModuleDestroy {
   if(!r.rows[0])throw new NotFoundException('Quote unavailable');
   return {data:r.rows[0]};
  }
- async draft(subject:string,quoteId:string,patientId:string){
+ async draft(subject:string,quoteId:string,patientId:string,addressId:string){
   this.bookingEnabled();
   return this.tx(async c=>{
    const q=await c.query<Quote>('SELECT * FROM booking_quotes WHERE id=$1',[quoteId]);
@@ -144,7 +154,8 @@ export class BookingService implements OnModuleDestroy {
    if(await this.remaining(c,s.id,s.capacity)<1)throw new ConflictException('SLOT_UNAVAILABLE');
    const userId=await this.actor(c,subject);
    await this.authorize(c,userId,patientId);
-   const d=await c.query<{id:string}>('INSERT INTO booking_drafts(user_id,patient_id,quote_id) VALUES($1,$2,$3) RETURNING id',[userId,patientId,quoteId]);
+   await this.approvedAddress(c,addressId,patientId,userId,q.rows[0].zone_id);
+   const d=await c.query<{id:string}>('INSERT INTO booking_drafts(user_id,patient_id,quote_id,address_id) VALUES($1,$2,$3,$4) RETURNING id',[userId,patientId,quoteId,addressId]);
    const h=await c.query<{expires_at:Date}>(`INSERT INTO slot_holds(draft_id,slot_id,expires_at)
     VALUES($1,$2,LEAST(clock_timestamp()+interval '5 minutes',$3::timestamptz)) RETURNING expires_at`,
     [d.rows[0]!.id,s.id,q.rows[0].expires_at]);
@@ -170,14 +181,19 @@ export class BookingService implements OnModuleDestroy {
    const q=(await c.query<Quote>('SELECT * FROM booking_quotes WHERE id=$1',[d.quote_id])).rows[0];
    if(!q || q.expires_at<=new Date())throw new ConflictException('QUOTE_EXPIRED');
    const s=await this.slot(c,q.slot_id);
+   if(!d.address_id)throw new ConflictException('Booking draft has no address');
+   const address=await this.approvedAddress(c,d.address_id,d.patient_id,userId,q.zone_id);
    const h=(await c.query<{expires_at:Date}>(
     'SELECT expires_at FROM slot_holds WHERE draft_id=$1 AND slot_id=$2 FOR UPDATE',[d.id,s.id])).rows[0];
    if(!h || h.expires_at<=new Date())throw new ConflictException('SLOT_HOLD_EXPIRED');
    if(await this.remaining(c,s.id,s.capacity)<0)throw new ConflictException('SLOT_UNAVAILABLE');
    const o=await c.query<{id:string}>(`INSERT INTO orders(patient_id,booked_by,lab_id,status,tier,
-    currency,total_kobo,collection_window_start,collection_window_end,slot_id,quote_id,booking_draft_id,payment_expires_at)
-    VALUES($1,$2,$3,'awaiting_payment',$4,'NGN',$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
-    [d.patient_id,userId,q.lab_id,q.tier,q.total_kobo,s.starts_at,s.ends_at,s.id,q.id,d.id,q.expires_at]);
+    currency,total_kobo,collection_window_start,collection_window_end,slot_id,quote_id,booking_draft_id,payment_expires_at,
+    collection_address_id,collection_address_snapshot)
+    VALUES($1,$2,$3,'awaiting_payment',$4,'NGN',$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb) RETURNING id`,
+    [d.patient_id,userId,q.lab_id,q.tier,q.total_kobo,s.starts_at,s.ends_at,s.id,q.id,d.id,q.expires_at,address.id,JSON.stringify({
+    zoneId:address.zone_id,label:address.label,addressLine:address.address_line,locality:address.locality
+   })]);
    const id=o.rows[0]!.id;
    for(const item of q.items){
     await c.query('INSERT INTO order_items(order_id,test_id,price_kobo) VALUES($1,$2,$3)',

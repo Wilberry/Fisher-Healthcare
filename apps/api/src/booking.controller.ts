@@ -30,7 +30,7 @@ export class BookingPublicController {
 export class BookingPatientController {
  constructor(private readonly bookings:BookingService){}
  @Post('booking-drafts') draft(@Req() req:AuthenticatedRequest,@Body() body:unknown){
-  const i=parse(bookingDraftInput,body);return this.bookings.draft(req.identity!.subject,i.quoteId,i.patientId);
+  const i=parse(bookingDraftInput,body);return this.bookings.draft(req.identity!.subject,i.quoteId,i.patientId,i.addressId);
  }
  @Post('bookings') commit(@Req() req:AuthenticatedRequest,@Body() body:unknown,@Headers('idempotency-key') key?:string){
   if(!key || !/^[A-Za-z0-9_-]{8,128}$/.test(key))throw new BadRequestException('Idempotency-Key required');
