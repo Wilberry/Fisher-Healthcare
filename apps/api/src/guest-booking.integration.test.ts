@@ -69,7 +69,8 @@ suite.sequential('verified synthetic guest-assisted intake',()=>{
   const dbCode=await db.query('SELECT code_hash,verified_at FROM guest_booking_requests WHERE id=$1',[started.requestId]);
   expect(dbCode.rows[0].code_hash).not.toBe(lastCode);
   expect(dbCode.rows[0].verified_at).toBeNull();
-  await expect(service.verify({requestId:started.requestId,code:'00000000'})).rejects.toThrow();
+  const invalidCode=lastCode==='00000000'?'00000001':'00000000';
+  await expect(service.verify({requestId:started.requestId,code:invalidCode})).rejects.toThrow();
   const attempts=await db.query('SELECT attempts FROM guest_booking_requests WHERE id=$1',[started.requestId]);
   expect(attempts.rows[0].attempts).toBe(1);
   const verified=await service.verify({requestId:started.requestId,code:lastCode});

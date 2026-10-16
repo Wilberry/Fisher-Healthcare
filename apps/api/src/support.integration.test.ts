@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import { SupportService } from './support.service';
+import { AccessService } from './access.service';
 import { supportCaseInput } from '@fisher/contracts';
 import { supportCaseHandlers } from '../../worker/src/booking-notifications';
 
@@ -11,7 +12,7 @@ suite.sequential('synthetic customer support and durable staff work-item isolati
  const owner='synthetic-support-owner-'+randomUUID();
  const stranger='synthetic-support-stranger-'+randomUUID();
  const labId=randomUUID(),patientId=randomUUID(),orderId=randomUUID();
- let db:Pool,support:SupportService;
+ let db:Pool,support:SupportService,access:AccessService;
  const original=process.env.FISHER_PHASE2_BOOKING_MODE;
  beforeAll(async()=>{
   if(!process.env.DATABASE_URL)throw new Error('No disposable database');
@@ -19,7 +20,7 @@ suite.sequential('synthetic customer support and durable staff work-item isolati
   const result=await db.query('SELECT current_database() AS db');
   if(result.rows[0]?.db!=='fisher_test')throw new Error('Unsafe test database');
   process.env.FISHER_PHASE2_BOOKING_MODE='synthetic';
-  support=new SupportService();
+  access=new AccessService();support=new SupportService(access);
   await db.query('INSERT INTO users(identity_subject) VALUES($1),($2)',[owner,stranger]);
   const row=await db.query('SELECT id FROM users WHERE identity_subject=$1',[owner]);
   const userId=row.rows[0].id as string;
@@ -31,7 +32,7 @@ suite.sequential('synthetic customer support and durable staff work-item isolati
    VALUES($1,$2,$3,$4,'regular',0)`,[orderId,patientId,userId,labId]);
  });
  afterAll(async()=>{
-  await support?.onModuleDestroy();await db?.end();
+  await support?.onModuleDestroy();await access?.onModuleDestroy();await db?.end();
   if(original===undefined)delete process.env.FISHER_PHASE2_BOOKING_MODE;
   else process.env.FISHER_PHASE2_BOOKING_MODE=original;
  });

@@ -215,6 +215,10 @@ check_http "http://127.0.0.1:$API_PORT/api/v1/service-zones" 200
 check_http "http://127.0.0.1:$API_PORT/api/v1/patients" 401
 check_http "http://127.0.0.1:$API_PORT/api/v1/me/bookings" 401
 check_http "http://127.0.0.1:$API_PORT/api/v1/me/support-cases" 401
+check_http "http://127.0.0.1:$API_PORT/api/v1/ops/catalog/reviews" 401
+check_http "http://127.0.0.1:$API_PORT/api/v1/ops/guest-booking/requests" 401
+check_http "http://127.0.0.1:$API_PORT/api/v1/ops/work-queue/support" 401
+check_http "http://127.0.0.1:$API_PORT/api/v1/ops/work-queue/payment-exceptions" 401
 check_http "http://127.0.0.1:$API_PORT/api/v1/patients/00000000-0000-4000-8000-000000000001/addresses" 401
 check_http "http://127.0.0.1:$API_PORT/api/v1/me/bootstrap" 404
 check_http "http://127.0.0.1:$API_PORT/api/v1/patients" 401
@@ -235,9 +239,17 @@ for app in patient-web operations-web field-pwa; do
     check_http "http://127.0.0.1:$WEB_PORT/book" 200
     check_http "http://127.0.0.1:$WEB_PORT/account" 200
     check_http "http://127.0.0.1:$WEB_PORT/support" 200
+    check_http "http://127.0.0.1:$WEB_PORT/staff" 200
+    check_http "http://127.0.0.1:$WEB_PORT/book/guest" 200
     check_http "http://127.0.0.1:$WEB_PORT/account/patients/new" 200
     check_http "http://127.0.0.1:$WEB_PORT/book/confirm" 200
+    check_http "http://127.0.0.1:$WEB_PORT/account/bookings/00000000-0000-4000-8000-000000000001" 200
+    check_http "http://127.0.0.1:$WEB_PORT/account/bookings/00000000-0000-4000-8000-000000000001/receipt" 200
     check_http "http://127.0.0.1:$WEB_PORT/account/patients/00000000-0000-4000-8000-000000000001/addresses/new" 200
+    originless="$(curl --max-time 8 --silent --output /dev/null --write-out '%{http_code}' -X POST "http://127.0.0.1:$WEB_PORT/api/phase2/private/revoke" -H 'Content-Type: application/json' --data '{}')"
+    [[ "$originless" == "403" ]] || die "Private BFF accepted an originless state change"
+    guest_originless="$(curl --max-time 8 --silent --output /dev/null --write-out '%{http_code}' -X POST "http://127.0.0.1:$WEB_PORT/api/phase2/guest/start" -H 'Content-Type: application/json' --data '{}')"
+    [[ "$guest_originless" == "403" ]] || die "Guest BFF accepted an originless state change"
   fi
   kill "$WEB_PID" 2>/dev/null || true
   wait "$WEB_PID" 2>/dev/null || true

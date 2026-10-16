@@ -47,7 +47,9 @@ function validateDocument(document: OpenAPIObject): void {
     '/api/v1/patients','/api/v1/me/bookings','/api/v1/me/notifications',
     '/api/v1/bookings/{id}','/api/v1/bookings/{id}/receipt','/api/v1/payments/{id}',
     '/api/v1/me/support-cases','/api/v1/patients/{id}/addresses',
-    '/api/v1/ops/catalog/reviews'
+    '/api/v1/ops/catalog/reviews','/api/v1/ops/guest-booking/requests',
+    '/api/v1/ops/work-queue/support','/api/v1/ops/work-queue/payment-exceptions',
+    '/api/v1/ops/patient-relationships/pending','/api/v1/ops/patient-addresses/pending'
   ];
   const phase2Post = [
     '/api/v1/availability/search','/api/v1/quotes','/api/v1/booking-drafts',
@@ -57,7 +59,12 @@ function validateDocument(document: OpenAPIObject): void {
     '/api/v1/ops/catalog/zones','/api/v1/ops/catalog/offerings',
     '/api/v1/ops/catalog/slots','/api/v1/ops/catalog/reviews/{type}/{id}/approve',
     '/api/v1/ops/patient-relationships/{id}/approve-booking',
-    '/api/v1/ops/patient-addresses/{id}/approve'
+    '/api/v1/ops/patient-addresses/{id}/approve',
+    '/api/v1/patients/{id}/revoke','/api/v1/payments/{id}/reconcile',
+    '/api/v1/guest-booking/start','/api/v1/guest-booking/verify',
+    '/api/v1/ops/guest-booking/requests/{id}/assign',
+    '/api/v1/ops/work-queue/support/{id}/{action}',
+    '/api/v1/ops/work-queue/payment-exceptions/{id}/acknowledge'
   ];
   for(const path of phase2Get) {
     if(!document.paths[path]?.get)throw new OpenApiContractError('Phase 2 GET route missing: '+path);
@@ -81,7 +88,17 @@ function validateDocument(document: OpenAPIObject): void {
     ['/api/v1/ops/catalog/slots','post'],
     ['/api/v1/ops/catalog/reviews/{type}/{id}/approve','post'],
     ['/api/v1/ops/patient-relationships/{id}/approve-booking','post'],
-    ['/api/v1/ops/patient-addresses/{id}/approve','post']
+    ['/api/v1/ops/patient-addresses/{id}/approve','post'],
+    ['/api/v1/patients/{id}/revoke','post'],
+    ['/api/v1/payments/{id}/reconcile','post'],
+    ['/api/v1/ops/guest-booking/requests/{id}/assign','post'],
+    ['/api/v1/ops/guest-booking/requests','get'],
+    ['/api/v1/ops/patient-relationships/pending','get'],
+    ['/api/v1/ops/patient-addresses/pending','get'],
+    ['/api/v1/ops/work-queue/support','get'],
+    ['/api/v1/ops/work-queue/payment-exceptions','get'],
+    ['/api/v1/ops/work-queue/support/{id}/{action}','post'],
+    ['/api/v1/ops/work-queue/payment-exceptions/{id}/acknowledge','post']
   ] as const) {
     const auth=document.paths[path]?.[method]?.security;
     if(!auth?.some(s=>Object.hasOwn(s,'bearer')))
