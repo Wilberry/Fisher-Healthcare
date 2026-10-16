@@ -32,7 +32,27 @@ The following dependency ranges are **proposed source-level remediations**. They
 | PostCSS source-map file disclosure | `postcss@8.4.31` | `postcss >=8.5.18` | Workspace override; rerun three Next.js builds. |
 | Vite development-server issues | `vite@5.4.21` | `vite >=6.4.3` | Upgraded Vitest toolchain and overridden transitive Vite. Verify test initialization and all test runs. |
 
-The pnpm 9.15.9 workspace holds its overrides in `pnpm-workspace.yaml`. All manifest changes must be reflected in the reviewed `pnpm-lock.yaml` before acceptance.
+**Correction following Round 8:** The repository is pinned to pnpm **9.15.9**. The previous overrides were placed in `pnpm-workspace.yaml`, but the resolved lockfile continued to include vulnerable versions. The source has been corrected to place overrides in the root `package.json` under `pnpm.overrides`, the supported location for the pinned version. The workspace YAML now contains workspace declarations only. This is a configuration remediation proposal pending a freshly resolved local lockfile and an audit proving the selected versions changed.
+
+
+## Round 8 — audit evidence after functional gates passed
+
+**Local run:** `dc26f0cd5773cc95f32cb4ee4d9bcd0bc385783e`, 16 October 2026. The user-provided execution summary reports successful focused auth/contracts tests, workspace lint, typecheck, build, OpenAPI, local API and web smoke checks, migrations and workspace tests.
+
+| Dependency audit scope | Total | Low | Moderate | High | Critical |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Production | 27 | 2 | 13 | 12 | 0 |
+| Full development + production | 29 | 2 | 14 | 13 | 0 |
+
+The 12 **production high** advisories are grouped under Multer (six advisories for `2.0.2`), js-yaml (three for `4.1.0`), PostCSS (two for `8.4.31`), and Lodash (one for `4.17.21`). These exact resolved versions predate the already proposed patched minimums. The **thirteenth full-audit high** comes from `braces@3.0.3` under the Next.js lint-tool dependency chain.
+
+**Engineering response:**
+- Moved the five shared transitive overrides into root `package.json#pnpm.overrides`, appropriate to the repository's pinned pnpm 9.15.9.
+- Removed conflicting/ineffective configuration from `pnpm-workspace.yaml` to maintain one source of truth.
+- Added `scripts/check-dependency-resolution.mjs` and invoked it immediately after lockfile resolution in the consolidated verifier. It checks override presence and package-version minima **before** expensive compilation, and fails closed on stale/vulnerable entries.
+- No audit severity threshold was lowered, no advisory was whitelisted or ignored, and no generated lockfile was invented or committed remotely.
+
+**Required evidence:** A new locally refreshed `pnpm-lock.yaml` must show effective overrides and patched package resolutions, followed by production and full audit reports. The unpatched `braces` advisory still blocks strict all-graph acceptance unless a real patch, verified equivalent dependency replacement or separately authorized security decision resolves it.
 
 ## Post-upgrade compatibility observation
 
