@@ -76,7 +76,8 @@ export function BookingPlanner({tests,labs,zones}:Props){
     <div><dt>Collection</dt><dd>{naira(quote.logisticsFeeKobo)}</dd></div>
     <div><dt>Total</dt><dd><strong>{naira(quote.totalKobo)}</strong></dd></div></dl>
    <p>Valid until {new Date(quote.expiresAt).toLocaleString('en-NG',{timeZone:'Africa/Lagos'})} (Lagos time), unless the slot fills first.</p>
-   <p><strong>Confirmation and payment remain unavailable during development.</strong> Patient identity and booking authority must be verified before a slot can be reserved.</p>
+   <p>To reserve a slot, sign in and confirm current authorization for the patient. This service is in synthetic development only.</p>
+   <a className="fisher-button fisher-button--primary" href={'/book/confirm?quoteId='+encodeURIComponent(quote.quoteId)}>Continue with verified patient</a>
   </section>}
  </div>;
 }

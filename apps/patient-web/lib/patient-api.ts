@@ -35,13 +35,13 @@ export async function patientAccountData(){
   bookings:[] as PatientBooking[],notifications:[] as NotificationRecord[]};
  const [p,b,n]=await Promise.all([patientApi('patients'),patientApi('me/bookings'),patientApi('me/notifications')]);
  return {signedIn:true as const,available:p.ok&&b.ok&&n.ok,
-  patients:asRecords(p.data).filter((v):v is PatientRecord=>
+  patients:asRecords(p.data).filter((v):v is Item & PatientRecord=>
    typeof v.id==='string'&&typeof v.display_name==='string'&&typeof v.relationship==='string'&&
    typeof v.can_book==='boolean'&&typeof v.verified==='boolean'),
-  bookings:asRecords(b.data).filter((v):v is PatientBooking=>
+  bookings:asRecords(b.data).filter((v):v is Item & PatientBooking=>
    typeof v.id==='string'&&typeof v.status==='string'&&typeof v.tier==='string'&&
    typeof v.currency==='string'&&typeof v.total_kobo==='number'&&typeof v.created_at==='string'),
-  notifications:asRecords(n.data).filter((v):v is NotificationRecord=>
+  notifications:asRecords(n.data).filter((v):v is Item & NotificationRecord=>
    typeof v.id==='string'&&typeof v.channel==='string'&&typeof v.template==='string'&&
    typeof v.status==='string'&&typeof v.booking_id==='string'&&typeof v.created_at==='string')
  };
