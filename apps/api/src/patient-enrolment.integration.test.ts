@@ -96,8 +96,15 @@ suite.sequential('phase2 synthetic account and caregiver permission decisions',(
    .rejects.toThrow();
  });
  it('revokes booking authority without revealing unrelated patient data',async()=>{
-  await pool.query('UPDATE patient_relationships SET revoked_at=now() WHERE id=$1',[relId]);
+  const revoked=await patients.revoke(self,patientId);
+  expect(revoked.status).toBe('revoked');
+  const location=await pool.query('SELECT revoked_at FROM patient_addresses WHERE patient_id=$1',[patientId]);
+  expect(location.rows.length).toBeGreaterThan(0);
+  expect(location.rows[0].revoked_at).not.toBeNull();
   await expect(access.requireBookingAccess(self,patientId)).rejects.toThrow();
   await expect(verification.approve(actor(reviewer,true),relId,'synthetic-proof-ref-abc123')).rejects.toThrow();
+  expect((await patients.revoke(self,patientId)).status).toBe('revoked');
+  const audited=await pool.query("SELECT id FROM audit_events WHERE resource_id=$1 AND action='patient.relationship_revoked'",[relId]);
+  expect(audited.rows.length).toBe(1);
  });
 });

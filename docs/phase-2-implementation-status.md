@@ -1,64 +1,60 @@
-# Fisher Healthcare — Phase 2 Engineering Status
+# Fisher Healthcare — Phase 2 Implementation & Acceptance
 
-**Branch:** `feat/phase2-patient-booking-payment`
-**Foundation checkpoint:** `c131c514f1a9c08578ae84b821c9c1a6b87b3d4b`
-**State:** Implementation in progress; **Phase 2 acceptance OPEN**; **Phase 1 acceptance OPEN**.
+**Working branch:** `feat/phase2-patient-booking-payment`
 
-This branch deliberately stays separate from Phase 1 verification. It must not be merged, deployed publicly, or populated with real patients, medical or payment data.
+**Pull request:** [Draft PR #1](https://github.com/Wilberry/Fisher-Healthcare/pull/1)
 
-## Implemented in the Phase 2 branch
-- PostgreSQL additive migrations `0004`–`0011` for zones, slots, immutable quotes, holds, drafts, checkout idempotency, reservations, schedule history, provider events, notification intents and manual payment review.
-- Public patient site: active test/lab catalogue, test details, coarse zones, availability search, Regular/Premium provisional quote planner.
-- NestJS APIs: active catalogue, labs, zones, slot availability, immutable quote, authenticated booking draft/hold/commit, history, timeline projection, unpaid cancellation/rescheduling, authorized receipts, payment status.
-- Patient enrolment requests, listed profiles and current relationship checks; profile creation grants **no** booking or results authority.
-- Paystack **test-key staging only** initialization, signed raw-body webhook, independent Paystack verification, single ledger posting, replay handling and late-payment exception; no live charging.
-- Worker creates durable pending email notification intents and operations payment-review alerts. It does not claim a message was sent, and no email/WhatsApp provider is active.
-- Synthetic integration test source and one consolidated local verifier.
+**Phase 1:** independent verification remains a prerequisite.
 
-## Current activation controls
-- Zones, tests, laboratories, offerings and slots remain inactive by default in the foundation schema.
-- Booking mutations require `FISHER_PHASE2_BOOKING_MODE=synthetic` with a non-production runtime.
-- Paystack checkout/webhook additionally requires `FISHER_PHASE2_PAYMENT_MODE=staging` and a `sk_test_` Paystack key, and refuses production runtime.
-- Patient-web fetches a server-configured `FISHER_API_SERVER_URL`; absent integration returns an accurate unavailable state.
-- Unconfigured OIDC denies all protected patient routes.
-- No real checkout, clinical result downloads, live email delivery, or production patient onboarding are authorized.
+**Phase 2:** synthetic feature implementation assembled; **local exact-commit acceptance OPEN**. No production or live-patient rollout authorized.
 
-## Planned endpoints implemented
-**Public:** `GET /catalog/tests`, `GET /catalog/tests/:id`, `GET /catalog/labs`, `GET /service-zones`, `POST /availability/search`, `POST /quotes`, `GET /quotes/:id`.
+## Complete source implementation areas
 
-**Patient bearer-authenticated:** `GET/POST /patients`, `GET /patients/:id`, `POST /booking-drafts`, `POST /bookings` with `Idempotency-Key`, `GET /me/bookings`, `GET /me/notifications`, `GET /bookings/:id`, `GET /bookings/:id/timeline`, `POST /bookings/:id/cancel`, `POST /bookings/:id/reschedule` with `Idempotency-Key`, `GET /bookings/:id/receipt`, `POST /payments/checkout`, `GET /payments/:id`.
+| Area | Current source capability |
+| --- | --- |
+| Public customer discovery | Reviewed/inactive-by-default test, laboratory and offering catalogue; published preparation instructions; Lagos service-zone list; dynamic Regular/Premium quote calculation |
+| Collection capacity | Time-boxed quotes, PostgreSQL slot locks and holds, one order per draft, deterministic lock order, slot expiry checks, versioned user consent |
+| Patient identity | Server-side OIDC authorization-code PKCE, signed ID/access JWT validation, authenticated HttpOnly encrypted session, no browser bearer-token exposure |
+| Family booking authority | Pending self/dependent/caregiver requests, independent staff MFA approval, booking-only authorization, user-initiated revocation, distinct clinical result permission |
+| Collection location | Per-patient pending addresses, independent staffed zone/coverage approval, preserved booking location snapshot |
+| Staging payment | Paystack test-key only, allowlisted synthetic payers, server-verified currency/amount/reference/test domain, raw-body HMAC webhook, idempotent ledger/outbox, provider reconciliation, late-payment exception |
+| Booking account | Authorized dashboard, booking details, unpaid cancellation/rescheduling, provider status action, test-mode receipt, event-intent statuses |
+| Guest-assisted intake | Explicit booking-policy consent, approved synthetic email-only challenge, hashed 8-digit OTP, expiry, per-mailbox throttling and attempt limit, staff queue; does not grant patient access or reserve a slot |
+| Notifications | PostgreSQL outbox creates idempotent email intent; fenced sender to Resend staging allowlist with provider idempotency, bounded retry, receipt acceptance and no clinical content |
+| Customer support | Signed-in idempotent cases, email/WhatsApp response preference without claiming vendor delivery, durable staff queue and auditable resolution |
+| Internal catalogue & finance | Separate staff-MFA catalogue author/reviewer, inactive-by-default slots and fees; staff support and payment-exception queues; no automated refunds |
+| Governance | Opaque reviewed evidence references, append-only audits, versioned synthetic policy acknowledgment; releases and clinical records are out of Phase 2 |
+| Tests | Synthetic PostgreSQL fixtures cover concurrent holds, authorization, consent, payment replay, late payment, guest OTP, email receipts, staff separation, support idempotency and catalogue approval |
+| Reproducibility | One resource-conscious pinned verifier `scripts/verify-phase2-local.sh` using one disposable loopback PostgreSQL instance, sequential builds/tests, OpenAPI and dependency audits |
 
-**Paystack:** `POST /webhooks/payments/paystack`, requires signed original raw bytes and server-to-server verification.
+## System constraints
 
-## Verification
-Use only `scripts/verify-phase2-local.sh` for the end-of-engineering checkpoint. It reuses the Phase 1 resource-conscious one-pass verification design: Node 22/pnpm 9.15.9, one isolated PostgreSQL 16 container, strictly synthetic records, sequential builds, migration apply/check/rollback, tests, OpenAPI generation, production and full audits, then API/web smoke tests. It does not stop unrelated Docker services. It accepts optional `FISHER_EXPECTED_COMMIT` and records evidence in `.verification/phase2-*/summary.txt`.
+All Phase 2 booking/profile/address/catalogue/support/guest operations require `FISHER_PHASE2_BOOKING_MODE=synthetic` and **never** run with `NODE_ENV=production`. Paystack additionally requires `FISHER_PHASE2_PAYMENT_MODE=staging` and a test key starting `sk_test_`. Email requires `FISHER_PHASE2_EMAIL_MODE=staging`, a verified Resend sender and explicit allowed test mailboxes. No live charging, real patient data or clinical results are permitted.
 
-**No local commands or disposable PostgreSQL tests have been executed from this chat.** Source commits are not passing test evidence.
+Booking rights (`can_book`) and clinical rights (`can_view_results`) are never conflated. No patient identity or permission is inferred from a guest email or the browser redirect from Paystack.
 
-## Engineering work remaining before Phase 2 acceptance
-1. Fix all exact-commit lint, TypeScript, migration, unit, PostgreSQL concurrency, API, UI and dependency findings from the consolidated local run.
-2. Establish verified OIDC account provisioning, secure session transfer to the patient web, safe self/family identity linking, reviewed guardian/caregiver proof and revocation UX.
-3. Complete guest contact verification, accessible checkout UX, durable provider checkout recovery, failed-payment/late-payment/cancellation policy and Paystack staging integration with real signed sandbox evidence.
-4. Finalize operationally approved catalogue preparation information, Lagos zoning, price/fee policy, reschedule/refund rules, backend rate limits, address handling, consent and notification privacy rules.
-5. Integrate a vetted email provider with idempotent delivery evidence, opt-in WhatsApp-assisted intake, support flows, controlled delivery retries and audited status.
-6. Complete real signed-session patient account dashboard, booking details, family management, transactional confirmation and receipt E2E. Result-document release is Phase 4, not a Phase 2 bypass.
-7. Generate/review reproducible lockfile, OpenAPI snapshot, migration/capacity security tests and exact-commit verification evidence.
-8. Reconcile any Phase 1 fixes with this branch only after Phase 1 is accepted; finish a reviewed draft PR, with no automatic merge.
+Resend `sent` means the provider returned an acceptance identifier; it does not prove inbox delivery. WhatsApp is a **preference only** until a separately approved provider, opt-in and delivery-audit path exists. Guest intake is a **staff-assisted request**, not a confirmed booking.
 
-A successful compilation alone does not close the acceptance gate.
+## Gates that still require real evidence
 
+1. **Exact pinned local one-pass verification** under Node 22, pnpm 9.15.9 and one disposable PostgreSQL 16, including migrations 0000–0015, lint/typecheck/build, unit/integration tests, signed HTTP negative cases, APIs, frontends, audits and OpenAPI. Fix any failures before acceptance.
+2. **Reproducible lockfile and generated OpenAPI snapshot** reviewed and committed at the tested SHA. Source code without these artifacts is diagnostic only.
+3. **OIDC staging provider** configured with registered callback, issuer/JWKS/audience, signed MFA claims and verified patient contact email. Validate PKCE, cookie handling, login/logout and guardian revocation with real signed staging tokens.
+4. **External staging integration**: separately approved Paystack sandbox account/test recipients and signed callback, approved Resend domain/test inboxes, email idempotency window and operational telemetry. Do not put API keys in Git.
+5. **Business / clinical / legal approvals**: diagnostics catalogue and preparation guidance, approved lab partnerships, real Lagos coverage and prices, proof of guardianship and address, patient privacy/consent text, cancellation/refund policy and regulatory readiness.
+6. **Operations handoff**: documented staff training, response SLA, charge exceptions/refunds, legitimate consent review, monitoring, backups and manual incident response. Provider-backed WhatsApp requires separate explicit opt-in and review if requested for production.
+7. **Phase 1 acceptance and integration**: reconcile any verified Phase 1 changes into Phase 2 and repeat the exact-commit verification before merge. No automatic PR merge or production deploy.
 
-## Continuation: authenticated patient journey and operational controls
-- A Next.js server-side OIDC authorization-code + PKCE flow has been added with signed-claim/nonce validation, strict HTTPS configuration, encrypted HttpOnly session cookies and authenticated Next-to-NestJS API forwarding.
-- Signed-in patients see real permission-scoped bookings, profiles and notification-intent states. Clinical result documents remain unavailable pending Phase 4 controls.
-- Booking confirmation consumes a quote, creates a database-backed held draft, commits with a generated idempotency key and optionally opens Paystack's **test** checkout. Confirmation is not inferred from checkout redirect.
-- OIDC access-token provisioned accounts are linked by signed `sub`, not unverified email address. Only `email_verified=true` from the signed API JWT supplies the optional payment contact email.
-- Patients can submit pending profile requests; they automatically receive **neither** `can_book` nor `can_view_results`.
-- A synthetic-only, MFA-gated, `orders:manage` staff reviewer endpoint can approve booking permission using a reviewed opaque evidence reference; it never approves clinical result access and requires that reviewer and patient account differ. A legally reviewed real-person identity proof workflow remains required.
-- Repeated test Paystack checkout with the same authenticated idempotency key can return its persisted original checkout URL; an ambiguous payment initiation never automatically generates a second reference. Full staging reconciliation still requires tests and approval.
+The latest code is **not claimed tested or production-ready**. The final consolidated Bash is prepared for independent local execution when source changes are frozen.
 
-**Phase 1 and Phase 2 acceptance remain OPEN.** Neither source implementation nor a draft PR demonstrates local verification.
+## Final local verification
 
+Run only from a clean local detached or exact-commit worktree; do not run this against real patient, payment or production services.
 
-### Payment-status migration compatibility
-Phase 1 restricts `payments.status` to legacy values; Phase 2's `initiating` and `paid` statuses require the reviewed forward-only `0011_payment_status_extension.sql` migration. The Phase 2 verifier checks this constraint as well as the completed migration registry. The Phase 1 verifier and its baseline migration chain remain unchanged.
+```bash
+FISHER_PHASE2_LOCAL_ACK=synthetic-only \\
+FISHER_EXPECTED_COMMIT=<verified-phase-2-head-sha> \\
+bash scripts/verify-phase2-local.sh
+```
+
+The script refuses unexpected worktree changes or the wrong pinned commit, starts one disposable PostgreSQL container on loopback, does not stop unrelated containers, and writes scoped evidence into `.verification/phase2-*/summary.txt`. No successful local verification evidence is available from this chat.
