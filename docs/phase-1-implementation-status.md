@@ -12,6 +12,8 @@
 
 **Fifth local checkpoint (16 October 2026):** At `0f8f23e`, install, lint, typecheck, production builds, migrations, automated tests, and OpenAPI generation all passed. The full dependency audit reported 40 advisories (3 critical, 15 high), stopping verification before runtime smoke tests. Source-level dependency upgrades and a non-bypassing production/full audit workflow are committed; remediation verification is pending. See [Dependency Security Remediation](security/phase-1-dependency-remediation.md).
 
+**Sixth local checkpoint (16 October 2026):** At `67970de`, install, lint, typecheck and production builds passed following dependency upgrades. The run stopped because the synthetic PostgreSQL container was not ready; migrations, tests, audits and smoke checks were **not** executed in that run. Docker's underlying exit/error details were not preserved by the older script. A quick Docker preflight, preserved container logs/state and an evidence-preserving verification order are now implemented, pending local execution.
+
 ## Foundation delivered in source
 
 | Workstream | Implemented foundation | Acceptance status |
