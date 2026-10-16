@@ -101,3 +101,29 @@ The upstream advisory [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-v
 **Risk and gate treatment:** the existing full-audit command intentionally fails. A development-only exposure assessment can separately document how the vulnerable tool is used, whether attacker-controlled patterns can reach it, and whether isolating CI/developer execution reduces risk. This is a human-reviewed risk disposition, not a claim of remediation. Any formal exception to the Phase 1 strict full-graph security acceptance policy requires separate authorized approval and an explicit change to the acceptance criteria; none exists.
 
 Next steps: review and commit the generated pnpm lockfile and OpenAPI contract; normalize verified Next.js-generated configuration without resets; run a final exact-commit full regression. Record the residual full audit as FAIL until a genuinely patched dependency chain or an authorized revised acceptance policy is verified.
+
+## Owner engineering milestone decision — 16 October 2026
+
+**Decision: PHASE 1 ENGINEERING PASSED WITH DOCUMENTED SECURITY EXCEPTION.**
+The project owner directed that the engineering phase be marked passed after the
+clean, exact-commit local verification at `a504bee8d858712a8ada350a9792a87d23ecbb9a`.
+The production audit was **PASS** at the high/critical threshold. The full
+development + production audit was **FAIL**: 1 high, 7 moderate, 1 low.
+
+**Exception scope:** The high `GHSA-vfj7-8cjw-p6xm` finding for `braces@3.0.3`
+in the development-only Next.js lint dependency tree. This is an owner-approved
+**milestone decision**, not a finding that the package is safe or the advisory
+has been fixed. No suppression, weakened full-audit threshold, replacement of
+the verifier's nonzero exit status, or disabling of Next.js lint rules is
+authorized.
+
+**Security risk remains open** in [Issue #2](https://github.com/Wilberry/Fisher-Healthcare/issues/2).
+The moderate/low findings are also unresolved and must be assessed for live
+deployment. Before release, update the risk analysis, assess affected usage,
+review patches or equivalent maintained lint dependencies, and obtain separate
+production security and healthcare-operational approval. The accepted Phase 1
+engineering milestone is **not** a permit for real patient information,
+payment settlement, or clinical result delivery.
+
+The precise owner decision and verification baseline are recorded in
+[Phase 1 Engineering Acceptance](../operations/phase-1-engineering-acceptance.md).
