@@ -4,6 +4,7 @@ import { describe, beforeAll, afterAll, it, expect } from 'vitest';
 import { AccountProvisioningService } from './account-provisioning.service';
 import { BookingVerificationService } from './booking-verification.service';
 import { PatientsService } from './patients.service';
+import { AddressesService } from './addresses.service';
 import { AccessService } from './access.service';
 import type { AuthenticatedIdentity } from './identity';
 
@@ -15,7 +16,7 @@ suite.sequential('phase2 synthetic account and caregiver permission decisions',(
  const member='synthetic-unrelated-'+randomUUID();
  const env=process.env.FISHER_PHASE2_BOOKING_MODE;
  let pool:Pool,accounts:AccountProvisioningService,patients:PatientsService,
- access:AccessService,verification:BookingVerificationService,relId:string,patientId:string;
+ access:AccessService,addresses:AddressesService,verification:BookingVerificationService,relId:string,patientId:string;
  const actor=(subject:string,mfa=false):AuthenticatedIdentity=>({
   subject,issuer:'https://synthetic-identity.example.test',authenticationMethods:mfa?['mfa']:[]
  });
@@ -27,6 +28,7 @@ suite.sequential('phase2 synthetic account and caregiver permission decisions',(
   process.env.FISHER_PHASE2_BOOKING_MODE='synthetic';
   accounts=new AccountProvisioningService();
   patients=new PatientsService();
+  addresses=new AddressesService();
   access=new AccessService();
   verification=new BookingVerificationService(access);
   for(const subject of [self,reviewer,member]){
@@ -37,7 +39,7 @@ suite.sequential('phase2 synthetic account and caregiver permission decisions',(
  });
  afterAll(async()=>{
   await verification?.onModuleDestroy();await access?.onModuleDestroy();
-  await patients?.onModuleDestroy();await accounts?.onModuleDestroy();await pool?.end();
+  await addresses?.onModuleDestroy();await patients?.onModuleDestroy();await accounts?.onModuleDestroy();await pool?.end();
   if(env===undefined)delete process.env.FISHER_PHASE2_BOOKING_MODE;
   else process.env.FISHER_PHASE2_BOOKING_MODE=env;
  });
@@ -74,6 +76,24 @@ suite.sequential('phase2 synthetic account and caregiver permission decisions',(
    WHERE action='patient.booking_verified' AND resource_id=$1`,[relId]);
   expect(audit.rows).toHaveLength(1);
   expect(audit.rows[0].metadata.resultAccessGranted).toBe(false);
+ });
+ it('requires separate coverage review before a created address can be booked',async()=>{
+  const zoneId=randomUUID();
+  await pool.query(`INSERT INTO service_zones(id,code,name,active,regular_fee_kobo,premium_fee_kobo)
+   VALUES($1,$2,'Synthetic address coverage',true,1000,2000)`,[zoneId,'zone-'+zoneId]);
+  const request=await addresses.create(self,patientId,{
+   zoneId,label:'Synthetic house',addressLine:'Synthetic sample street',locality:'Synthetic area'
+  });
+  const current=await addresses.list(self,patientId);
+  expect(current.data.find(a=>a.id===request.addressId)?.verified).toBe(false);
+  await expect(verification.approveAddress(actor(reviewer),request.addressId,'synthetic-coverage-ref-001'))
+   .rejects.toThrow();
+  const approved=await verification.approveAddress(actor(reviewer,true),request.addressId,'synthetic-coverage-ref-001');
+  expect(approved.verified).toBe(true);
+  const after=await addresses.list(self,patientId);
+  expect(after.data.find(a=>a.id===request.addressId)?.verified).toBe(true);
+  await expect(verification.approveAddress(actor(reviewer,true),request.addressId,'synthetic-coverage-ref-001'))
+   .rejects.toThrow();
  });
  it('revokes booking authority without revealing unrelated patient data',async()=>{
   await pool.query('UPDATE patient_relationships SET revoked_at=now() WHERE id=$1',[relId]);

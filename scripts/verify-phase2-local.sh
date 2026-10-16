@@ -234,6 +234,7 @@ for app in patient-web operations-web field-pwa; do
     check_http "http://127.0.0.1:$WEB_PORT/account" 200
     check_http "http://127.0.0.1:$WEB_PORT/account/patients/new" 200
     check_http "http://127.0.0.1:$WEB_PORT/book/confirm" 200
+    check_http "http://127.0.0.1:$WEB_PORT/account/patients/00000000-0000-4000-8000-000000000001/addresses/new" 200
   fi
   kill "$WEB_PID" 2>/dev/null || true
   wait "$WEB_PID" 2>/dev/null || true

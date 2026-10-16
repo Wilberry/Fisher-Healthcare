@@ -69,6 +69,17 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
   expect(stored.rows[0].total_kobo).toBe(35000);
   expect(stored.rows[0].items).toHaveLength(1);
  });
+ it('rejects mismatched or unapproved collection locations before reserving a slot',async()=>{
+  const quotation=await bookings.quote({zoneId,slotId,labId,serviceTier:'regular',testIds:[testId]});
+  await expect(bookings.draft(one.sub,quotation.quoteId,one.patientId,two.addressId))
+   .rejects.toThrow('COLLECTION_ADDRESS_NOT_VERIFIED');
+  const unverified=randomUUID();
+  await pool.query(`INSERT INTO patient_addresses(id,patient_id,owner_user_id,zone_id,label,address_line,locality)
+     VALUES($1,$2,$3,$4,'Unverified','Synthetic unverified street','Synthetic locality')`,
+     [unverified,one.patientId,one.id,zoneId]);
+  await expect(bookings.draft(one.sub,quotation.quoteId,one.patientId,unverified))
+   .rejects.toThrow('COLLECTION_ADDRESS_NOT_VERIFIED');
+ });
  it('locks capacity so two concurrent patient holds cannot oversell the final slot',async()=>{
   const q=await Promise.all([one,two].map(()=>bookings.quote({
    zoneId,slotId,labId,serviceTier:'regular',testIds:[testId]
