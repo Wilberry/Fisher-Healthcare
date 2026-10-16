@@ -12,7 +12,7 @@ The local verifier uses **Node.js 22, Corepack/pnpm 9.15.9, Git, Docker, the Pos
 
 ## Local execution
 
-Use a clean checkout or worktree. From the Fisher Healthcare repository:
+Use a clean checkout or worktree. After an earlier failed verification, the existing untracked `pnpm-lock.yaml` or generated `docs/api/openapi.json` may be retained for review; these are explicitly permitted by the verification preflight. Turborepo's generated `.turbo/` cache is ignored by Git and does not need to be removed. From the Fisher Healthcare repository:
 
 ```bash
 git fetch origin
@@ -21,7 +21,7 @@ git status --short
 FISHER_PHASE1_LOCAL_ACK=synthetic-only bash scripts/verify-phase1-local.sh
 ```
 
-If the tracking branch already exists locally, use `git switch feat/phase1-local-verification-hardening` and `git pull --ff-only` rather than creating it a second time. The script refuses an already-dirty checkout; it will not stash, reset, or rewrite changes.
+If the tracking branch already exists locally, use `git switch feat/phase1-local-verification-hardening` and `git pull --ff-only` rather than creating it a second time. The script refuses tracked modifications or unrelated untracked files; it will not stash, reset, delete, or rewrite them. Generated lockfiles do not count toward final acceptance until reviewed and committed.
 
 Optionally set `FISHER_EXPECTED_COMMIT` to the exact 40-character SHA from the approved verification handoff. The script rejects a different checkout.
 
