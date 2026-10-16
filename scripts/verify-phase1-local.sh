@@ -8,6 +8,7 @@ cd "$ROOT"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 LOG_DIR="${FISHER_VERIFY_LOG_DIR:-$ROOT/.verification/phase1-$STAMP}"
 POSTGRES_CONTAINER=""
+POSTGRES_CREATED=no
 API_PID=""
 WEB_PID=""
 
@@ -19,12 +20,22 @@ cleanup() {
   trap - EXIT
   if [[ -n "$WEB_PID" ]]; then kill "$WEB_PID" 2>/dev/null || true; wait "$WEB_PID" 2>/dev/null || true; fi
   if [[ -n "$API_PID" ]]; then kill "$API_PID" 2>/dev/null || true; wait "$API_PID" 2>/dev/null || true; fi
-  if [[ -n "$POSTGRES_CONTAINER" ]]; then
+  if [[ "$POSTGRES_CREATED" == yes ]]; then
+    # Capture evidence BEFORE removing the one scoped disposable container.
+    docker logs --timestamps --tail 180 "$POSTGRES_CONTAINER" > "$LOG_DIR/postgres.log" 2>&1 || true
+    docker inspect --format 'status={{.State.Status}} exit={{.State.ExitCode}} oom_killed={{.State.OOMKilled}} error={{.State.Error}}' "$POSTGRES_CONTAINER" > "$LOG_DIR/postgres-state.txt" 2>&1 || true
     if [[ "${FISHER_KEEP_VERIFY_DB:-0}" == "1" ]]; then
-      printf 'Retaining only this disposable database for inspection: %s\n' "$POSTGRES_CONTAINER"
+      printf 'Retaining this one disposable container for investigation: %s\n' "$POSTGRES_CONTAINER"
     else
       docker rm -f "$POSTGRES_CONTAINER" >/dev/null 2>&1 || true
     fi
+  fi
+  if [[ "$result" -ne 0 && -d "$LOG_DIR" ]]; then
+    {
+      docker system df 2>&1 || true
+      df -Pk "$ROOT" 2>&1 || true
+      free -h 2>&1 || true
+    } > "$LOG_DIR/local-resources.txt"
   fi
   if [[ -d "$LOG_DIR" ]]; then
     {
@@ -123,23 +134,38 @@ run_step 03-lint pnpm exec turbo run lint --concurrency=1
 run_step 04-typecheck pnpm exec turbo run typecheck --concurrency=1
 run_step 05-build pnpm exec turbo run build --concurrency=1
 
-log "Start ONE disposable PostgreSQL container (no Supabase changes, no host port assumption)"
+log "Start ONE disposable PostgreSQL container (no other services touched)"
 POSTGRES_CONTAINER="fisher-phase1-verify-${UID:-0}-$STAMP-$$"
-docker run --detach --rm --name "$POSTGRES_CONTAINER" \
+if docker run --detach --name "$POSTGRES_CONTAINER" \
   --memory 768m --cpus 1.5 \
   -e POSTGRES_DB=fisher_test -e POSTGRES_USER=fisher -e POSTGRES_PASSWORD=fisher_local_verify_only \
-  -p 127.0.0.1::5432 postgres:16-alpine > "$LOG_DIR/postgres-container-id.txt"
-for attempt in $(seq 1 75); do
-  if [[ "$(docker inspect -f '{{.State.Health.Status}}' "$POSTGRES_CONTAINER" 2>/dev/null || true)" == "healthy" ]]; then break; fi
-  # The upstream image does not declare an image healthcheck: use pg_isready.
-  if docker exec "$POSTGRES_CONTAINER" pg_isready -U fisher -d fisher_test >/dev/null 2>&1; then break; fi
+  -p 127.0.0.1::5432 postgres:16-alpine \
+  > "$LOG_DIR/postgres-container-id.txt" 2> "$LOG_DIR/postgres-start-error.txt"; then
+  POSTGRES_CREATED=yes
+else
+  # Do not touch any existing container; only inspect a container with our unique name.
+  if docker inspect "$POSTGRES_CONTAINER" >/dev/null 2>&1; then POSTGRES_CREATED=yes; fi
+  die "Disposable PostgreSQL startup failed; inspect postgres-start-error.txt and postgres-state.txt"
+fi
+
+POSTGRES_READY=no
+for attempt in $(seq 1 60); do
+  state="$(docker inspect --format '{{.State.Status}}' "$POSTGRES_CONTAINER" 2>/dev/null || true)"
+  case "$state" in
+    exited|dead|removing|'') die "PostgreSQL exited before readiness; inspect postgres.log and postgres-state.txt" ;;
+  esac
+  if docker exec "$POSTGRES_CONTAINER" pg_isready -U fisher -d fisher_test >/dev/null 2>&1; then
+    POSTGRES_READY=yes
+    break
+  fi
   sleep 1
 done
-docker exec "$POSTGRES_CONTAINER" pg_isready -U fisher -d fisher_test >/dev/null ||
-  die "Disposable PostgreSQL did not become ready"
+[[ "$POSTGRES_READY" == yes ]] ||
+  die "Disposable PostgreSQL did not become ready within 60 seconds; inspect postgres.log, postgres-state.txt and local-resources.txt"
+
 PORT_OUTPUT="$(docker port "$POSTGRES_CONTAINER" 5432/tcp | grep '^127.0.0.1:' | head -n1)"
 DB_PORT="${PORT_OUTPUT##*:}"
-[[ "$DB_PORT" =~ ^[0-9]+$ ]] || die "Cannot resolve disposable PostgreSQL port"
+[[ "$DB_PORT" =~ ^[0-9]+$ ]] || die "Cannot resolve disposable PostgreSQL loopback port"
 export DATABASE_URL="postgresql://fisher:fisher_local_verify_only@127.0.0.1:$DB_PORT/fisher_test"
 export FISHER_DISPOSABLE_DB_ACK=disposable-test-only
 run_step 06-migrations bash scripts/verify-database.sh
