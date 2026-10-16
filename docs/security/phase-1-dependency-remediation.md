@@ -88,3 +88,16 @@ If the updated dependency graph still reports advisories, use `pnpm why <package
 3. Commit the reviewed lockfile and generated API contract only after the source and dependency graph stabilize.
 4. Execute the complete verifier on that exact clean commit with the lockfile frozen.
 5. Obtain explicit security and engineering acceptance before merging or deploying.
+
+
+## Round 9 — Production audit passing, full audit remains blocked
+
+**Local results shown 16 October 2026:** the focused dependency-security runs on the pinned remediation branch reported a **PASS** for `pnpm audit --prod --audit-level high`. The full `pnpm audit --audit-level high` remains **FAIL**: 9 total advisories (1 high, 7 moderate, 1 low). The remaining high finding is `braces@3.0.3` under the Next.js ESLint development-only dependency chain.
+
+This represents a substantial reduction from 40 findings (3 critical, 15 high) at the initial local audit. It confirms no known **high/critical advisories reported by the production-only pnpm audit at that checkpoint**. It is not proof that the production graph has no moderate/low findings, or that the platform is ready for patient data.
+
+The upstream advisory [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) has no patched release listed. Retain `next/core-web-vitals` and `next/typescript` coverage. Do **not** disable Next.js lint rules, delete vulnerable dependencies without equivalent tested lint functionality, substitute an unreviewed fork, or set `auditConfig.ignoreGhsas` simply to make the report green.
+
+**Risk and gate treatment:** the existing full-audit command intentionally fails. A development-only exposure assessment can separately document how the vulnerable tool is used, whether attacker-controlled patterns can reach it, and whether isolating CI/developer execution reduces risk. This is a human-reviewed risk disposition, not a claim of remediation. Any formal exception to the Phase 1 strict full-graph security acceptance policy requires separate authorized approval and an explicit change to the acceptance criteria; none exists.
+
+Next steps: review and commit the generated pnpm lockfile and OpenAPI contract; normalize verified Next.js-generated configuration without resets; run a final exact-commit full regression. Record the residual full audit as FAIL until a genuinely patched dependency chain or an authorized revised acceptance policy is verified.
