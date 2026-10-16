@@ -8,6 +8,8 @@
 
 **Third local checkpoint (16 October 2026):** At `4f2dcf6`, install, lint, TypeScript, production builds and database migration checks passed. The full suite then stopped at an operations-web JSX unit test (`React is not defined`). Automatic JSX test transforms and validated Next.js generated-file handling have been committed for the next diagnostic run. Remaining steps are not yet verified.
 
+**Fourth local checkpoint (16 October 2026):** At `5f0a84d`, the local installation, lint, typecheck, build, migration and complete workspace test commands passed. OpenAPI generation failed before the dependency audit and HTTP smoke tests. The compiled-NestJS OpenAPI runner, documented route security, and safe diagnostic reporting have been committed for the next exact-commit verification. Phase 1 is still OPEN.
+
 ## Foundation delivered in source
 
 | Workstream | Implemented foundation | Acceptance status |
