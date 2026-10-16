@@ -4,6 +4,8 @@
 **Current status:** **Implementation continuing; acceptance gate OPEN**  
 **Verification authority:** Local exact-commit engineering tests (GitHub Actions unavailable due to billing)
 
+**First local checkpoint (16 October 2026):** pnpm 9.15.9 lockfile generation and frozen installation succeeded at `f3eaf80e`. Lint stopped on two Next.js web-app issues. Both were repaired in the working branch. TypeScript, migration, integration, build and smoke-test acceptance have not yet run. See [Local Verification Evidence](operations/phase-1-verification-evidence.md).
+
 ## Foundation delivered in source
 
 | Workstream | Implemented foundation | Acceptance status |
