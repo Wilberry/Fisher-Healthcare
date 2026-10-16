@@ -37,18 +37,18 @@ export class BookingService implements OnModuleDestroy {
    FROM collection_slots s JOIN service_zones z ON z.id=s.zone_id
    JOIN laboratories l ON l.id=s.lab_id
    WHERE s.id=$1 AND s.active AND z.active AND l.active
-   AND s.cutoff_at>now() AND s.starts_at>now() FOR UPDATE OF s`,[id]);
+   AND s.cutoff_at>clock_timestamp() AND s.starts_at>clock_timestamp() FOR UPDATE OF s`,[id]);
   if(!r.rows[0])throw new ConflictException('SLOT_UNAVAILABLE');return r.rows[0];
  }
  private async remaining(c:PoolClient,id:string,capacity:number):Promise<number>{
   // Caller holds FOR UPDATE on collection_slots: all writers serialize on that row.
   const r=await c.query<{holds:string;booked:string}>(`SELECT
    (SELECT COUNT(*)::text FROM slot_holds h JOIN booking_drafts d ON d.id=h.draft_id
-     WHERE h.slot_id=$1 AND h.expires_at>now() AND d.status='open') AS holds,
+     WHERE h.slot_id=$1 AND h.expires_at>clock_timestamp() AND d.status='open') AS holds,
    (SELECT COUNT(*)::text FROM orders o WHERE o.slot_id=$1 AND
      (o.status IN ('confirmed','assigned','collection_in_progress','collected',
        'lab_processing','results_ready','completed')
-      OR (o.status='awaiting_payment' AND o.payment_expires_at>now()))) AS booked`,[id]);
+      OR (o.status='awaiting_payment' AND o.payment_expires_at>clock_timestamp()))) AS booked`,[id]);
   return capacity-Number(r.rows[0]?.holds??0)-Number(r.rows[0]?.booked??0);
  }
  async catalogue(search=''){
@@ -88,15 +88,15 @@ export class BookingService implements OnModuleDestroy {
  async availability(zoneId:string,labId:string,tier:'regular'|'premium'){
   const r=await this.db.query(`SELECT s.id,s.starts_at,s.ends_at,s.capacity,
    (SELECT COUNT(*)::integer FROM slot_holds h JOIN booking_drafts d ON d.id=h.draft_id
-    WHERE h.slot_id=s.id AND h.expires_at>now() AND d.status='open') AS holds,
+    WHERE h.slot_id=s.id AND h.expires_at>clock_timestamp() AND d.status='open') AS holds,
    (SELECT COUNT(*)::integer FROM orders o WHERE o.slot_id=s.id AND
     (o.status IN ('confirmed','assigned','collection_in_progress','collected',
       'lab_processing','results_ready','completed')
-     OR (o.status='awaiting_payment' AND o.payment_expires_at>now()))) AS booked
+     OR (o.status='awaiting_payment' AND o.payment_expires_at>clock_timestamp()))) AS booked
    FROM collection_slots s JOIN service_zones z ON z.id=s.zone_id
    JOIN laboratories l ON l.id=s.lab_id
    WHERE s.zone_id=$1 AND s.lab_id=$2 AND s.tier=$3 AND s.active
-    AND z.active AND l.active AND s.cutoff_at>now() AND s.starts_at>now()
+    AND z.active AND l.active AND s.cutoff_at>clock_timestamp() AND s.starts_at>clock_timestamp()
    ORDER BY s.starts_at LIMIT 50`,[zoneId,labId,tier]);
   return {data:r.rows.map(row=>({id:row.id,startsAt:row.starts_at,endsAt:row.ends_at,
    remaining:Math.max(0,Number(row.capacity)-Number(row.holds)-Number(row.booked))}))
@@ -122,7 +122,7 @@ export class BookingService implements OnModuleDestroy {
    const items:QuoteItem[]=offering.rows.map(v=>({testId:v.test_id,name:v.name,priceKobo:v.price_kobo}));
    const q=await c.query<{id:string;expires_at:Date}>(`INSERT INTO booking_quotes
     (zone_id,slot_id,lab_id,tier,items,tests_total_kobo,logistics_fee_kobo,total_kobo,expires_at)
-    VALUES($1,$2,$3,$4,$5::jsonb,$6,$7,$8,LEAST(now()+interval '10 minutes',$9::timestamptz))
+    VALUES($1,$2,$3,$4,$5::jsonb,$6,$7,$8,LEAST(clock_timestamp()+interval '10 minutes',$9::timestamptz))
     RETURNING id,expires_at`,[s.zone_id,s.id,s.lab_id,s.tier,JSON.stringify(items),
      totals.testsTotalKobo,totals.logisticsFeeKobo,totals.totalKobo,s.cutoff_at]);
    return {quoteId:q.rows[0]!.id,expiresAt:q.rows[0]!.expires_at,items,...totals};
@@ -146,7 +146,7 @@ export class BookingService implements OnModuleDestroy {
    await this.authorize(c,userId,patientId);
    const d=await c.query<{id:string}>('INSERT INTO booking_drafts(user_id,patient_id,quote_id) VALUES($1,$2,$3) RETURNING id',[userId,patientId,quoteId]);
    const h=await c.query<{expires_at:Date}>(`INSERT INTO slot_holds(draft_id,slot_id,expires_at)
-    VALUES($1,$2,LEAST(now()+interval '5 minutes',$3::timestamptz)) RETURNING expires_at`,
+    VALUES($1,$2,LEAST(clock_timestamp()+interval '5 minutes',$3::timestamptz)) RETURNING expires_at`,
     [d.rows[0]!.id,s.id,q.rows[0].expires_at]);
    return {draftId:d.rows[0]!.id,holdExpiresAt:h.rows[0]!.expires_at};
   });
