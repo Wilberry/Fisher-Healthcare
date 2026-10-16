@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { crossSiteRequest } from '../../../../../lib/patient-auth';
 import { patientApi } from '../../../../../lib/patient-api';
-const routes:Record<string,string>={draft:'booking-drafts',commit:'bookings',checkout:'payments/checkout'};
+const routes:Record<string,string>={draft:'booking-drafts',commit:'bookings',checkout:'payments/checkout',patient:'patients'};
 export async function POST(request:NextRequest,{params}:{params:Promise<{action:string}>}){
  if(crossSiteRequest(request))return NextResponse.json({error:'Invalid request origin'},{status:403});
  const {action}=await params;
