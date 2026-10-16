@@ -1,21 +1,42 @@
-# Phase 1 verification and acceptance
+# Fisher Healthcare — Phase 1 Engineering Verification and Acceptance
 
-## Current status
+**Test execution:** Local workstation only  
+**Automated GitHub Actions:** Suspended because the account's billing restrictions prevent use  
+**Acceptance gate:** OPEN pending results
 
-Phase 1 remains **OPEN**. Source and migration files are committed, but dependency installation, migration execution, authenticated integration tests, and production build are not verified. No clinical data should be used.
+## Verification coverage
 
-## Verification procedure
+The approved Phase 1 engineering gate requires one exact-commit, reproducible local run validating:
 
-1. On an isolated workstation, install Node 22, Corepack/pnpm 9.15.9 and Docker.
-2. Clone repository at an exact commit. Run `corepack enable && pnpm install`.
-3. Run `pnpm typecheck`, `pnpm test` and `pnpm build`; record exact output and commit.
-4. Start disposable PostgreSQL with `docker compose -f infra/docker-compose.yml up -d`.
-5. Apply migration `packages/database/drizzle/0000_foundation.sql` to an empty disposable database using `psql -v ON_ERROR_STOP=1`. Verify table names, constraints, indexes and rollback strategy.
-6. Exercise access policy tests and prove unauthorized cross-patient result reads fail at the API and storage boundaries.
-7. Implement and test OIDC validation, staff MFA and server-side guards before enabling protected routes.
-8. Verify web accessibility, field offline sync, durable worker retries and OpenAPI contract generation.
-9. Confirm CI green on exact commit, review security scan, and sign off Phase 1 checklist.
+| Gate | Evidence required |
+| --- | --- |
+| Workspace reproducibility | Committed pnpm lockfile and frozen dependency installation |
+| Source quality | Lint and strict TypeScript checks across the full monorepo |
+| Application packaging | Successful production builds of patient, operations, field, API and worker |
+| PostgreSQL | Reviewed forward migrations, checksummed history, constraint checks and rollback test |
+| Identity and permissions | Valid/invalid JWT checks, cross-patient denial, revoked grants, employee MFA and clinical segregation |
+| Worker and durability | Concurrent claims, lease expiry, stale-worker fencing, retries and dead-letter handling |
+| Contracts | Generated API specification and strict schema tests |
+| Security and operations | Dependency audit, protected data handling and safe structured logs |
+| Runtime readiness | Loopback API health/authentication smoke tests and individual frontend smoke tests |
+| Governance | Exact commit, local logs, inspected changes and recorded acceptance decision |
 
-## Release blockers
+## Single execution entry point
 
-No authenticated integration, full schema coverage, protected patient data access, durable worker implementation, complete shared UI library, or end-to-end deployment has been verified. A passing unit test alone does not close the phase.
+The company's local verification entry point is:
+
+```bash
+FISHER_PHASE1_LOCAL_ACK=synthetic-only bash scripts/verify-phase1-local.sh
+```
+
+Prerequisites, branch checkout, logging, rollback testing, data isolation and generated artifacts are defined in the [Local Verification Procedure](operations/phase-1-local-verification.md).
+
+A missing lockfile is a known initial blocker. The verifier can generate it for review, but Phase 1 acceptance requires committing it and rerunning verification on the updated exact commit.
+
+## Evidence and results
+
+Local logs are stored under `.verification/`, excluded from source control. The final review will record the tested commit SHA, package-manager version, PostgreSQL image, migration checksums, test results, build and smoke outcomes, vulnerability review, and any remaining exceptions.
+
+No clinical or customer data may be used to pass an engineering acceptance gate. No unfinished Phase 2 or later functionality may be presented as operational.
+
+**A phase can be accepted only after the local tests have actually run and passed.**

@@ -10,7 +10,7 @@ import type { INestApplication } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AppModule } from './module';
 
-const suite = process.env.DATABASE_URL ? describe : describe.skip;
+const suite = process.env.FISHER_DISPOSABLE_DB_ACK === 'disposable-test-only' && process.env.DATABASE_URL ? describe : describe.skip;
 suite.sequential('authenticated resource access (disposable PostgreSQL only)', () => {
   let pool: Pool;
   let app: INestApplication;
@@ -50,8 +50,8 @@ suite.sequential('authenticated resource access (disposable PostgreSQL only)', (
   }
 
   beforeAll(async () => {
-    if (!process.env.DATABASE_URL?.includes('fisher_test')) {
-      throw new Error('Refusing patient authorization integration tests outside disposable fisher_test DB');
+    if (!process.env.DATABASE_URL || process.env.FISHER_DISPOSABLE_DB_ACK !== 'disposable-test-only') {
+      throw new Error('Disposable synthetic test acknowledgment and DATABASE_URL required');
     }
     const pair = await generateKeyPair('RS256');
     privateKey = pair.privateKey;
@@ -75,6 +75,10 @@ suite.sequential('authenticated resource access (disposable PostgreSQL only)', (
     process.env.OIDC_JWKS_URI = `http://localhost:${port}/jwks`;
 
     pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const databaseIdentity = await pool.query('SELECT current_database() AS db');
+    if (databaseIdentity.rows[0]?.db !== 'fisher_test') {
+      throw new Error('Refusing patient authorization tests outside the dedicated fisher_test database');
+    }
     await pool.query(
       'INSERT INTO users(id,identity_subject) VALUES($1,$2),($3,$4)',
       [ownerId, ownerSub, adminId, adminSub]
@@ -129,6 +133,21 @@ suite.sequential('authenticated resource access (disposable PostgreSQL only)', (
       .set('Authorization', `Bearer ${tokenExpired}`).expect(401);
   });
 
+  it('rejects an otherwise valid signature issued for a different API audience', async () => {
+    const wrongAudience = await new SignJWT({ purpose: 'synthetic-negative-test' })
+      .setProtectedHeader({ alg: 'RS256', kid: 'fisher-test-key' })
+      .setIssuer('https://identity.fisher.test')
+      .setAudience('another-service')
+      .setSubject(ownerSub)
+      .setIssuedAt()
+      .setExpirationTime('5m')
+      .sign(privateKey);
+    await request(app.getHttpServer())
+      .get('/api/v1/identity/session')
+      .set('Authorization', `Bearer ${wrongAudience}`)
+      .expect(401);
+  });
+
   it('verifies a signed identity and enforces current booking authority', async () => {
     await request(app.getHttpServer()).get('/api/v1/identity/session')
       .set('Authorization', `Bearer ${tokenOwner}`).expect(200);
@@ -152,6 +171,18 @@ suite.sequential('authenticated resource access (disposable PostgreSQL only)', (
       [ownerId, resultId]
     );
     expect(audit.rows.length).toBe(1);
+  });
+
+  it('withholds unreleased results even from the correct verified patient', async () => {
+    await pool.query('UPDATE results SET released_at=NULL, released_by=NULL WHERE id=$1', [resultId]);
+    try {
+      await request(app.getHttpServer())
+        .get(`/api/v1/access/results/${resultId}/authorization`)
+        .set('Authorization', `Bearer ${tokenOwner}`).expect(403);
+    } finally {
+      await pool.query('UPDATE results SET released_at=now(), released_by=$2 WHERE id=$1',
+        [resultId, adminId]);
+    }
   });
 
   it('denies staff actions without verified multi-factor authentication', async () => {

@@ -1,3 +1,4 @@
+import { writeOperationalRecord } from '@fisher/observability';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './module';
@@ -8,10 +9,11 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix('api/v1');
   app.useGlobalFilters(new HttpErrorFilter());
   app.enableShutdownHooks();
-  await app.listen(Number(process.env.PORT ?? 4000), '0.0.0.0');
+  await app.listen(Number(process.env.PORT ?? 4000), process.env.FISHER_API_BIND_HOST ?? '0.0.0.0');
+  writeOperationalRecord({ service: 'api', level: 'info', event: 'api.started' });
 }
 
 void bootstrap().catch(() => {
-  console.error('Fisher API startup failed');
+  writeOperationalRecord({ service: 'api', level: 'error', event: 'api.startup_failed' });
   process.exitCode = 1;
 });

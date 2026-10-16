@@ -4,12 +4,21 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { claimNext, completeClaim, failClaim, processOne } from './outbox';
 
 const dbUrl = process.env.DATABASE_URL;
-const suite = dbUrl ? describe : describe.skip;
+const suite = dbUrl && process.env.FISHER_DISPOSABLE_DB_ACK === 'disposable-test-only' ? describe : describe.skip;
 
 suite.sequential('PostgreSQL outbox fencing', () => {
   let pool: Pool;
   const created: string[] = [];
-  beforeAll(() => { pool = new Pool({ connectionString: dbUrl, max: 5 }); });
+  beforeAll(async () => {
+    if (!dbUrl || process.env.FISHER_DISPOSABLE_DB_ACK !== 'disposable-test-only') {
+      throw new Error('Disposable outbox test environment is required');
+    }
+    pool = new Pool({ connectionString: dbUrl, max: 5 });
+    const identity = await pool.query('SELECT current_database() AS db');
+    if (identity.rows[0]?.db !== 'fisher_test') {
+      throw new Error('Refusing outbox mutation outside fisher_test');
+    }
+  });
   afterAll(async () => {
     if (pool) {
       for (const id of created) await pool.query('DELETE FROM outbox WHERE id=$1::uuid', [id]);
@@ -44,6 +53,42 @@ suite.sequential('PostgreSQL outbox fencing', () => {
     const row = await pool.query('SELECT dead_lettered_at, last_error FROM outbox WHERE id=$1', [id]);
     expect(row.rows[0]?.dead_lettered_at).toBeTruthy();
     expect(row.rows[0]?.last_error).toBe('UNSUPPORTED_EVENT');
+  });
+
+  it('reclaims an expired lease while rejecting the old worker acknowledgment', async () => {
+    const id = await enqueue();
+    const first = await claimNext(pool, 5);
+    expect(first?.id).toBe(id);
+    await pool.query(
+      `UPDATE outbox SET lease_expires_at=now()-interval '1 second' WHERE id=$1`,
+      [id]
+    );
+    const replacement = await claimNext(pool, 5);
+    expect(replacement?.id).toBe(id);
+    expect(replacement?.lease_token).not.toBe(first?.lease_token);
+    expect(await completeClaim(pool, first!)).toBe(false);
+    expect(await completeClaim(pool, replacement!)).toBe(true);
+  });
+
+  it('dead-letters handler failures after the configured attempt limit', async () => {
+    const id = await enqueue();
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      if (attempt > 1) {
+        await pool.query('UPDATE outbox SET available_at=now() WHERE id=$1', [id]);
+      }
+      const claim = await claimNext(pool, 5);
+      expect(claim?.id).toBe(id);
+      expect(claim?.attempts).toBe(attempt);
+      expect(await failClaim(pool, claim!, 'HANDLER_FAILED', 5)).toBe(true);
+    }
+    const row = await pool.query(
+      'SELECT dead_lettered_at, attempts, last_error FROM outbox WHERE id=$1',
+      [id]
+    );
+    expect(row.rows[0]?.attempts).toBe(5);
+    expect(row.rows[0]?.dead_lettered_at).toBeTruthy();
+    expect(row.rows[0]?.last_error).toBe('HANDLER_FAILED');
+    expect(await claimNext(pool)).toBeUndefined();
   });
 
   it('requeues a handler failure with bounded retry delay', async () => {

@@ -1,4 +1,5 @@
 node_modules/
+.turbo/
 .next/
 dist/
 coverage/
@@ -7,3 +8,6 @@ coverage/
 !.env.example
 *.tsbuildinfo
 .DS_Store
+
+# Exact-commit local verification outputs; never commit logs or database evidence
+.verification/

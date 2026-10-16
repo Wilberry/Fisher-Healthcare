@@ -7,8 +7,9 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "openapi:generate": "tsx src/openapi.ts",
-    "lint": "eslint src"
+    "openapi:generate": "node dist/openapi.js",
+    "lint": "eslint src",
+    "openapi:generate:from-source": "pnpm run build && node dist/openapi.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",
@@ -20,17 +21,19 @@
     "@fisher/auth": "workspace:*",
     "@fisher/contracts": "workspace:*",
     "pg": "^8.13.1",
-    "@nestjs/swagger": "^7.4.2"
+    "@nestjs/swagger": "^7.4.2",
+    "@fisher/observability": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "vitest": "^2.1.8",
+    "vitest": "^4.1.11",
     "@types/express": "^4.17.21",
     "@types/pg": "^8.11.10",
     "@nestjs/testing": "^10.4.15",
     "supertest": "^7.0.0",
-    "@types/supertest": "^6.0.2"
+    "@types/supertest": "^6.0.2",
+    "vite": "^6.4.3"
   }
 }

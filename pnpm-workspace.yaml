@@ -1,3 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+
+# The pinned pnpm 9.15.9 version loads dependency overrides from
+# the root package.json "pnpm.overrides" field. Keep a single source of truth.
+# Audit the resolved pnpm-lock.yaml rather than relying on these comments.

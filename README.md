@@ -71,6 +71,8 @@ The documentation in this repository defines the company's intended product capa
 
 ## Current development position
 
-**Phase 1 — Engineering foundation in progress.** The repository contains initial application scaffolding, domain schemas, authorization policy foundations, and supporting engineering configuration. The platform is not yet operational or approved for live healthcare service delivery.
+**Phase 1 engineering: PASS WITH DOCUMENTED SECURITY EXCEPTION.** Exact-commit local verification of `a504bee8d858712a8ada350a9792a87d23ecbb9a` passed functional checks and the production high/critical dependency audit. The full dependency audit remained **FAIL** (one unpatched, development-only high-severity `braces` advisory, seven moderate and one low finding). A project-owner-directed engineering milestone exception is documented; this is not a claim that the audit passed. Live patient data and production deployment are not approved.
 
-[Phase 1 Implementation Status](docs/phase-1-implementation-status.md) · [Phase 1 Verification Plan](docs/phase-1-verification-plan.md)
+[Phase 1 Implementation Status](docs/phase-1-implementation-status.md) · [Engineering Acceptance Record](docs/operations/phase-1-engineering-acceptance.md) · [Phase 1 Verification Plan](docs/phase-1-verification-plan.md) · [Local Verification Procedure](docs/operations/phase-1-local-verification.md)
+
+Phase 1 acceptance verification is conducted locally while GitHub Actions is unavailable due to billing restrictions. The consolidated verification entry point is `scripts/verify-phase1-local.sh`; results require exact-commit review before merging into `main`.

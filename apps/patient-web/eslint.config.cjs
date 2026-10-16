@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS is required by this ESLint flat config. */
 const { FlatCompat } = require('@eslint/eslintrc');
 const compat = new FlatCompat({ baseDirectory: __dirname });
 module.exports = [
