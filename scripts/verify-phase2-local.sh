@@ -168,7 +168,7 @@ DB_PORT="${PORT_OUTPUT##*:}"
 [[ "$DB_PORT" =~ ^[0-9]+$ ]] || die "Cannot resolve disposable PostgreSQL loopback port"
 export DATABASE_URL="postgresql://fisher:fisher_local_verify_only@127.0.0.1:$DB_PORT/fisher_test"
 export FISHER_DISPOSABLE_DB_ACK=disposable-test-only
-run_step 06-migrations bash scripts/verify-database.sh
+run_step 06-migrations bash scripts/verify-phase2-database.sh
 run_step 07-tests env FISHER_PHASE2_BOOKING_MODE=synthetic FISHER_PHASE2_PAYMENT_MODE=staging PAYSTACK_SECRET_KEY=sk_test_synthetic_fisher_phase2 pnpm exec turbo run test --concurrency=1
 run_step 08-openapi pnpm --filter @fisher/api openapi:generate
 
@@ -214,6 +214,8 @@ check_http "http://127.0.0.1:$API_PORT/api/v1/catalog/tests" 200
 check_http "http://127.0.0.1:$API_PORT/api/v1/service-zones" 200
 check_http "http://127.0.0.1:$API_PORT/api/v1/patients" 401
 check_http "http://127.0.0.1:$API_PORT/api/v1/me/bookings" 401
+check_http "http://127.0.0.1:$API_PORT/api/v1/me/support-cases" 401
+check_http "http://127.0.0.1:$API_PORT/api/v1/patients/00000000-0000-4000-8000-000000000001/addresses" 401
 check_http "http://127.0.0.1:$API_PORT/api/v1/me/bootstrap" 404
 check_http "http://127.0.0.1:$API_PORT/api/v1/patients" 401
 check_http "http://127.0.0.1:$API_PORT/api/v1/ops/patient-relationships/00000000-0000-4000-8000-000000000001/approve-booking" 404
@@ -232,6 +234,7 @@ for app in patient-web operations-web field-pwa; do
     check_http "http://127.0.0.1:$WEB_PORT/tests" 200
     check_http "http://127.0.0.1:$WEB_PORT/book" 200
     check_http "http://127.0.0.1:$WEB_PORT/account" 200
+    check_http "http://127.0.0.1:$WEB_PORT/support" 200
     check_http "http://127.0.0.1:$WEB_PORT/account/patients/new" 200
     check_http "http://127.0.0.1:$WEB_PORT/book/confirm" 200
     check_http "http://127.0.0.1:$WEB_PORT/account/patients/00000000-0000-4000-8000-000000000001/addresses/new" 200
