@@ -15,7 +15,8 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
  const env={
   mode:process.env.FISHER_PHASE2_BOOKING_MODE,
   payment:process.env.FISHER_PHASE2_PAYMENT_MODE,
-  key:process.env.PAYSTACK_SECRET_KEY
+  key:process.env.PAYSTACK_SECRET_KEY,
+  allow:process.env.FISHER_STAGING_CHECKOUT_ALLOWLIST
  };
  beforeAll(async()=>{
   if(!process.env.DATABASE_URL || process.env.FISHER_DISPOSABLE_DB_ACK!=='disposable-test-only')
@@ -27,6 +28,8 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
   process.env.FISHER_PHASE2_BOOKING_MODE='synthetic';
   process.env.FISHER_PHASE2_PAYMENT_MODE='staging';
   process.env.PAYSTACK_SECRET_KEY='sk_test_synthetic_fisher_phase2';
+  process.env.FISHER_STAGING_CHECKOUT_ALLOWLIST=[one,two]
+   .map(v=>'synthetic'+v.id.slice(0,6)+'@example.test').join(',');
   bookings=new BookingService();
   payments=new PaymentService(bookings);
   for(const u of [one,two]){
@@ -57,7 +60,7 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
   await payments?.onModuleDestroy();
   await bookings?.onModuleDestroy();
   await pool?.end();
-  for(const [k,v] of Object.entries({FISHER_PHASE2_BOOKING_MODE:env.mode,FISHER_PHASE2_PAYMENT_MODE:env.payment,PAYSTACK_SECRET_KEY:env.key})){
+  for(const [k,v] of Object.entries({FISHER_PHASE2_BOOKING_MODE:env.mode,FISHER_PHASE2_PAYMENT_MODE:env.payment,PAYSTACK_SECRET_KEY:env.key,FISHER_STAGING_CHECKOUT_ALLOWLIST:env.allow})){
    if(v===undefined)delete process.env[k];else process.env[k]=v;
   }
  });
@@ -169,6 +172,20 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
   expect(vacancies.data.find(s=>s.id===slot)?.remaining).toBe(1);
   const orders=await pool.query('SELECT COUNT(*)::integer AS count FROM orders WHERE booking_draft_id=$1',[draft.draftId]);
   expect(orders.rows[0].count).toBe(0);
+ });
+ it('cancels an unpaid booking but never silently cancels after a checkout was created',async()=>{
+  const slot=randomUUID();
+  await pool.query(`INSERT INTO collection_slots(id,zone_id,lab_id,tier,starts_at,ends_at,cutoff_at,capacity,active)
+   VALUES($1,$2,$3,'regular',now()+interval '5 days',now()+interval '5 days 1 hour',now()+interval '4 days',1,true)`,
+   [slot,zoneId,labId]);
+  const q=await bookings.quote({zoneId,slotId:slot,labId,serviceTier:'regular',testIds:[testId]});
+  const draft=await bookings.draft(two.sub,q.quoteId,two.patientId,two.addressId);
+  const order=await bookings.commit(two.sub,draft.draftId,'synthetic_cancel_request_key');
+  const result=await bookings.cancel(two.sub,order.bookingId);
+  expect(result.status).toBe('cancelled');
+  await expect(bookings.checkoutOrder(two.sub,order.bookingId)).rejects.toThrow();
+  const before=await pool.query("SELECT count(*)::integer AS count FROM orders WHERE id=$1 AND status='confirmed'",[order.bookingId]);
+  expect(before.rows[0].count).toBe(0);
  });
  it('late verified payment is recorded for manual review without confirming an appointment',async()=>{
   const slot=randomUUID();

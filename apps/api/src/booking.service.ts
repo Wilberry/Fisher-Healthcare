@@ -290,9 +290,14 @@ export class BookingService implements OnModuleDestroy {
   this.bookingEnabled();
   return this.tx(async c=>{
    const userId=await this.actor(c,subject);
-   const o=(await c.query<{patient_id:string;status:string}>(
-    'SELECT patient_id,status FROM orders WHERE id=$1 FOR UPDATE',[id])).rows[0];
-   if(!o)throw new NotFoundException('Booking not found');
+   // Preserve the same lock ordering as Paystack settlement: slot -> order.
+   const initial=await c.query<{slot_id:string|null}>('SELECT slot_id FROM orders WHERE id=$1',[id]);
+   if(!initial.rows[0])throw new NotFoundException('Booking not found');
+   if(initial.rows[0].slot_id)
+    await c.query('SELECT id FROM collection_slots WHERE id=$1 FOR UPDATE',[initial.rows[0].slot_id]);
+   const o=(await c.query<{patient_id:string;status:string;slot_id:string|null}>(
+    'SELECT patient_id,status,slot_id FROM orders WHERE id=$1 FOR UPDATE',[id])).rows[0];
+   if(!o || o.slot_id!==initial.rows[0].slot_id)throw new ConflictException('Booking changed during cancellation');
    await this.authorize(c,userId,o.patient_id);
    if(o.status==='cancelled')return {bookingId:id,status:'cancelled'};
    if(o.status!=='awaiting_payment')throw new ConflictException('Contact support for paid cancellation');
