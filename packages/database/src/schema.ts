@@ -49,6 +49,7 @@ export const bookingDrafts = pgTable('booking_drafts', {
   patientId: uuid('patient_id').notNull().references(()=>patients.id),
   quoteId: uuid('quote_id').notNull().references(()=>bookingQuotes.id),
   status: varchar('status',{length:24}).notNull().default('open'),
+  commitKey: varchar('commit_key',{length:128}),
   orderId: uuid('order_id').references(()=>orders.id),
   ...timestamps
 });

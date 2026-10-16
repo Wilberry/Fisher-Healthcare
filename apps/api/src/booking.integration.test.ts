@@ -77,7 +77,7 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
   const index=attempts[0]!.status==='fulfilled'?0:1;
   const who=[one,two][index]!;
   const draft=attempts[index] as PromiseFulfilledResult<{draftId:string;holdExpiresAt:Date}>;
-  const result=await bookings.commit(who.sub,draft.value.draftId);
+  const result=await bookings.commit(who.sub,draft.value.draftId,'synthetic_booking_key_01');
   winner={sub:who.sub,draftId:draft.value.draftId,bookingId:result.bookingId};
   expect(result.status).toBe('awaiting_payment');
   const second=await bookings.commit(who.sub,draft.value.draftId);

@@ -4,7 +4,7 @@ import { quoteTotals, type BookingQuoteInput, type QuoteItem } from '@fisher/con
 
 type Slot={id:string;zone_id:string;lab_id:string;tier:'regular'|'premium';capacity:number;cutoff_at:Date;starts_at:Date;ends_at:Date};
 type Quote={id:string;zone_id:string;slot_id:string;lab_id:string;tier:'regular'|'premium';items:QuoteItem[];total_kobo:number;expires_at:Date};
-type Draft={id:string;quote_id:string;patient_id:string;user_id:string;status:string;order_id:string|null};
+type Draft={id:string;quote_id:string;patient_id:string;user_id:string;status:string;order_id:string|null;commit_key:string|null};
 
 @Injectable()
 export class BookingService implements OnModuleDestroy {
@@ -151,18 +151,22 @@ export class BookingService implements OnModuleDestroy {
    return {draftId:d.rows[0]!.id,holdExpiresAt:h.rows[0]!.expires_at};
   });
  }
- async commit(subject:string,draftId:string){
+ async commit(subject:string,draftId:string,key:string){
   this.bookingEnabled();
   return this.tx(async c=>{
    const userId=await this.actor(c,subject);
    const d=(await c.query<Draft>('SELECT * FROM booking_drafts WHERE id=$1 FOR UPDATE',[draftId])).rows[0];
    if(!d || d.user_id!==userId)throw new NotFoundException('Draft not found');
    await this.authorize(c,userId,d.patient_id);
+   if(d.commit_key && d.commit_key!==key)throw new ConflictException('Idempotency key mismatch');
    if(d.status==='committed' && d.order_id){
     const existing=await c.query<{status:string}>('SELECT status FROM orders WHERE id=$1',[d.order_id]);
     return {bookingId:d.order_id,status:existing.rows[0]?.status??'unknown'};
    }
    if(d.status!=='open')throw new ConflictException('Draft no longer available');
+   const reuse=await c.query('SELECT 1 FROM booking_drafts WHERE user_id=$1 AND commit_key=$2 AND id<>$3',[userId,key,d.id]);
+   if(reuse.rows.length)throw new ConflictException('Idempotency key already used');
+   await c.query('UPDATE booking_drafts SET commit_key=$2 WHERE id=$1',[d.id,key]);
    const q=(await c.query<Quote>('SELECT * FROM booking_quotes WHERE id=$1',[d.quote_id])).rows[0];
    if(!q || q.expires_at<=new Date())throw new ConflictException('QUOTE_EXPIRED');
    const s=await this.slot(c,q.slot_id);

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Headers, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { bookingDraftInput, bookingCommitInput, bookingQuoteInput } from '@fisher/contracts';
 import { BookingService } from './booking.service';
@@ -32,8 +32,9 @@ export class BookingPatientController {
  @Post('booking-drafts') draft(@Req() req:AuthenticatedRequest,@Body() body:unknown){
   const i=parse(bookingDraftInput,body);return this.bookings.draft(req.identity!.subject,i.quoteId,i.patientId);
  }
- @Post('bookings') commit(@Req() req:AuthenticatedRequest,@Body() body:unknown){
-  const i=parse(bookingCommitInput,body);return this.bookings.commit(req.identity!.subject,i.draftId);
+ @Post('bookings') commit(@Req() req:AuthenticatedRequest,@Body() body:unknown,@Headers('idempotency-key') key?:string){
+  if(!key || !/^[A-Za-z0-9_-]{8,128}$/.test(key))throw new BadRequestException('Idempotency-Key required');
+  const i=parse(bookingCommitInput,body);return this.bookings.commit(req.identity!.subject,i.draftId,key);
  }
  @Get('me/bookings') history(@Req() req:AuthenticatedRequest){return this.bookings.history(req.identity!.subject);}
  @Get('bookings/:id') get(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string){
