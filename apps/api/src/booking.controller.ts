@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Headers, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiUnauthorizedResponse } from '@nestjs/swagger';
-import { bookingDraftInput, bookingCommitInput, bookingQuoteInput } from '@fisher/contracts';
+import { bookingDraftInput, bookingCommitInput, bookingQuoteInput, rescheduleInput } from '@fisher/contracts';
 import { BookingService } from './booking.service';
 import { IdentityGuard, type AuthenticatedRequest } from './identity.guard';
 
@@ -42,6 +42,17 @@ export class BookingPatientController {
  }
  @Get('bookings/:id/timeline') timeline(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string){
   return this.bookings.booking(req.identity!.subject,id);
+ }
+ @Get('bookings/:id/receipt')
+ receipt(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string){
+  return this.bookings.receipt(req.identity!.subject,id);
+ }
+ @Post('bookings/:id/reschedule')
+ reschedule(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string,
+  @Body() body:unknown,@Headers('idempotency-key') key?:string){
+  if(!key || !/^[A-Za-z0-9_-]{8,128}$/.test(key))throw new BadRequestException('Idempotency-Key required');
+  const input=parse(rescheduleInput,body);
+  return this.bookings.reschedule(req.identity!.subject,id,input.slotId,key);
  }
  @Post('bookings/:id/cancel') cancel(@Req() req:AuthenticatedRequest,@Param('id',ParseUUIDPipe) id:string){
   return this.bookings.cancel(req.identity!.subject,id);

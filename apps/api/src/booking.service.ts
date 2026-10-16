@@ -206,6 +206,61 @@ export class BookingService implements OnModuleDestroy {
    ORDER BY o.created_at DESC LIMIT 50`,[subject]);
   return {data:r.rows};
  }
+ async reschedule(subject:string,id:string,newSlotId:string,key:string){
+  this.bookingEnabled();
+  return this.tx(async c=>{
+   const userId=await this.actor(c,subject);
+   // Read the immutable source reference, then lock affected slots in deterministic order.
+   const initial=await c.query<{slot_id:string;lab_id:string;patient_id:string;tier:string}>(
+    'SELECT slot_id,lab_id,patient_id,tier FROM orders WHERE id=$1',[id]);
+   if(!initial.rows[0]?.slot_id)throw new NotFoundException('Booking not found');
+   const currentSlot=initial.rows[0].slot_id;
+   for(const slotId of [...new Set([currentSlot,newSlotId])].sort()){
+    await c.query('SELECT id FROM collection_slots WHERE id=$1 FOR UPDATE',[slotId]);
+   }
+   const order=await c.query<{slot_id:string;lab_id:string;patient_id:string;tier:string;status:string;payment_expires_at:Date}>(
+    'SELECT slot_id,lab_id,patient_id,tier,status,payment_expires_at FROM orders WHERE id=$1 FOR UPDATE',[id]);
+   const o=order.rows[0];
+   if(!o || o.slot_id!==currentSlot)throw new ConflictException('Booking schedule changed');
+   await this.authorize(c,userId,o.patient_id);
+   const prior=await c.query<{to_slot_id:string}>(
+    'SELECT to_slot_id FROM booking_schedule_changes WHERE order_id=$1 AND idempotency_key=$2',[id,key]);
+   if(prior.rows[0]){
+    if(prior.rows[0].to_slot_id!==newSlotId)throw new ConflictException('Idempotency key mismatch');
+    return {bookingId:id,slotId:prior.rows[0].to_slot_id,status:o.status};
+   }
+   if(o.status!=='awaiting_payment' || o.payment_expires_at<=new Date())
+    throw new ConflictException('Rescheduling requires support review');
+   const attempts=await c.query('SELECT 1 FROM payments WHERE order_id=$1',[id]);
+   if(attempts.rows.length)throw new ConflictException('Payment started; contact support for rescheduling');
+   const next=await this.slot(c,newSlotId);
+   // Preserve contracted zone, laboratory, service tier, and fee; never silently upgrade.
+   const existing=await c.query<{zone_id:string}>('SELECT zone_id FROM collection_slots WHERE id=$1',[currentSlot]);
+   if(next.id===currentSlot || next.zone_id!==existing.rows[0]?.zone_id ||
+      next.lab_id!==o.lab_id || next.tier!==o.tier)
+    throw new ConflictException('Choose an alternative compatible slot');
+   if(await this.remaining(c,next.id,next.capacity)<1)throw new ConflictException('SLOT_UNAVAILABLE');
+   await c.query(`UPDATE orders SET slot_id=$2,collection_window_start=$3,
+     collection_window_end=$4,updated_at=now() WHERE id=$1`,[id,newSlotId,next.starts_at,next.ends_at]);
+   await c.query(`INSERT INTO booking_schedule_changes(order_id,from_slot_id,to_slot_id,idempotency_key,actor_id)
+     VALUES($1,$2,$3,$4,$5)`,[id,currentSlot,newSlotId,key,userId]);
+   await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
+     VALUES($1,'booking.rescheduled','order',$2,jsonb_build_object('fromSlot',$3,'toSlot',$4))`,
+     [userId,id,currentSlot,newSlotId]);
+   return {bookingId:id,slotId:newSlotId,status:'awaiting_payment'};
+  });
+ }
+ async receipt(subject:string,id:string){
+  const r=await this.db.query(`SELECT o.id AS booking_id,o.currency,o.total_kobo,o.tier,
+   p.id AS payment_id,p.provider_reference,p.updated_at AS paid_at
+   FROM orders o JOIN payments p ON p.order_id=o.id AND p.status='paid'
+   WHERE o.id=$2 AND EXISTS(
+    SELECT 1 FROM patient_relationships rel JOIN users u ON u.id=rel.user_id
+    WHERE u.identity_subject=$1 AND rel.patient_id=o.patient_id AND rel.can_book
+      AND rel.verified_at IS NOT NULL AND rel.revoked_at IS NULL)`,[subject,id]);
+  if(!r.rows[0])throw new NotFoundException('Receipt unavailable');
+  return {data:r.rows[0]};
+ }
  async cancel(subject:string,id:string){
   return this.tx(async c=>{
    const userId=await this.actor(c,subject);
@@ -215,8 +270,8 @@ export class BookingService implements OnModuleDestroy {
    await this.authorize(c,userId,o.patient_id);
    if(o.status==='cancelled')return {bookingId:id,status:'cancelled'};
    if(o.status!=='awaiting_payment')throw new ConflictException('Contact support for paid cancellation');
-   const p=await c.query("SELECT 1 FROM payments WHERE order_id=$1 AND status IN ('paid','success')",[id]);
-   if(p.rows.length)throw new ConflictException('Refund review required');
+   const p=await c.query('SELECT 1 FROM payments WHERE order_id=$1',[id]);
+   if(p.rows.length)throw new ConflictException('Payment started; cancellation requires support review');
    await c.query("UPDATE orders SET status='cancelled',updated_at=now() WHERE id=$1",[id]);
    await c.query("INSERT INTO audit_events(actor_id,action,resource_type,resource_id) VALUES($1,'booking.cancelled','order',$2)",[userId,id]);
    return {bookingId:id,status:'cancelled'};

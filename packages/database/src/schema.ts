@@ -64,3 +64,13 @@ export const paymentWebhookEvents = pgTable('payment_webhook_events', {
   providerReference: varchar('provider_reference',{length:200}),
   receivedAt: timestamp('received_at',{withTimezone:true}).notNull().defaultNow()
 });
+
+export const bookingScheduleChanges=pgTable('booking_schedule_changes',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ orderId:uuid('order_id').notNull().references(()=>orders.id),
+ fromSlotId:uuid('from_slot_id').notNull().references(()=>collectionSlots.id),
+ toSlotId:uuid('to_slot_id').notNull().references(()=>collectionSlots.id),
+ idempotencyKey:varchar('idempotency_key',{length:128}).notNull(),
+ actorId:uuid('actor_id').notNull().references(()=>users.id),
+ recordedAt:timestamp('recorded_at',{withTimezone:true}).notNull().defaultNow()
+}, t=>[uniqueIndex('booking_schedule_order_key').on(t.orderId,t.idempotencyKey)]);

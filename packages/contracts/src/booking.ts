@@ -36,3 +36,4 @@ export const createPatientSchema = z.object({
  dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
 }).strict();
 export type CreatePatient = z.infer<typeof createPatientSchema>;
+export const rescheduleInput=z.object({slotId:uuidSchema}).strict();
