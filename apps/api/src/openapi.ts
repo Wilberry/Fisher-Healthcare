@@ -45,11 +45,19 @@ function validateDocument(document: OpenAPIObject): void {
   const phase2Get = [
     '/api/v1/catalog/tests','/api/v1/catalog/labs','/api/v1/service-zones',
     '/api/v1/patients','/api/v1/me/bookings','/api/v1/me/notifications',
-    '/api/v1/bookings/{id}','/api/v1/bookings/{id}/receipt','/api/v1/payments/{id}'
+    '/api/v1/bookings/{id}','/api/v1/bookings/{id}/receipt','/api/v1/payments/{id}',
+    '/api/v1/me/support-cases','/api/v1/patients/{id}/addresses',
+    '/api/v1/ops/catalog/reviews'
   ];
   const phase2Post = [
     '/api/v1/availability/search','/api/v1/quotes','/api/v1/booking-drafts',
-    '/api/v1/bookings','/api/v1/payments/checkout','/api/v1/webhooks/payments/paystack'
+    '/api/v1/bookings','/api/v1/payments/checkout','/api/v1/webhooks/payments/paystack',
+    '/api/v1/me/bootstrap','/api/v1/support/cases','/api/v1/patients/{id}/addresses',
+    '/api/v1/ops/catalog/tests','/api/v1/ops/catalog/laboratories',
+    '/api/v1/ops/catalog/zones','/api/v1/ops/catalog/offerings',
+    '/api/v1/ops/catalog/slots','/api/v1/ops/catalog/reviews/{type}/{id}/approve',
+    '/api/v1/ops/patient-relationships/{id}/approve-booking',
+    '/api/v1/ops/patient-addresses/{id}/approve'
   ];
   for(const path of phase2Get) {
     if(!document.paths[path]?.get)throw new OpenApiContractError('Phase 2 GET route missing: '+path);
@@ -61,7 +69,19 @@ function validateDocument(document: OpenAPIObject): void {
     ['/api/v1/patients','get'],['/api/v1/me/bookings','get'],
     ['/api/v1/bookings/{id}','get'],['/api/v1/payments/{id}','get'],
     ['/api/v1/bookings','post'],['/api/v1/booking-drafts','post'],
-    ['/api/v1/payments/checkout','post']
+    ['/api/v1/payments/checkout','post'],
+    ['/api/v1/me/bootstrap','post'],['/api/v1/support/cases','post'],
+    ['/api/v1/me/support-cases','get'],['/api/v1/patients/{id}/addresses','post'],
+    ['/api/v1/patients/{id}/addresses','get'],
+    ['/api/v1/ops/catalog/reviews','get'],
+    ['/api/v1/ops/catalog/tests','post'],
+    ['/api/v1/ops/catalog/laboratories','post'],
+    ['/api/v1/ops/catalog/zones','post'],
+    ['/api/v1/ops/catalog/offerings','post'],
+    ['/api/v1/ops/catalog/slots','post'],
+    ['/api/v1/ops/catalog/reviews/{type}/{id}/approve','post'],
+    ['/api/v1/ops/patient-relationships/{id}/approve-booking','post'],
+    ['/api/v1/ops/patient-addresses/{id}/approve','post']
   ] as const) {
     const auth=document.paths[path]?.[method]?.security;
     if(!auth?.some(s=>Object.hasOwn(s,'bearer')))
@@ -110,7 +130,7 @@ async function generate(): Promise<void> {
       // Detailed stack traces may include environment settings. Require an
       // explicit synthetic-only development scope to emit them.
       if (process.env.FISHER_OPENAPI_DEBUG === '1' &&
-          process.env.FISHER_PHASE1_LOCAL_ACK === 'synthetic-only') {
+          (process.env.FISHER_PHASE1_LOCAL_ACK === 'synthetic-only' || process.env.FISHER_PHASE2_LOCAL_ACK === 'synthetic-only')) {
         console.error(error);
       }
     }
