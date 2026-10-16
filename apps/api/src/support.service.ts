@@ -25,7 +25,7 @@ export class SupportService implements OnModuleDestroy {
        [input.bookingId,actorId]);
      if(!accessible.rows.length)throw new NotFoundException('Booking unavailable');
     }
-    const duplicate=await c.query<{id:string;category:string;preferred_contact:string;booking_id:string|null}>(
+    const duplicate=await c.query<{id:string;category:string;preferred_contact:string;booking_id:string|null;status:string}>(
      'SELECT id,category,preferred_contact,booking_id FROM support_cases WHERE user_id=$1 AND idempotency_key=$2',
      [actorId,key]);
     if(duplicate.rows[0]){
@@ -33,7 +33,7 @@ export class SupportService implements OnModuleDestroy {
      if(old.category!==input.category || old.preferred_contact!==input.preferredContact ||
       old.booking_id!==(input.bookingId??null))throw new ConflictException('Idempotency key was used for another request');
      await c.query('COMMIT');
-     return {caseId:old.id,status:'open'};
+     return {caseId:old.id,status:old.status};
     }
     const row=await c.query<{id:string}>(`INSERT INTO support_cases(user_id,booking_id,category,preferred_contact,idempotency_key)
      VALUES($1,$2,$3,$4,$5) RETURNING id`,

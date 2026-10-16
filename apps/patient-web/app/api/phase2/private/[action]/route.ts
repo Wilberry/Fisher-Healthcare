@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { crossSiteRequest } from '../../../../../lib/patient-auth';
 import { patientApi } from '../../../../../lib/patient-api';
-const routes:Record<string,string>={draft:'booking-drafts',commit:'bookings',checkout:'payments/checkout',patient:'patients',address:'patients'};
+const routes:Record<string,string>={draft:'booking-drafts',commit:'bookings',checkout:'payments/checkout',patient:'patients',address:'patients',support:'support/cases'};
 export async function POST(request:NextRequest,{params}:{params:Promise<{action:string}>}){
  if(crossSiteRequest(request))return NextResponse.json({error:'Invalid request origin'},{status:403});
  const {action}=await params;
@@ -25,7 +25,7 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{action:
   destination='patients/'+String(patientId)+'/addresses';body=fields;
  }
  const key=request.headers.get('idempotency-key')??undefined;
- if((action==='commit' || action==='checkout') && (!key || !/^[A-Za-z0-9_-]{8,128}$/.test(key)))
+ if((action==='commit' || action==='checkout' || action==='support') && (!key || !/^[A-Za-z0-9_-]{8,128}$/.test(key)))
   return NextResponse.json({error:'Idempotency key required'},{status:400});
  const reply=await patientApi(destination,'POST',body,key);
  return NextResponse.json(reply.data??{error:'Unable to complete this operation'},{status:reply.status,

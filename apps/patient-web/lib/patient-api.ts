@@ -3,6 +3,7 @@ import { readSession } from './patient-auth';
 type Item=Record<string,unknown>;
 export type PatientRecord={id:string;display_name:string;relationship:string;can_book:boolean;verified:boolean};
 export type PatientBooking={id:string;status:string;tier:string;currency:string;total_kobo:number;created_at:string};
+export type SupportCaseRecord={id:string;category:string;status:string;preferred_contact:string;created_at:string};
 export type NotificationRecord={id:string;channel:string;template:string;status:string;booking_id:string;created_at:string};
 export async function patientApi(path:string,method:'GET'|'POST'='GET',body?:unknown,key?:string){
  const session=await readSession();
@@ -32,9 +33,9 @@ function asRecords(value:unknown):Item[]{
 export async function patientAccountData(){
  const session=await readSession();
  if(!session)return {signedIn:false as const,available:false as const,patients:[] as PatientRecord[],
-  bookings:[] as PatientBooking[],notifications:[] as NotificationRecord[]};
- const [p,b,n]=await Promise.all([patientApi('patients'),patientApi('me/bookings'),patientApi('me/notifications')]);
- return {signedIn:true as const,available:p.ok&&b.ok&&n.ok,
+  bookings:[] as PatientBooking[],notifications:[] as NotificationRecord[],supportCases:[] as SupportCaseRecord[]};
+ const [p,b,n,s]=await Promise.all([patientApi('patients'),patientApi('me/bookings'),patientApi('me/notifications'),patientApi('me/support-cases')]);
+ return {signedIn:true as const,available:p.ok&&b.ok&&n.ok&&s.ok,
   patients:asRecords(p.data).filter((v):v is Item & PatientRecord=>
    typeof v.id==='string'&&typeof v.display_name==='string'&&typeof v.relationship==='string'&&
    typeof v.can_book==='boolean'&&typeof v.verified==='boolean'),
@@ -43,6 +44,9 @@ export async function patientAccountData(){
    typeof v.currency==='string'&&typeof v.total_kobo==='number'&&typeof v.created_at==='string'),
   notifications:asRecords(n.data).filter((v):v is Item & NotificationRecord=>
    typeof v.id==='string'&&typeof v.channel==='string'&&typeof v.template==='string'&&
-   typeof v.status==='string'&&typeof v.booking_id==='string'&&typeof v.created_at==='string')
+   typeof v.status==='string'&&typeof v.booking_id==='string'&&typeof v.created_at==='string'),
+  supportCases:asRecords(s.data).filter((v):v is Item & SupportCaseRecord=>
+   typeof v.id==='string'&&typeof v.category==='string'&&typeof v.status==='string'&&
+   typeof v.preferred_contact==='string'&&typeof v.created_at==='string')
  };
 }
