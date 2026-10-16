@@ -71,10 +71,4 @@ The documentation in this repository defines the company's intended product capa
 
 ## Project status
 
-**Current development phase: Phase 2 — Patient Booking and Customer Experience.** Phase 2 is the active engineering workstream, covering diagnostic test discovery, patient and authorized family profiles, appointment availability and booking, pricing and checkout, payment integration, customer account functionality, and the supporting APIs and workflows. Implementation progress and acceptance evidence will be tracked against the [Development Roadmap](docs/06-development-roadmap.md) and the Phase 2 delivery scope. Phase 2 is **in development**; engineering acceptance has not yet been recorded.
-
-**Phase 1 baseline:** Engineering verification was recorded as **PASS WITH DOCUMENTED SECURITY EXCEPTION** at commit `a504bee8d858712a8ada350a9792a87d23ecbb9a`. Functional checks and the production high/critical dependency audit passed, but the full dependency audit **failed** due to a development-only high-severity `braces` advisory, seven moderate findings, and one low finding. The milestone exception does not constitute a passing full security audit.
-
-[Phase 1 Engineering Acceptance Record](docs/operations/phase-1-engineering-acceptance.md) · [Phase 1 Implementation Status](docs/phase-1-implementation-status.md) · [Phase 2 Development Roadmap](docs/06-development-roadmap.md)
-
-**Release restrictions remain in effect:** live patient data and production deployment are not approved. Local exact-commit verification remains required for engineering acceptance while GitHub Actions is unavailable due to billing restrictions.
+**Current development phase: Phase 2 — Patient Booking and Customer Experience** · [Development Roadmap](docs/06-development-roadmap.md)
