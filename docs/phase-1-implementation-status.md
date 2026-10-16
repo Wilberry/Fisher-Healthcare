@@ -16,6 +16,8 @@
 
 **Seventh local checkpoint (16 October 2026):** At `7941611`, the synthetic PostgreSQL preflight passed. The later full-suite test stage reported two `@fisher/auth` Vitest 4 failures from duplicate compiled CommonJS test files under `dist/`, while all seven corresponding `src/` tests passed. Test discovery is now constrained to source files for auth/contracts, and their production builds exclude compiled tests. The provided excerpt alone does not establish the complete audit or smoke-test results; Phase 1 acceptance remains OPEN.
 
+**Eighth local checkpoint (16 October 2026):** At `dc26f0c`, all functional verification gates passed, including focused auth/contracts tests, the full workspace test suite, migrations, builds, OpenAPI generation and API/web smokes. Security acceptance FAILED: 27 production advisories (12 high), and 29 full advisories (13 high), no critical findings. The remaining high production vulnerabilities trace to four outdated transitive packages despite attempted overrides; their override placement has now been corrected for pnpm 9 and early lockfile validation added. The unpatched dev-only `braces` finding remains open pending a verified solution or explicit risk decision. The final clean pinned-commit verification and committed generated artifacts are still outstanding.
+
 ## Foundation delivered in source
 
 | Workstream | Implemented foundation | Acceptance status |
