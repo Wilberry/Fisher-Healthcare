@@ -103,3 +103,20 @@ export const patientAddresses=pgTable('patient_addresses',{
  revokedAt:timestamp('revoked_at',{withTimezone:true}),
  ...timestamps
 },t=>[index('patient_addresses_owner_patient').on(t.ownerUserId,t.patientId)]);
+
+export const supportCases=pgTable('support_cases',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ userId:uuid('user_id').notNull().references(()=>users.id),
+ bookingId:uuid('booking_id').references(()=>orders.id),
+ category:varchar('category',{length:24}).notNull(),
+ preferredContact:varchar('preferred_contact',{length:24}).notNull(),
+ status:varchar('status',{length:24}).notNull().default('open'),
+ idempotencyKey:varchar('idempotency_key',{length:128}).notNull(),
+ ...timestamps
+},t=>[uniqueIndex('support_case_actor_request').on(t.userId,t.idempotencyKey)]);
+export const supportWorkItems=pgTable('support_work_items',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ caseId:uuid('case_id').notNull().references(()=>supportCases.id).unique(),
+ status:varchar('status',{length:24}).notNull().default('pending'),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+});

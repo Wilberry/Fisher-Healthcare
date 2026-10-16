@@ -48,3 +48,10 @@ export type CreateAddressInput=z.infer<typeof createAddressInput>;
 export const evidenceReferenceInput=z.object({
  evidenceReference:z.string().regex(/^[A-Za-z0-9._:-]{10,128}$/)
 }).strict();
+
+export const supportCaseInput=z.object({
+ category:z.enum(['booking','payment','reschedule','account_access']),
+ preferredContact:z.enum(['email','whatsapp']),
+ bookingId:uuidSchema.optional()
+}).strict();
+export type SupportCaseInput=z.infer<typeof supportCaseInput>;
