@@ -35,6 +35,7 @@ cleanup() {
       printf 'Lockfile: %s\n' "$([[ -f pnpm-lock.yaml ]] && sha256sum pnpm-lock.yaml | cut -d' ' -f1 || echo MISSING)"
       printf 'Generated lockfile during verification: %s\n' "${LOCKFILE_GENERATED:-no}"
       printf 'Lockfile committed at tested revision: %s\n' "${LOCKFILE_COMMITTED:-no}"
+      printf 'Previously generated Next.js tracked differences: %s\n' "${NEXT_GENERATED_DIRTY:-no}"
       printf 'Pending working-tree changes:\n'
       git status --short
     } > "$LOG_DIR/summary.txt"
@@ -55,15 +56,26 @@ require curl
 require sha256sum
 require timeout
 [[ -f package.json && -f pnpm-workspace.yaml && -d apps/api ]] || die "Not the Fisher monorepo root"
-# A failed first run may leave generated artifacts untracked; these do not count as acceptance.
+# Failed Next builds can write type references and tsconfig defaults.
+# Allow ONLY known generated paths and validate their content against Git HEAD.
+# No files are removed, reverted, stashed, or silently accepted as a clean run.
 STATUS_LINES="$(git status --porcelain --untracked-files=all)"
+NEXT_GENERATED_DIRTY=no
 if [[ -n "$STATUS_LINES" ]]; then
   while IFS= read -r changed; do
     case "$changed" in
       '?? pnpm-lock.yaml'|'?? docs/api/openapi.json') ;;
+      ' M apps/patient-web/next-env.d.ts'|' M apps/patient-web/tsconfig.json'|\
+      ' M apps/operations-web/next-env.d.ts'|' M apps/operations-web/tsconfig.json'|\
+      ' M apps/field-pwa/next-env.d.ts'|' M apps/field-pwa/tsconfig.json')
+        NEXT_GENERATED_DIRTY=yes ;;
       *) die "Unexpected worktree change: $changed. Do not reset or stash changes automatically" ;;
     esac
   done <<< "$STATUS_LINES"
+fi
+if [[ "$NEXT_GENERATED_DIRTY" == yes ]]; then
+  node scripts/validate-next-generated.mjs || die "Next-generated worktree changes are not validated"
+  printf 'WARN: Verified Next.js generated files differ from the pinned commit. This is diagnostic verification only.\n'
 fi
 [[ "$(git rev-parse --is-inside-work-tree)" == "true" ]] || die "No Git worktree"
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
@@ -163,9 +175,9 @@ for app in patient-web operations-web field-pwa; do
 done
 
 log "Source verification finished"
-if [[ "$LOCKFILE_COMMITTED" != "yes" ]]; then
-  printf 'IMPORTANT: pnpm-lock.yaml is not committed. Diagnostic run only; no Phase 1 acceptance yet.\n'
-  printf 'Preserve and review the generated lockfile before committing.\n'
+if [[ "$LOCKFILE_COMMITTED" != "yes" || "$NEXT_GENERATED_DIRTY" == "yes" ]]; then
+  printf 'IMPORTANT: Generated lockfile or Next.js tracked changes remain uncommitted.\n'
+  printf 'Treat this as diagnostic verification; review and commit generated artifacts before final acceptance.\n'
 fi
 [[ -f docs/api/openapi.json ]] || die "OpenAPI artifact missing after generation"
 printf 'Do not merge, deploy or approve Phase 1 until all logs pass and the exact commit is reviewed.\n'
