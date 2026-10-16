@@ -62,7 +62,8 @@ export class BookingService implements OnModuleDestroy {
   return capacity-Number(r.rows[0]?.holds??0)-Number(r.rows[0]?.booked??0);
  }
  async catalogue(search=''){
-  if(search.length>100 || /[\u0000-\u001f]/.test(search))throw new BadRequestException('Invalid search');
+  if(search.length>100 || [...search].some(char=>char.charCodeAt(0)<32))
+   throw new BadRequestException('Invalid search');
   const r=await this.db.query(`SELECT t.id,t.code,t.name,t.specimen_type,
    MIN(o.price_kobo)::integer AS starting_from_kobo
    FROM tests t JOIN lab_offerings o ON o.test_id=t.id AND o.active
