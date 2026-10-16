@@ -106,14 +106,14 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
    }
    if(url.includes('/transaction/verify/')){
     const reference=decodeURIComponent(url.split('/').at(-1)!);
-    return {ok:true,json:async()=>({data:{
-     reference,amount:35000,currency:'NGN',status:'success',paid_at:'2026-10-16T00:00:00Z'
+    return {ok:true,json:async()=>({status:true,data:{
+     reference,amount:35000,currency:'NGN',domain:'test',status:'success',paid_at:'2026-10-16T00:00:00Z'
     }})};
    }
    throw new Error('Unexpected external call');
   }));
   try{
-   const checkout=await payments.checkout(winner.sub,winner.bookingId);
+   const checkout=await payments.checkout(winner.sub,winner.bookingId,'synthetic_checkout_key_01');
    const reference=(await pool.query('SELECT provider_reference FROM payments WHERE id=$1',[checkout.paymentId])).rows[0].provider_reference as string;
    const raw=Buffer.from(JSON.stringify({event:'charge.success',data:{reference}}));
    const signature=createHmac('sha512',process.env.PAYSTACK_SECRET_KEY!).update(raw).digest('hex');

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 type Profile={id:string;label:string};
 type Props={quoteId:string;eligible:Profile[];paymentAvailable:boolean};
 async function post(path:string,body:unknown,key?:string){
@@ -15,6 +15,7 @@ export function BookingConfirmation({quoteId,eligible,paymentAvailable}:Props){
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const [created,setCreated]=useState<{bookingId:string;status:string}|null>(null);
  const [checkout,setCheckout]=useState('');
+ const checkoutKey=useRef<string|null>(null);
  async function commit(){
   if(busy||!patientId||created)return;
   setBusy(true);setError('');
@@ -32,7 +33,8 @@ export function BookingConfirmation({quoteId,eligible,paymentAvailable}:Props){
   if(busy||!created)return;
   setBusy(true);setError('');
   try{
-   const result=await post('/api/phase2/private/checkout',{bookingId:created.bookingId});
+   checkoutKey.current??=crypto.randomUUID();
+   const result=await post('/api/phase2/private/checkout',{bookingId:created.bookingId},checkoutKey.current);
    if(typeof result.authorizationUrl!=='string'||!result.authorizationUrl.startsWith('https://checkout.paystack.com/'))
     throw new Error('Trusted checkout link unavailable');
    setCheckout(result.authorizationUrl);

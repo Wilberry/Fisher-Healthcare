@@ -41,7 +41,7 @@ export class PaymentService implements OnModuleDestroy {
   try{return await response.json() as unknown;}
   catch{throw new ServiceUnavailableException('Payment provider response invalid');}
  }
- async checkout(subject:string,bookingId:string){
+ async checkout(subject:string,bookingId:string,idempotencyKey:string){
   const key=this.stagingKey();
   const eligible=await this.bookings.checkoutOrder(subject,bookingId);
   if(!eligible.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(eligible.email))
@@ -56,16 +56,22 @@ export class PaymentService implements OnModuleDestroy {
    if(!o.rows[0] || o.rows[0].status!=='awaiting_payment' || o.rows[0].payment_expires_at<=new Date())
     throw new ConflictException('Booking no longer payable');
    if(o.rows[0].total_kobo!==eligible.total_kobo)throw new ConflictException('Booking value changed');
-   const existing=await c.query<{id:string;provider_reference:string;status:string}>(
-    'SELECT id,provider_reference,status FROM payments WHERE order_id=$1',[bookingId]);
+   const existing=await c.query<{id:string;provider_reference:string;status:string;checkout_url:string|null;client_key:string|null}>(
+    'SELECT id,provider_reference,status,checkout_url,client_key FROM payments WHERE order_id=$1',[bookingId]);
    if(existing.rows[0]){
     if(existing.rows[0].status==='paid')throw new ConflictException('Booking already paid');
-    // Never initiate a second provider session implicitly for the same order.
-    throw new ConflictException('Checkout already initiated; contact support if interrupted');
+    if(existing.rows[0].client_key!==idempotencyKey)throw new ConflictException('Checkout already initiated with another key');
+    if(existing.rows[0].status==='pending' && existing.rows[0].checkout_url){
+     const authorizationUrl=existing.rows[0].checkout_url;
+     await c.query('COMMIT');
+     return {paymentId:existing.rows[0].id,bookingId,authorizationUrl};
+    }
+    // Ambiguous initialization cannot create a second provider charge.
+    throw new ConflictException('Checkout is being reconciled; try again later');
    }
    paymentId=randomUUID();ref='fisher-staging-'+randomUUID();
-   await c.query(`INSERT INTO payments(id,order_id,provider_reference,amount_kobo,status)
-    VALUES($1,$2,$3,$4,'initiating')`,[paymentId,bookingId,ref,eligible.total_kobo]);
+   await c.query(`INSERT INTO payments(id,order_id,provider_reference,amount_kobo,status,client_key)
+    VALUES($1,$2,$3,$4,'initiating',$5)`,[paymentId,bookingId,ref,eligible.total_kobo,idempotencyKey]);
    await c.query('COMMIT');
   }catch(e){await c.query('ROLLBACK');throw e;}finally{c.release();}
   const provider=await this.requestProvider(INIT_URL,{
@@ -85,7 +91,10 @@ export class PaymentService implements OnModuleDestroy {
   try{u=new URL(checkoutUrl);}catch{throw new ServiceUnavailableException('Invalid checkout URL');}
   if(u.protocol!=='https:' || u.hostname!=='checkout.paystack.com')
    throw new ServiceUnavailableException('Untrusted checkout URL');
-  await this.db.query("UPDATE payments SET status='pending',updated_at=now() WHERE id=$1 AND status='initiating'",[paymentId]);
+  const persisted=await this.db.query(
+   "UPDATE payments SET status='pending',checkout_url=$2,updated_at=now() WHERE id=$1 AND status='initiating' RETURNING id",
+   [paymentId,checkoutUrl]);
+  if(persisted.rowCount!==1)throw new ConflictException('Payment state changed during initialization');
   return {paymentId,bookingId,authorizationUrl:checkoutUrl};
  }
  private async verifyWithProvider(reference:string,key:string):Promise<Verified>{
@@ -94,11 +103,11 @@ export class PaymentService implements OnModuleDestroy {
    method:'GET',headers:{Authorization:'Bearer '+key}
   });
   if(typeof body!=='object' || body===null || !('data' in body) ||
-   typeof body.data!=='object' || body.data===null)
+   typeof body.data!=='object' || body.data===null || !('status' in body) || body.status!==true)
    throw new ServiceUnavailableException('Invalid verification response');
   const d=body.data as Record<string,unknown>;
   if(typeof d.reference!=='string' || typeof d.amount!=='number' || typeof d.currency!=='string' ||
-    typeof d.status!=='string' || (d.paid_at!==null && typeof d.paid_at!=='string'))
+    typeof d.status!=='string' || d.domain!=='test' || (d.paid_at!==null && typeof d.paid_at!=='string'))
    throw new ServiceUnavailableException('Incomplete verification evidence');
   return {reference:d.reference,amount:d.amount,currency:d.currency,status:d.status,paid_at:d.paid_at as string|null};
  }

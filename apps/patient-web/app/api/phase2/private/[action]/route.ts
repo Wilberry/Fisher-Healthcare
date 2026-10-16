@@ -16,7 +16,7 @@ export async function POST(request:NextRequest,{params}:{params:Promise<{action:
  try{body=JSON.parse(raw) as unknown;}
  catch{return NextResponse.json({error:'Invalid JSON'},{status:400});}
  const key=request.headers.get('idempotency-key')??undefined;
- if(action==='commit' && (!key || !/^[A-Za-z0-9_-]{8,128}$/.test(key)))
+ if((action==='commit' || action==='checkout') && (!key || !/^[A-Za-z0-9_-]{8,128}$/.test(key)))
   return NextResponse.json({error:'Idempotency key required'},{status:400});
  const reply=await patientApi(path,'POST',body,key);
  return NextResponse.json(reply.data??{error:'Unable to complete this operation'},{status:reply.status,
