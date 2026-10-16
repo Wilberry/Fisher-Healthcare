@@ -1,7 +1,7 @@
 'use client';
 import { useState,type FormEvent } from 'react';
 export function GuestIntake({quoteId}:{quoteId:string}){
- const [email,setEmail]=useState(''),[code,setCode]=useState('');
+ const [email,setEmail]=useState(''),[code,setCode]=useState(''),[consent,setConsent]=useState(false);
  const [requestId,setRequestId]=useState(''),[done,setDone]=useState(false);
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  async function submit(e:FormEvent<HTMLFormElement>){
@@ -11,7 +11,7 @@ export function GuestIntake({quoteId}:{quoteId:string}){
    const action=requestId?'verify':'start';
    const response=await fetch('/api/phase2/guest/'+action,{
     method:'POST',headers:{'content-type':'application/json'},
-    body:JSON.stringify(requestId?{requestId,code}:{email:email.trim().toLowerCase(),quoteId})
+    body:JSON.stringify(requestId?{requestId,code}:{email:email.trim().toLowerCase(),quoteId,policyAccepted:true,policyVersion:'synthetic-2026-10'})
    });
    const data:unknown=await response.json().catch(()=>null);
    if(!response.ok||!data||typeof data!=='object')
@@ -37,13 +37,16 @@ export function GuestIntake({quoteId}:{quoteId:string}){
    <input id="guest-email" required type="email" maxLength={320} autoComplete="email" value={email}
     onChange={e=>setEmail(e.target.value)} />
    <p>We send a one-time verification code only to a staging-approved test inbox.</p>
+   <label><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>
+    I have read the <a href="/policies/booking" target="_blank" rel="noreferrer">synthetic booking policy</a>.
+    I understand that this request does not reserve a slot or confirm a payment.</label>
   </>:<>
    <p>An eight-digit code was submitted to your approved test email inbox. It expires after ten minutes.</p>
    <label htmlFor="guest-code">Verification code</label>
    <input id="guest-code" inputMode="numeric" pattern="[0-9]{8}" minLength={8} maxLength={8}
     required autoComplete="one-time-code" value={code} onChange={e=>setCode(e.target.value)}/>
   </>}
-  <button type="submit" disabled={busy} className="fisher-button fisher-button--primary">
+  <button type="submit" disabled={busy||(!requestId&&!consent)} className="fisher-button fisher-button--primary">
    {busy?'Processing…':requestId?'Verify guest request':'Email a verification code'}
   </button>
   {error&&<p role="alert" className="fisher-planner-error">{error}</p>}

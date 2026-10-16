@@ -7,7 +7,8 @@ import { type AuthenticatedIdentity,requireStaffMfa } from './identity';
 
 const uuid=z.string().uuid();
 export const guestStartInput=z.object({
- email:z.string().trim().toLowerCase().email().max(320),quoteId:uuid
+ email:z.string().trim().toLowerCase().email().max(320),quoteId:uuid,
+ policyAccepted:z.literal(true),policyVersion:z.literal('synthetic-2026-10')
 }).strict();
 export const guestVerifyInput=z.object({
  requestId:uuid,code:z.string().regex(/^[0-9]{8}$/)
@@ -42,7 +43,7 @@ export class GuestBookingService implements OnModuleDestroy {
   const cfg=enabled();
   const parsed=guestStartInput.safeParse(body);
   if(!parsed.success)throw new BadRequestException('Invalid guest request');
-  const {email,quoteId}=parsed.data;
+  const {email,quoteId,policyVersion}=parsed.data;
   if(!cfg.allow.includes(email))throw new ServiceUnavailableException('Guest-assisted sandbox inbox not enabled');
   const pool=this.database(),c=await pool.connect();
   const code=String(randomInt(0,100000000)).padStart(8,'0');
@@ -57,9 +58,9 @@ export class GuestBookingService implements OnModuleDestroy {
     const quote=await c.query(`SELECT 1 FROM booking_quotes WHERE id=$1 AND expires_at>clock_timestamp()`,[quoteId]);
     if(!quote.rows.length)throw new ConflictException('Quotation expired');
     const row=await c.query<{id:string}>(`INSERT INTO guest_booking_requests(
-      email,quote_id,code_hash,expires_at)
-      VALUES($1,$2,$3,clock_timestamp()+interval '10 minutes') RETURNING id`,
-      [email,quoteId,digest(code,cfg.pepper)]);
+      email,quote_id,code_hash,expires_at,consent_version,consented_at)
+      VALUES($1,$2,$3,clock_timestamp()+interval '10 minutes',$4,clock_timestamp()) RETURNING id`,
+      [email,quoteId,digest(code,cfg.pepper),policyVersion]);
     id=row.rows[0]!.id;
     await c.query('COMMIT');
    }catch(e){await c.query('ROLLBACK');throw e;}

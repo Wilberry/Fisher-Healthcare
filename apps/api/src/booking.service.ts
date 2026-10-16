@@ -4,7 +4,7 @@ import { quoteTotals, type BookingQuoteInput, type QuoteItem } from '@fisher/con
 
 type Slot={id:string;zone_id:string;lab_id:string;tier:'regular'|'premium';capacity:number;cutoff_at:Date;starts_at:Date;ends_at:Date};
 type Quote={id:string;zone_id:string;slot_id:string;lab_id:string;tier:'regular'|'premium';items:QuoteItem[];total_kobo:number;expires_at:Date};
-type Draft={id:string;quote_id:string;patient_id:string;user_id:string;status:string;order_id:string|null;commit_key:string|null;address_id:string|null};
+type Draft={id:string;quote_id:string;patient_id:string;user_id:string;status:string;order_id:string|null;commit_key:string|null;address_id:string|null;consent_version:string|null;consented_at:Date|null};
 
 @Injectable()
 export class BookingService implements OnModuleDestroy {
@@ -145,7 +145,8 @@ export class BookingService implements OnModuleDestroy {
   if(!r.rows[0])throw new NotFoundException('Quote unavailable');
   return {data:r.rows[0]};
  }
- async draft(subject:string,quoteId:string,patientId:string,addressId:string){
+ async draft(subject:string,quoteId:string,patientId:string,addressId:string,policyAccepted:boolean,policyVersion:string){
+  if(!policyAccepted || policyVersion!=='synthetic-2026-10')throw new BadRequestException('Current booking policy acknowledgment required');
   this.bookingEnabled();
   return this.tx(async c=>{
    const q=await c.query<Quote>('SELECT * FROM booking_quotes WHERE id=$1',[quoteId]);
@@ -155,7 +156,11 @@ export class BookingService implements OnModuleDestroy {
    const userId=await this.actor(c,subject);
    await this.authorize(c,userId,patientId);
    await this.approvedAddress(c,addressId,patientId,userId,q.rows[0].zone_id);
-   const d=await c.query<{id:string}>('INSERT INTO booking_drafts(user_id,patient_id,quote_id,address_id) VALUES($1,$2,$3,$4) RETURNING id',[userId,patientId,quoteId,addressId]);
+   const d=await c.query<{id:string}>('INSERT INTO booking_drafts(user_id,patient_id,quote_id,address_id,consent_version,consented_at)
+    VALUES($1,$2,$3,$4,$5,clock_timestamp()) RETURNING id',[userId,patientId,quoteId,addressId,policyVersion]);
+   await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
+     VALUES($1,'booking.policy_acknowledged','booking_draft',$2,jsonb_build_object('version',$3))`,
+     [userId,d.rows[0]!.id,policyVersion]);
    const h=await c.query<{expires_at:Date}>(`INSERT INTO slot_holds(draft_id,slot_id,expires_at)
     VALUES($1,$2,LEAST(clock_timestamp()+interval '5 minutes',$3::timestamptz)) RETURNING expires_at`,
     [d.rows[0]!.id,s.id,q.rows[0].expires_at]);
@@ -175,6 +180,8 @@ export class BookingService implements OnModuleDestroy {
     return {bookingId:d.order_id,status:existing.rows[0]?.status??'unknown'};
    }
    if(d.status!=='open')throw new ConflictException('Draft no longer available');
+   if(d.consent_version!=='synthetic-2026-10' || !d.consented_at)
+    throw new ConflictException('BOOKING_CONSENT_REQUIRED');
    const reuse=await c.query('SELECT 1 FROM booking_drafts WHERE user_id=$1 AND commit_key=$2 AND id<>$3',[userId,key,d.id]);
    if(reuse.rows.length)throw new ConflictException('Idempotency key already used');
    await c.query('UPDATE booking_drafts SET commit_key=$2 WHERE id=$1',[d.id,key]);
@@ -189,11 +196,11 @@ export class BookingService implements OnModuleDestroy {
    if(await this.remaining(c,s.id,s.capacity)<0)throw new ConflictException('SLOT_UNAVAILABLE');
    const o=await c.query<{id:string}>(`INSERT INTO orders(patient_id,booked_by,lab_id,status,tier,
     currency,total_kobo,collection_window_start,collection_window_end,slot_id,quote_id,booking_draft_id,payment_expires_at,
-    collection_address_id,collection_address_snapshot)
-    VALUES($1,$2,$3,'awaiting_payment',$4,'NGN',$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb) RETURNING id`,
+    collection_address_id,collection_address_snapshot,booking_consent_version)
+    VALUES($1,$2,$3,'awaiting_payment',$4,'NGN',$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14) RETURNING id`,
     [d.patient_id,userId,q.lab_id,q.tier,q.total_kobo,s.starts_at,s.ends_at,s.id,q.id,d.id,q.expires_at,address.id,JSON.stringify({
     zoneId:address.zone_id,label:address.label,addressLine:address.address_line,locality:address.locality
-   })]);
+   }),d.consent_version]);
    const id=o.rows[0]!.id;
    for(const item of q.items){
     await c.query('INSERT INTO order_items(order_id,test_id,price_kobo) VALUES($1,$2,$3)',

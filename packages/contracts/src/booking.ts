@@ -6,7 +6,8 @@ export const bookingQuoteInput = z.object({
   serviceTier: z.enum(['regular', 'premium']),
   testIds: z.array(uuidSchema).min(1).max(30).refine(v => new Set(v).size === v.length, 'Duplicate test')
 }).strict();
-export const bookingDraftInput = z.object({ quoteId: uuidSchema, patientId: uuidSchema, addressId: uuidSchema }).strict();
+export const bookingDraftInput = z.object({ quoteId: uuidSchema, patientId: uuidSchema, addressId: uuidSchema,
+ policyAccepted:z.literal(true),policyVersion:z.literal('synthetic-2026-10') }).strict();
 export const bookingHoldInput = z.object({ draftId: uuidSchema }).strict();
 export const bookingCommitInput = z.object({ draftId: uuidSchema }).strict();
 export const checkoutInput = z.object({ bookingId: uuidSchema }).strict();

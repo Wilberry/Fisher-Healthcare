@@ -11,6 +11,7 @@ async function post(path:string,body:unknown,key?:string){
  return data as Record<string,unknown>;
 }
 export function BookingConfirmation({quoteId,eligible,paymentAvailable}:Props){
+ const [consent,setConsent]=useState(false);
  const [patientId,setPatientId]=useState(eligible[0]?.id??'');
  const availableAddresses=eligible.find(p=>p.id===patientId)?.addresses??[];
  const [addressId,setAddressId]=useState(eligible[0]?.addresses[0]?.id??'');
@@ -21,11 +22,12 @@ export function BookingConfirmation({quoteId,eligible,paymentAvailable}:Props){
  const draftRef=useRef<string|null>(null);
  const commitKey=useRef<string|null>(null);
  async function commit(){
-  if(busy||!patientId||created)return;
+  if(busy||!patientId||!consent||created)return;
   setBusy(true);setError('');
   try{
    if(!draftRef.current){
-    const draft=await post('/api/phase2/private/draft',{quoteId,patientId,addressId});
+    const draft=await post('/api/phase2/private/draft',{quoteId,patientId,addressId,
+      policyAccepted:true,policyVersion:'synthetic-2026-10'});
     if(typeof draft.draftId!=='string')throw new Error('Draft creation incomplete');
     draftRef.current=draft.draftId;
    }
@@ -62,8 +64,13 @@ export function BookingConfirmation({quoteId,eligible,paymentAvailable}:Props){
    <select id="collection-address" value={addressId} onChange={e=>{setAddressId(e.target.value);draftRef.current=null;commitKey.current=null;}}>
     {availableAddresses.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
    </select>
+   <label className="fisher-booking-label"><input type="checkbox" checked={consent}
+     onChange={e=>setConsent(e.target.checked)}/>
+    I have read the <a href="/policies/booking" target="_blank" rel="noreferrer">synthetic booking policy</a>
+    and understand that permission, collection coverage and payment are verified separately.
+   </label>
    <p>Quotation validity and slot capacity will be checked again on the server. Payment is never inferred from a browser redirect.</p>
-   <button type="button" className="fisher-button fisher-button--primary" disabled={busy||!patientId||!addressId} onClick={commit}>
+   <button type="button" className="fisher-button fisher-button--primary" disabled={busy||!patientId||!addressId||!consent} onClick={commit}>
     {busy?'Reserving…':'Reserve collection and create booking'}</button>
   </fieldset>:
    <div className="fisher-quote" aria-live="polite">
