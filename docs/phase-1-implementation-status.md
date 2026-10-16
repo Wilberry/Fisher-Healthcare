@@ -10,6 +10,8 @@
 
 **Fourth local checkpoint (16 October 2026):** At `5f0a84d`, the local installation, lint, typecheck, build, migration and complete workspace test commands passed. OpenAPI generation failed before the dependency audit and HTTP smoke tests. The compiled-NestJS OpenAPI runner, documented route security, and safe diagnostic reporting have been committed for the next exact-commit verification. Phase 1 is still OPEN.
 
+**Fifth local checkpoint (16 October 2026):** At `0f8f23e`, install, lint, typecheck, production builds, migrations, automated tests, and OpenAPI generation all passed. The full dependency audit reported 40 advisories (3 critical, 15 high), stopping verification before runtime smoke tests. Source-level dependency upgrades and a non-bypassing production/full audit workflow are committed; remediation verification is pending. See [Dependency Security Remediation](security/phase-1-dependency-remediation.md).
+
 ## Foundation delivered in source
 
 | Workstream | Implemented foundation | Acceptance status |
