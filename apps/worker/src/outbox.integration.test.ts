@@ -4,12 +4,21 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { claimNext, completeClaim, failClaim, processOne } from './outbox';
 
 const dbUrl = process.env.DATABASE_URL;
-const suite = dbUrl ? describe : describe.skip;
+const suite = dbUrl && process.env.FISHER_DISPOSABLE_DB_ACK === 'disposable-test-only' ? describe : describe.skip;
 
 suite.sequential('PostgreSQL outbox fencing', () => {
   let pool: Pool;
   const created: string[] = [];
-  beforeAll(() => { pool = new Pool({ connectionString: dbUrl, max: 5 }); });
+  beforeAll(async () => {
+    if (!dbUrl || process.env.FISHER_DISPOSABLE_DB_ACK !== 'disposable-test-only') {
+      throw new Error('Disposable outbox test environment is required');
+    }
+    pool = new Pool({ connectionString: dbUrl, max: 5 });
+    const identity = await pool.query('SELECT current_database() AS db');
+    if (identity.rows[0]?.db !== 'fisher_test') {
+      throw new Error('Refusing outbox mutation outside fisher_test');
+    }
+  });
   afterAll(async () => {
     if (pool) {
       for (const id of created) await pool.query('DELETE FROM outbox WHERE id=$1::uuid', [id]);
