@@ -4,7 +4,7 @@ WORKDIR /workspace
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN corepack enable
 COPY . .
-RUN corepack pnpm install --no-frozen-lockfile
+RUN corepack pnpm install --frozen-lockfile
 RUN corepack pnpm build
 
 FROM node:22-bookworm-slim AS preview
