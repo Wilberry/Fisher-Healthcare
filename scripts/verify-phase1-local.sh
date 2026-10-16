@@ -35,6 +35,9 @@ cleanup() {
       printf 'Lockfile: %s\n' "$([[ -f pnpm-lock.yaml ]] && sha256sum pnpm-lock.yaml | cut -d' ' -f1 || echo MISSING)"
       printf 'Generated lockfile during verification: %s\n' "${LOCKFILE_GENERATED:-no}"
       printf 'Lockfile committed at tested revision: %s\n' "${LOCKFILE_COMMITTED:-no}"
+      printf 'Untracked lockfile refreshed for manifests: %s\n' "${LOCKFILE_REFRESHED:-no}"
+      printf 'Production dependency audit: %s\n' "${PROD_AUDIT_STATUS:-NOT_RUN}"
+      printf 'Full dependency audit: %s\n' "${FULL_AUDIT_STATUS:-NOT_RUN}"
       printf 'Previously generated Next.js tracked differences: %s\n' "${NEXT_GENERATED_DIRTY:-no}"
       printf 'Pending working-tree changes:\n'
       git status --short
@@ -98,12 +101,20 @@ corepack enable
 [[ "$(pnpm --version)" == "9.15.9" ]] || die "Expected pnpm 9.15.9"
 LOCKFILE_GENERATED=no
 LOCKFILE_COMMITTED=no
-if [[ ! -f pnpm-lock.yaml ]]; then
-  LOCKFILE_GENERATED=yes
-  run_step 01-lockfile pnpm install --lockfile-only --ignore-scripts
-fi
+LOCKFILE_REFRESHED=no
 if git ls-files --error-unmatch pnpm-lock.yaml >/dev/null 2>&1; then
   LOCKFILE_COMMITTED=yes
+  # A reviewed and committed lockfile must match every manifest exactly.
+  # Do not rewrite tracked lockfiles automatically.
+else
+  if [[ -f pnpm-lock.yaml ]]; then
+    # Preserve the prior generated lockfile byte-for-byte before refreshing it.
+    cp -p -- pnpm-lock.yaml "$LOG_DIR/pnpm-lock.previous.yaml"
+  else
+    LOCKFILE_GENERATED=yes
+  fi
+  LOCKFILE_REFRESHED=yes
+  run_step 01-lockfile pnpm install --lockfile-only --ignore-scripts
 fi
 run_step 02-install pnpm install --frozen-lockfile
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
@@ -134,7 +145,23 @@ export FISHER_DISPOSABLE_DB_ACK=disposable-test-only
 run_step 06-migrations bash scripts/verify-database.sh
 run_step 07-tests pnpm exec turbo run test --concurrency=1
 run_step 08-openapi pnpm --filter @fisher/api openapi:generate
-run_step 09-dependency-audit pnpm audit --audit-level high
+
+# Collect both production and full graph audit results, then ALWAYS exercise
+# smoke tests; security findings still fail the overall acceptance afterward.
+PROD_AUDIT_STATUS=PASS
+FULL_AUDIT_STATUS=PASS
+if run_step 09-production-audit pnpm audit --prod --audit-level high; then
+  :
+else
+  PROD_AUDIT_STATUS=FAIL
+  printf 'Production dependency audit found high/critical advisories.\n' >&2
+fi
+if run_step 10-dependency-audit pnpm audit --audit-level high; then
+  :
+else
+  FULL_AUDIT_STATUS=FAIL
+  printf 'Full dependency audit found high/critical advisories. Smoke tests will still run.\n' >&2
+fi
 
 check_http() {
   local url="$1" expected="$2"
@@ -180,4 +207,7 @@ if [[ "$LOCKFILE_COMMITTED" != "yes" || "$NEXT_GENERATED_DIRTY" == "yes" ]]; the
   printf 'Treat this as diagnostic verification; review and commit generated artifacts before final acceptance.\n'
 fi
 [[ -f docs/api/openapi.json ]] || die "OpenAPI artifact missing after generation"
+if [[ "$PROD_AUDIT_STATUS" != PASS || "$FULL_AUDIT_STATUS" != PASS ]]; then
+  die "Dependency security gate remains OPEN: production=$PROD_AUDIT_STATUS full=$FULL_AUDIT_STATUS. Review both audit logs. No waiver is applied."
+fi
 printf 'Do not merge, deploy or approve Phase 1 until all logs pass and the exact commit is reviewed.\n'
