@@ -5,7 +5,7 @@ import { hasCapability, type Capability, type StaffRole } from '@fisher/auth';
 export const STAFF_CAPABILITIES: readonly Capability[] = [
   'orders:read', 'orders:manage', 'dispatch:manage', 'specimens:collect',
   'specimens:transport', 'labs:manage', 'results:release',
-  'finance:read', 'finance:manage', 'staff:manage', 'audit:read'
+  'finance:read', 'finance:manage', 'staff:manage', 'audit:read', 'support:manage'
 ];
 const STAFF_ROLES: readonly StaffRole[] = [
   'administrator', 'dispatcher', 'support', 'phlebotomist',

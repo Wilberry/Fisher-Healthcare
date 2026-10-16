@@ -1,10 +1,12 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Pool } from 'pg';
 import type { SupportCaseInput } from '@fisher/contracts';
+import { AccessService } from './access.service';
+import { type AuthenticatedIdentity,requireStaffMfa } from './identity';
 @Injectable()
 export class SupportService implements OnModuleDestroy {
  private readonly pool?:Pool;
- constructor(){if(process.env.DATABASE_URL)this.pool=new Pool({connectionString:process.env.DATABASE_URL,max:4});}
+ constructor(private readonly access:AccessService){if(process.env.DATABASE_URL)this.pool=new Pool({connectionString:process.env.DATABASE_URL,max:4});}
  async onModuleDestroy(){await this.pool?.end();}
  private get db(){if(!this.pool)throw new ServiceUnavailableException('Support unavailable');return this.pool;}
  async create(subject:string,input:SupportCaseInput,key:string){
@@ -66,4 +68,45 @@ export class SupportService implements OnModuleDestroy {
     ORDER BY s.created_at DESC LIMIT 50`,[subject]);
   return {data:result.rows};
  }
+ private async staff(identity:AuthenticatedIdentity){
+  if(process.env.FISHER_PHASE2_BOOKING_MODE!=='synthetic'||process.env.NODE_ENV==='production')
+   throw new ServiceUnavailableException('Support operations unavailable');
+  requireStaffMfa(identity);
+  await this.access.requireStaffCapability(identity.subject,'support:manage');
+ }
+ async queue(identity:AuthenticatedIdentity){
+  await this.staff(identity);
+  const r=await this.db.query(`SELECT c.id,c.category,c.status,c.preferred_contact,
+    c.booking_id,c.created_at,w.id AS work_item_id
+   FROM support_cases c LEFT JOIN support_work_items w ON w.case_id=c.id
+   WHERE c.status<>'resolved' ORDER BY c.created_at ASC LIMIT 100`);
+  return {data:r.rows};
+ }
+ async advance(identity:AuthenticatedIdentity,caseId:string,action:'assigned'|'resolved',reference:string){
+  await this.staff(identity);
+  if(!/^[A-Za-z0-9._:-]{10,128}$/.test(reference))
+   throw new ConflictException('Reviewed evidence reference required');
+  const c=await this.db.connect();
+  try{
+   await c.query('BEGIN');
+   try{
+    const reviewer=(await c.query<{id:string}>('SELECT id FROM users WHERE identity_subject=$1',[identity.subject])).rows[0];
+    if(!reviewer)throw new ForbiddenException('Reviewer account not provisioned');
+    const state=(await c.query<{status:string}>(`SELECT status FROM support_cases
+     WHERE id=$1 FOR UPDATE`,[caseId])).rows[0];
+    if(!state)throw new NotFoundException('Support case not found');
+    const allowed=(state.status==='open'&&action==='assigned')||
+      (state.status==='assigned'&&action==='resolved');
+    if(!allowed)throw new ConflictException('Invalid support case state transition');
+    await c.query('UPDATE support_cases SET status=$2,updated_at=now() WHERE id=$1',[caseId,action]);
+    await c.query(`UPDATE support_work_items SET status=$2 WHERE case_id=$1`,[caseId,action]);
+    await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
+     VALUES($1,'support.case_'+$2,'support_case',$3,jsonb_build_object('evidenceReference',$4))`,
+     [reviewer.id,action,caseId,reference]);
+    await c.query('COMMIT');
+    return {caseId,status:action};
+   }catch(e){await c.query('ROLLBACK');throw e;}
+  }finally{c.release();}
+ }
+
 }

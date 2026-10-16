@@ -17,6 +17,8 @@ import { SupportController } from './support.controller';
 import { CatalogAdminService } from './catalog-admin.service';
 import { CatalogAdminController } from './catalog-admin.controller';
 import { GuestBookingService } from './guest-booking.service';
+import { PaymentReviewService } from './payment-review.service';
+import { WorkQueueController } from './work-queue.controller';
 import { GuestBookingPublicController, GuestBookingStaffController } from './guest-booking.controller';
 import { AccountProvisioningService } from './account-provisioning.service';
 import { AccountProvisioningController } from './account-provisioning.controller';
@@ -32,7 +34,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController, CatalogAdminController, GuestBookingPublicController, GuestBookingStaffController],
-  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService]
+  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController, CatalogAdminController, GuestBookingPublicController, GuestBookingStaffController, WorkQueueController],
+  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService, PaymentReviewService]
 })
 export class AppModule {}
