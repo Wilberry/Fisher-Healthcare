@@ -1,22 +1,28 @@
-# Phase 1 developer setup
+# Fisher Healthcare — Phase 1 Local Development Environment
 
-**Prerequisites:** Node.js 22, Corepack, pnpm 9.15.9, Docker with Compose, PostgreSQL client `psql`. No real patient information.
+**Programme:** Phase 1 — Product and Engineering Foundation  
+**Environment classification:** Development and synthetic-data verification only
+
+## Environment baseline
+
+The Fisher Healthcare monorepo is standardized around Node.js 22, Corepack with pnpm 9.15.9, TypeScript, a PostgreSQL development database, and containerized tooling where appropriate.
+
+Development environments remain isolated from production services, clinical information, and customer transactions. The project's existing Docker services and unrelated repositories must not be stopped or modified to establish a Fisher Healthcare development environment.
+
+## Local acceptance
+
+The authoritative procedure for end-to-end Phase 1 verification is maintained in [Local Engineering Verification](operations/phase-1-local-verification.md). It uses the consolidated script `scripts/verify-phase1-local.sh` and a single disposable PostgreSQL container.
+
+Database migrations are managed by the checksummed migration runner:
 
 ```bash
-git clone https://github.com/Wilberry/Fisher-Healthcare.git
-cd Fisher-Healthcare
-corepack enable
-pnpm install
-docker compose -f infra/docker-compose.yml up -d
-PGPASSWORD=fisher_local_only psql -h 127.0.0.1 -U fisher -d fisher_dev -v ON_ERROR_STOP=1 -f packages/database/drizzle/0000_foundation.sql
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm --filter @fisher/api dev
+pnpm --filter @fisher/database migrate:check
 ```
 
-Health check: `curl http://localhost:4000/api/v1/health`.
+Migration application requires an explicit `FISHER_MIGRATE_ACK=apply-reviewed-migrations` acknowledgment and is performed only against an identified development or verification database. The original untracked manual-SQL process is superseded by this controlled runner.
 
-**Important:** The initial migration is for an empty disposable database. It is not idempotent and must not be applied twice. It has not yet been executed and verified by this assistant. The workspace currently has no committed pnpm lockfile; dependency resolution is not yet reproducible. If any command fails, capture full logs and exact commit before proceeding. Do not use the skeleton interfaces for healthcare operations.
+## Engineering safety boundary
 
-For database reset, destroy only the disposable `fisher_dev` instance after verifying the Docker Compose project and volume identity; never apply generic destructive cleanup to unrelated Docker resources.
+Only synthetic, inactive catalogue and laboratory fixtures are authorized during foundational development. The production identity provider, customer booking, payment processing, clinician-approved protocols, and clinical result delivery remain subject to their respective later milestones and acceptance checks.
+
+The Phase 1 release gate remains open until a reproducible clean checkout, committed lockfile, executed tests, and recorded local acceptance evidence are available.
