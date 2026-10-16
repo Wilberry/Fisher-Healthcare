@@ -6,6 +6,8 @@
 
 **First local checkpoint (16 October 2026):** pnpm 9.15.9 lockfile generation and frozen installation succeeded at `f3eaf80e`. Lint stopped on two Next.js web-app issues. Both were repaired in the working branch. TypeScript, migration, integration, build and smoke-test acceptance have not yet run. See [Local Verification Evidence](operations/phase-1-verification-evidence.md).
 
+**Third local checkpoint (16 October 2026):** At `4f2dcf6`, install, lint, TypeScript, production builds and database migration checks passed. The full suite then stopped at an operations-web JSX unit test (`React is not defined`). Automatic JSX test transforms and validated Next.js generated-file handling have been committed for the next diagnostic run. Remaining steps are not yet verified.
+
 ## Foundation delivered in source
 
 | Workstream | Implemented foundation | Acceptance status |
