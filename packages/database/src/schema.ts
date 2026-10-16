@@ -9,7 +9,7 @@ export const staff = pgTable('staff',{id:uuid('id').primaryKey().defaultRandom()
 export const laboratories = pgTable('laboratories',{id:uuid('id').primaryKey().defaultRandom(),name:varchar('name',{length:200}).notNull(),active:boolean('active').notNull().default(false),...timestamps});
 export const tests = pgTable('tests',{id:uuid('id').primaryKey().defaultRandom(),code:varchar('code',{length:64}).notNull().unique(),name:varchar('name',{length:200}).notNull(),specimenType:varchar('specimen_type',{length:80}).notNull(),active:boolean('active').notNull().default(false),...timestamps});
 export const labOfferings = pgTable('lab_offerings',{id:uuid('id').primaryKey().defaultRandom(),labId:uuid('lab_id').notNull().references(()=>laboratories.id),testId:uuid('test_id').notNull().references(()=>tests.id),priceKobo:integer('price_kobo').notNull(),turnaroundHours:integer('turnaround_hours').notNull(),active:boolean('active').notNull().default(false)},t=>[uniqueIndex('lab_test_unique').on(t.labId,t.testId)]);
-export const orders = pgTable('orders',{id:uuid('id').primaryKey().defaultRandom(),patientId:uuid('patient_id').notNull().references(()=>patients.id),bookedBy:uuid('booked_by').notNull().references(()=>users.id),labId:uuid('lab_id').notNull().references(()=>laboratories.id),status:orderStatus('status').notNull().default('draft'),tier:varchar('tier',{length:20}).notNull(),currency:varchar('currency',{length:3}).notNull().default('NGN'),totalKobo:integer('total_kobo').notNull(),collectionWindowStart:timestamp('collection_window_start',{withTimezone:true}),collectionWindowEnd:timestamp('collection_window_end',{withTimezone:true}),...timestamps});
+export const orders = pgTable('orders',{id:uuid('id').primaryKey().defaultRandom(),patientId:uuid('patient_id').notNull().references(()=>patients.id),bookedBy:uuid('booked_by').notNull().references(()=>users.id),labId:uuid('lab_id').notNull().references(()=>laboratories.id),status:orderStatus('status').notNull().default('draft'),collectionAddressId:uuid('collection_address_id'),collectionAddressSnapshot:jsonb('collection_address_snapshot'),tier:varchar('tier',{length:20}).notNull(),currency:varchar('currency',{length:3}).notNull().default('NGN'),totalKobo:integer('total_kobo').notNull(),collectionWindowStart:timestamp('collection_window_start',{withTimezone:true}),collectionWindowEnd:timestamp('collection_window_end',{withTimezone:true}),...timestamps});
 export const orderItems = pgTable('order_items',{id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),testId:uuid('test_id').notNull().references(()=>tests.id),priceKobo:integer('price_kobo').notNull()});
 export const specimens = pgTable('specimens',{id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),barcode:varchar('barcode',{length:100}).notNull().unique(),status:specimenStatus('status').notNull().default('planned'),...timestamps});
 export const custodyEvents = pgTable('custody_events',{id:uuid('id').primaryKey().defaultRandom(),specimenId:uuid('specimen_id').notNull().references(()=>specimens.id),actorId:uuid('actor_id').notNull().references(()=>users.id),eventType:varchar('event_type',{length:64}).notNull(),payload:jsonb('payload').notNull().default({}),occurredAt:timestamp('occurred_at',{withTimezone:true}).notNull(),recordedAt:timestamp('recorded_at',{withTimezone:true}).notNull().defaultNow()},t=>[index('custody_specimen_idx').on(t.specimenId)]);
@@ -49,6 +49,7 @@ export const bookingDrafts = pgTable('booking_drafts', {
   patientId: uuid('patient_id').notNull().references(()=>patients.id),
   quoteId: uuid('quote_id').notNull().references(()=>bookingQuotes.id),
   status: varchar('status',{length:24}).notNull().default('open'),
+  addressId: uuid('address_id'),
   commitKey: varchar('commit_key',{length:128}),
   orderId: uuid('order_id').references(()=>orders.id),
   ...timestamps
@@ -89,3 +90,16 @@ export const paymentReviewAlerts=pgTable('payment_review_alerts',{
  createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
  resolvedAt:timestamp('resolved_at',{withTimezone:true})
 });
+
+export const patientAddresses=pgTable('patient_addresses',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ patientId:uuid('patient_id').notNull().references(()=>patients.id),
+ ownerUserId:uuid('owner_user_id').notNull().references(()=>users.id),
+ zoneId:uuid('zone_id').notNull().references(()=>serviceZones.id),
+ label:varchar('label',{length:50}).notNull(),
+ addressLine:varchar('address_line',{length:250}).notNull(),
+ locality:varchar('locality',{length:100}).notNull(),
+ verifiedAt:timestamp('verified_at',{withTimezone:true}),
+ revokedAt:timestamp('revoked_at',{withTimezone:true}),
+ ...timestamps
+},t=>[index('patient_addresses_owner_patient').on(t.ownerUserId,t.patientId)]);

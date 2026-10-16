@@ -6,7 +6,7 @@ export const bookingQuoteInput = z.object({
   serviceTier: z.enum(['regular', 'premium']),
   testIds: z.array(uuidSchema).min(1).max(30).refine(v => new Set(v).size === v.length, 'Duplicate test')
 }).strict();
-export const bookingDraftInput = z.object({ quoteId: uuidSchema, patientId: uuidSchema }).strict();
+export const bookingDraftInput = z.object({ quoteId: uuidSchema, patientId: uuidSchema, addressId: uuidSchema }).strict();
 export const bookingHoldInput = z.object({ draftId: uuidSchema }).strict();
 export const bookingCommitInput = z.object({ draftId: uuidSchema }).strict();
 export const checkoutInput = z.object({ bookingId: uuidSchema }).strict();
@@ -37,3 +37,14 @@ export const createPatientSchema = z.object({
 }).strict();
 export type CreatePatient = z.infer<typeof createPatientSchema>;
 export const rescheduleInput=z.object({slotId:uuidSchema}).strict();
+
+export const createAddressInput=z.object({
+ zoneId:uuidSchema,
+ label:z.string().trim().min(2).max(50),
+ addressLine:z.string().trim().min(5).max(250),
+ locality:z.string().trim().min(2).max(100)
+}).strict();
+export type CreateAddressInput=z.infer<typeof createAddressInput>;
+export const evidenceReferenceInput=z.object({
+ evidenceReference:z.string().regex(/^[A-Za-z0-9._:-]{10,128}$/)
+}).strict();
