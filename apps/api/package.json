@@ -7,8 +7,9 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "openapi:generate": "tsx src/openapi.ts",
-    "lint": "eslint src"
+    "openapi:generate": "node dist/openapi.js",
+    "lint": "eslint src",
+    "openapi:generate:from-source": "pnpm run build && node dist/openapi.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",
