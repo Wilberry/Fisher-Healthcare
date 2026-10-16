@@ -18,3 +18,48 @@ export const payments = pgTable('payments',{id:uuid('id').primaryKey().defaultRa
 export const ledgerEntries = pgTable('ledger_entries',{id:uuid('id').primaryKey().defaultRandom(),transactionId:uuid('transaction_id').notNull(),account:varchar('account',{length:80}).notNull(),amountKobo:integer('amount_kobo').notNull(),...timestamps},t=>[index('ledger_transaction_idx').on(t.transactionId)]);
 export const outbox = pgTable('outbox',{id:uuid('id').primaryKey().defaultRandom(),eventType:varchar('event_type',{length:120}).notNull(),payload:jsonb('payload').notNull(),attempts:integer('attempts').notNull().default(0),processedAt:timestamp('processed_at',{withTimezone:true}),availableAt:timestamp('available_at',{withTimezone:true}).notNull().defaultNow(),leaseToken:uuid('lease_token'),leaseExpiresAt:timestamp('lease_expires_at',{withTimezone:true}),lastError:text('last_error'),deadLetteredAt:timestamp('dead_lettered_at',{withTimezone:true}),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()});
 export const auditEvents = pgTable('audit_events',{id:uuid('id').primaryKey().defaultRandom(),actorId:uuid('actor_id').references(()=>users.id),action:varchar('action',{length:120}).notNull(),resourceType:varchar('resource_type',{length:80}).notNull(),resourceId:uuid('resource_id'),occurredAt:timestamp('occurred_at',{withTimezone:true}).notNull().defaultNow(),metadata:jsonb('metadata').notNull().default({})});
+
+
+// Phase 2 uses the corresponding checksummed 0004 migration. Defaults deny unapproved zones/slots.
+export const serviceZones = pgTable('service_zones', {
+  id: uuid('id').primaryKey().defaultRandom(), code: varchar('code',{length:64}).notNull().unique(),
+  name: varchar('name',{length:160}).notNull(), active: boolean('active').notNull().default(false),
+  regularFeeKobo: integer('regular_fee_kobo').notNull(), premiumFeeKobo: integer('premium_fee_kobo').notNull(),
+  createdAt: timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+});
+export const collectionSlots = pgTable('collection_slots', {
+  id: uuid('id').primaryKey().defaultRandom(), zoneId: uuid('zone_id').notNull().references(()=>serviceZones.id),
+  labId: uuid('lab_id').notNull().references(()=>laboratories.id),
+  tier: varchar('tier',{length:20}).notNull(), startsAt: timestamp('starts_at',{withTimezone:true}).notNull(),
+  endsAt: timestamp('ends_at',{withTimezone:true}).notNull(), cutoffAt: timestamp('cutoff_at',{withTimezone:true}).notNull(),
+  capacity: integer('capacity').notNull(), active: boolean('active').notNull().default(false)
+});
+export const bookingQuotes = pgTable('booking_quotes', {
+  id: uuid('id').primaryKey().defaultRandom(), zoneId: uuid('zone_id').notNull().references(()=>serviceZones.id),
+  slotId: uuid('slot_id').notNull().references(()=>collectionSlots.id),
+  labId: uuid('lab_id').notNull().references(()=>laboratories.id), tier: varchar('tier',{length:20}).notNull(),
+  currency: varchar('currency',{length:3}).notNull().default('NGN'),
+  items: jsonb('items').notNull(), testsTotalKobo: integer('tests_total_kobo').notNull(),
+  logisticsFeeKobo: integer('logistics_fee_kobo').notNull(), totalKobo: integer('total_kobo').notNull(),
+  expiresAt: timestamp('expires_at',{withTimezone:true}).notNull(),
+  createdAt: timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+});
+export const bookingDrafts = pgTable('booking_drafts', {
+  id: uuid('id').primaryKey().defaultRandom(), userId: uuid('user_id').notNull().references(()=>users.id),
+  patientId: uuid('patient_id').notNull().references(()=>patients.id),
+  quoteId: uuid('quote_id').notNull().references(()=>bookingQuotes.id),
+  status: varchar('status',{length:24}).notNull().default('open'),
+  orderId: uuid('order_id').references(()=>orders.id),
+  ...timestamps
+});
+export const slotHolds = pgTable('slot_holds', {
+  id: uuid('id').primaryKey().defaultRandom(), draftId: uuid('draft_id').notNull().references(()=>bookingDrafts.id).unique(),
+  slotId: uuid('slot_id').notNull().references(()=>collectionSlots.id),
+  expiresAt: timestamp('expires_at',{withTimezone:true}).notNull(),
+  createdAt: timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+});
+export const paymentWebhookEvents = pgTable('payment_webhook_events', {
+  id: uuid('id').primaryKey().defaultRandom(), eventHash: varchar('event_hash',{length:64}).notNull().unique(),
+  providerReference: varchar('provider_reference',{length:200}),
+  receivedAt: timestamp('received_at',{withTimezone:true}).notNull().defaultNow()
+});
