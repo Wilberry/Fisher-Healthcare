@@ -14,6 +14,8 @@
 
 **Sixth local checkpoint (16 October 2026):** At `67970de`, install, lint, typecheck and production builds passed following dependency upgrades. The run stopped because the synthetic PostgreSQL container was not ready; migrations, tests, audits and smoke checks were **not** executed in that run. Docker's underlying exit/error details were not preserved by the older script. A quick Docker preflight, preserved container logs/state and an evidence-preserving verification order are now implemented, pending local execution.
 
+**Seventh local checkpoint (16 October 2026):** At `7941611`, the synthetic PostgreSQL preflight passed. The later full-suite test stage reported two `@fisher/auth` Vitest 4 failures from duplicate compiled CommonJS test files under `dist/`, while all seven corresponding `src/` tests passed. Test discovery is now constrained to source files for auth/contracts, and their production builds exclude compiled tests. The provided excerpt alone does not establish the complete audit or smoke-test results; Phase 1 acceptance remains OPEN.
+
 ## Foundation delivered in source
 
 | Workstream | Implemented foundation | Acceptance status |
