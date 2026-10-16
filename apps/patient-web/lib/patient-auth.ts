@@ -6,7 +6,8 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 type Pending = { type:'pending'; state:string; nonce:string; verifier:string; next:string; expires:number };
 export type PatientSession = { type:'session'; accessToken:string; subject:string; expires:number };
 type Sealed = Pending|PatientSession;
-const PENDING='fisher_oidc_pending', SESSION='fisher_patient_session';
+const prefix=process.env.NODE_ENV==='production'?'__Host-':'';
+const PENDING=prefix+'fisher_oidc_pending', SESSION=prefix+'fisher_patient_session';
 const context=Buffer.from('fisher.patient.web.session.v1');
 const unix=()=>Math.floor(Date.now()/1000);
 
@@ -19,19 +20,25 @@ export function loginConfig(){
  const token=process.env.FISHER_OIDC_TOKEN_URL;
  const redirectUri=process.env.FISHER_OIDC_REDIRECT_URI;
  if(!issuer||!jwks||!audience||!clientId||!authorization||!token||!redirectUri) return null;
- const urls=[issuer,jwks,authorization,token,redirectUri].map(v=>new URL(v));
+ let urls:URL[];
+ try{urls=[issuer,jwks,authorization,token,redirectUri].map(v=>new URL(v));}
+ catch{return null;}
  const local=process.env.NODE_ENV!=='production' &&
   process.env.FISHER_AUTH_ALLOW_LOOPBACK_HTTP==='synthetic-only';
  if(urls.some(u=>u.protocol!=='https:' &&
   !(local && u.protocol==='http:' && ['127.0.0.1','localhost'].includes(u.hostname))))
   return null;
  const configuredOrigin=process.env.FISHER_WEB_ORIGIN;
- if(!configuredOrigin || new URL(redirectUri).origin!==new URL(configuredOrigin).origin) return null;
+ if(!configuredOrigin)return null;
+ try{
+  if(new URL(redirectUri).origin!==new URL(configuredOrigin).origin||
+   new URL(redirectUri).pathname!=='/auth/callback')return null;
+ }catch{return null;}
  return {issuer,jwks,audience,clientId,authorization,token,redirectUri,origin:configuredOrigin};
 }
 function secret():Buffer{
  const encoded=process.env.FISHER_WEB_SESSION_KEY;
- if(!encoded)throw new Error('Web session encryption unavailable');
+ if(!encoded || !/^[A-Za-z0-9_-]{43}$/.test(encoded))throw new Error('Web session encryption unavailable');
  const key=Buffer.from(encoded,'base64url');
  if(key.length!==32)throw new Error('Web session key must contain 32 bytes');
  return key;

@@ -214,6 +214,9 @@ check_http "http://127.0.0.1:$API_PORT/api/v1/catalog/tests" 200
 check_http "http://127.0.0.1:$API_PORT/api/v1/service-zones" 200
 check_http "http://127.0.0.1:$API_PORT/api/v1/patients" 401
 check_http "http://127.0.0.1:$API_PORT/api/v1/me/bookings" 401
+check_http "http://127.0.0.1:$API_PORT/api/v1/me/bootstrap" 404
+check_http "http://127.0.0.1:$API_PORT/api/v1/patients" 401
+check_http "http://127.0.0.1:$API_PORT/api/v1/ops/patient-relationships/00000000-0000-4000-8000-000000000001/approve-booking" 404
 kill "$API_PID" 2>/dev/null || true
 wait "$API_PID" 2>/dev/null || true
 API_PID=""
@@ -229,6 +232,8 @@ for app in patient-web operations-web field-pwa; do
     check_http "http://127.0.0.1:$WEB_PORT/tests" 200
     check_http "http://127.0.0.1:$WEB_PORT/book" 200
     check_http "http://127.0.0.1:$WEB_PORT/account" 200
+    check_http "http://127.0.0.1:$WEB_PORT/account/patients/new" 200
+    check_http "http://127.0.0.1:$WEB_PORT/book/confirm" 200
   fi
   kill "$WEB_PID" 2>/dev/null || true
   wait "$WEB_PID" 2>/dev/null || true

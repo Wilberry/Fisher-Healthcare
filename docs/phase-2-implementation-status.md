@@ -46,3 +46,15 @@ Use only `scripts/verify-phase2-local.sh` for the end-of-engineering checkpoint.
 8. Reconcile any Phase 1 fixes with this branch only after Phase 1 is accepted; finish a reviewed draft PR, with no automatic merge.
 
 A successful compilation alone does not close the acceptance gate.
+
+
+## Continuation: authenticated patient journey and operational controls
+- A Next.js server-side OIDC authorization-code + PKCE flow has been added with signed-claim/nonce validation, strict HTTPS configuration, encrypted HttpOnly session cookies and authenticated Next-to-NestJS API forwarding.
+- Signed-in patients see real permission-scoped bookings, profiles and notification-intent states. Clinical result documents remain unavailable pending Phase 4 controls.
+- Booking confirmation consumes a quote, creates a database-backed held draft, commits with a generated idempotency key and optionally opens Paystack's **test** checkout. Confirmation is not inferred from checkout redirect.
+- OIDC access-token provisioned accounts are linked by signed `sub`, not unverified email address. Only `email_verified=true` from the signed API JWT supplies the optional payment contact email.
+- Patients can submit pending profile requests; they automatically receive **neither** `can_book` nor `can_view_results`.
+- A synthetic-only, MFA-gated, `orders:manage` staff reviewer endpoint can approve booking permission using a reviewed opaque evidence reference; it never approves clinical result access and requires that reviewer and patient account differ. A legally reviewed real-person identity proof workflow remains required.
+- Repeated test Paystack checkout with the same authenticated idempotency key can return its persisted original checkout URL; an ambiguous payment initiation never automatically generates a second reference. Full staging reconciliation still requires tests and approval.
+
+**Phase 1 and Phase 2 acceptance remain OPEN.** Neither source implementation nor a draft PR demonstrates local verification.
