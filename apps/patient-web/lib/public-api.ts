@@ -53,3 +53,15 @@ export async function testDetail(id:string){
 export function naira(kobo:number){
  return new Intl.NumberFormat('en-NG',{style:'currency',currency:'NGN',maximumFractionDigits:2}).format(kobo/100);
 }
+
+export type QuoteDetail={id:string;zone_id:string;expires_at:string;total_kobo:number;tier:string};
+export async function quoteDetail(id:string):Promise<QuoteDetail|null>{
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))return null;
+ const response=await request('api/v1/quotes/'+id);
+ if(!record(response)||!record(response.data))return null;
+ const data=response.data;
+ if(typeof data.id!=='string'||typeof data.zone_id!=='string'||
+  typeof data.total_kobo!=='number'||typeof data.expires_at!=='string'||typeof data.tier!=='string')return null;
+ return {id:data.id,zone_id:data.zone_id,total_kobo:data.total_kobo,
+  tier:data.tier,expires_at:data.expires_at};
+}

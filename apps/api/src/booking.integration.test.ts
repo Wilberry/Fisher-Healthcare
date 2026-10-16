@@ -7,7 +7,7 @@ import { PaymentService } from './payment.service';
 const suite=process.env.FISHER_DISPOSABLE_DB_ACK==='disposable-test-only'
   && process.env.DATABASE_URL?describe:describe.skip;
 suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',()=>{
- const one={sub:'synthetic-a-'+randomUUID(),id:randomUUID(),patientId:randomUUID()};
+ const one={sub:'synthetic-a-'+randomUUID(),id:randomUUID(),patientId:randomUUID(),addressId:randomUUID()};
  const two={sub:'synthetic-b-'+randomUUID(),id:randomUUID(),patientId:randomUUID()};
  const labId=randomUUID(),testId=randomUUID(),zoneId=randomUUID(),slotId=randomUUID();
  let pool:Pool,bookings:BookingService,payments:PaymentService;
@@ -44,6 +44,10 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
    VALUES($1,$2,25000,24,true)`,[labId,testId]);
   await pool.query(`INSERT INTO service_zones(id,code,name,active,regular_fee_kobo,premium_fee_kobo)
    VALUES($1,$2,'Synthetic Zone',true,10000,20000)`,[zoneId,'synthetic-'+zoneId]);
+  for(const u of [one,two]){
+   await pool.query("INSERT INTO patient_addresses(id,patient_id,owner_user_id,zone_id,label,address_line,locality,verified_at) VALUES($1,$2,$3,$4,'Synthetic home','Synthetic address only','Synthetic area',now())",
+    [u.addressId,u.patientId,u.id,zoneId]);
+  }
   await pool.query(`INSERT INTO collection_slots(id,zone_id,lab_id,tier,starts_at,ends_at,cutoff_at,capacity,active)
    VALUES($1,$2,$3,'regular',now()+interval '1 day',now()+interval '1 day 1 hour',
     now()+interval '12 hours',1,true)`,[slotId,zoneId,labId]);
@@ -70,8 +74,8 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
    zoneId,slotId,labId,serviceTier:'regular',testIds:[testId]
   })));
   const attempts=await Promise.allSettled([
-   bookings.draft(one.sub,q[0]!.quoteId,one.patientId),
-   bookings.draft(two.sub,q[1]!.quoteId,two.patientId)
+   bookings.draft(one.sub,q[0]!.quoteId,one.patientId,one.addressId),
+   bookings.draft(two.sub,q[1]!.quoteId,two.patientId,two.addressId)
   ]);
   expect(attempts.filter(a=>a.status==='fulfilled')).toHaveLength(1);
   const index=attempts[0]!.status==='fulfilled'?0:1;
@@ -92,7 +96,7 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
    now()+interval '24 hours',1,true)`,[extraSlot,zoneId,labId]);
   const q=await bookings.quote({zoneId,slotId:extraSlot,labId,serviceTier:'regular',testIds:[testId]});
   await pool.query("UPDATE booking_quotes SET expires_at=now()-interval '1 second' WHERE id=$1",[q.quoteId]);
-  await expect(bookings.draft(one.sub,q.quoteId,one.patientId)).rejects.toThrow('QUOTE_EXPIRED');
+  await expect(bookings.draft(one.sub,q.quoteId,one.patientId,one.addressId)).rejects.toThrow('QUOTE_EXPIRED');
  });
  it('verifies a synthetic webhook twice without duplicate ledger entries or reservations',async()=>{
   const originalFetch=globalThis.fetch;
@@ -161,7 +165,7 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
    VALUES($1,$2,$3,'regular',now()+interval '4 days',now()+interval '4 days 1 hour',
     now()+interval '72 hours',1,true)`,[slot,zoneId,labId]);
   const q=await bookings.quote({zoneId,slotId:slot,labId,serviceTier:'regular',testIds:[testId]});
-  const draft=await bookings.draft(two.sub,q.quoteId,two.patientId);
+  const draft=await bookings.draft(two.sub,q.quoteId,two.patientId,two.addressId);
   const order=await bookings.commit(two.sub,draft.draftId,'synthetic_late_booking_key');
   const originalFetch=globalThis.fetch;
   vi.stubGlobal('fetch',vi.fn(async (url:string,opts?:RequestInit)=>{

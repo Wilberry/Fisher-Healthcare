@@ -1,6 +1,6 @@
 'use client';
 import { useRef, useState } from 'react';
-type Profile={id:string;label:string};
+type Profile={id:string;label:string;addresses:{id:string;label:string}[]};
 type Props={quoteId:string;eligible:Profile[];paymentAvailable:boolean};
 async function post(path:string,body:unknown,key?:string){
  const reply=await fetch(path,{method:'POST',headers:{'content-type':'application/json',
@@ -12,6 +12,8 @@ async function post(path:string,body:unknown,key?:string){
 }
 export function BookingConfirmation({quoteId,eligible,paymentAvailable}:Props){
  const [patientId,setPatientId]=useState(eligible[0]?.id??'');
+ const availableAddresses=eligible.find(p=>p.id===patientId)?.addresses??[];
+ const [addressId,setAddressId]=useState(eligible[0]?.addresses[0]?.id??'');
  const [busy,setBusy]=useState(false),[error,setError]=useState('');
  const [created,setCreated]=useState<{bookingId:string;status:string}|null>(null);
  const [checkout,setCheckout]=useState('');
@@ -20,7 +22,7 @@ export function BookingConfirmation({quoteId,eligible,paymentAvailable}:Props){
   if(busy||!patientId||created)return;
   setBusy(true);setError('');
   try{
-   const draft=await post('/api/phase2/private/draft',{quoteId,patientId});
+   const draft=await post('/api/phase2/private/draft',{quoteId,patientId,addressId});
    if(typeof draft.draftId!=='string')throw new Error('Draft creation incomplete');
    const booking=await post('/api/phase2/private/commit',{draftId:draft.draftId},crypto.randomUUID());
    if(typeof booking.bookingId!=='string'||typeof booking.status!=='string')
@@ -44,11 +46,18 @@ export function BookingConfirmation({quoteId,eligible,paymentAvailable}:Props){
  return <div className="fisher-booking-planner">
   {!created?<fieldset><legend>Authorized patient</legend>
    <label className="fisher-booking-label" htmlFor="patient">Who is the appointment for?</label>
-   <select id="patient" value={patientId} onChange={e=>setPatientId(e.target.value)}>
+   <select id="patient" value={patientId} onChange={e=>{
+     const next=e.target.value;setPatientId(next);
+     setAddressId(eligible.find(v=>v.id===next)?.addresses[0]?.id??'');
+    }}>
     {eligible.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
    </select>
+   <label className="fisher-booking-label" htmlFor="collection-address">Verified collection location</label>
+   <select id="collection-address" value={addressId} onChange={e=>setAddressId(e.target.value)}>
+    {availableAddresses.map(a=><option key={a.id} value={a.id}>{a.label}</option>)}
+   </select>
    <p>Quotation validity and slot capacity will be checked again on the server. Payment is never inferred from a browser redirect.</p>
-   <button type="button" className="fisher-button fisher-button--primary" disabled={busy||!patientId} onClick={commit}>
+   <button type="button" className="fisher-button fisher-button--primary" disabled={busy||!patientId||!addressId} onClick={commit}>
     {busy?'Reserving…':'Reserve collection and create booking'}</button>
   </fieldset>:
    <div className="fisher-quote" aria-live="polite">
