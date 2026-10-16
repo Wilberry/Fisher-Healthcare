@@ -34,6 +34,12 @@ The following dependency ranges are **proposed source-level remediations**. They
 
 The pnpm 9.15.9 workspace holds its overrides in `pnpm-workspace.yaml`. All manifest changes must be reflected in the reviewed `pnpm-lock.yaml` before acceptance.
 
+## Post-upgrade compatibility observation
+
+The 16 October 2026 local attempt at `67970de` resolved `vitest@4.1.12` but reported that the API workspace still resolved `vite@5.4.21` as a peer, outside Vitest 4's supported Vite 6/7/8 range. The full build and TypeScript checks passed, but the PostgreSQL container did not become ready, so tests and renewed security audits were not executed in this attempt.
+
+An explicit `vite@^6.4.3` devDependency has now been added to `apps/api/package.json` to satisfy Vitest's supported peer range. The dependency lockfile must be refreshed and the resulting graph checked locally; this is **not** yet proof that the vulnerable Vite 5 path has been eliminated.
+
 ## Unpatched upstream advisory — braces
 
 The local audit also identified `braces@3.0.3` through `eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob` → `micromatch`.
