@@ -183,3 +183,20 @@ The screenshot and VS Code assistant's summary establish the counts and outcome 
 The public GitHub advisory [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) reports no patched `braces` version as of 16 October 2026. The existing Next.js ESLint checks remain part of the project; none have been removed to silence the advisory. No dependency-ignore configuration, forced suppressions, broad waiver or severity reduction has been authorized.
 
 **Pending engineering acceptance tasks:** review and commit the resolved lockfile and generated artifacts, verify clean pinned-source reproducibility, evaluate the unpatched development-only advisory under an explicit security risk process, and rerun all functional tests. If the full audit remains nonzero, the current strict full-security gate remains failed until either a verified remediation is implemented or the project's documented release governance is separately updated and approved. This checkpoint is not Phase 1 approval.
+
+## Round 10 — 16 October 2026: verified baseline and owner engineering milestone decision
+
+**Precisely tested source commit:** `a504bee8d858712a8ada350a9792a87d23ecbb9a`  
+**Local evidence directory:** `.verification/phase1-20261016-215109/`
+
+The user reported that the lockfile, OpenAPI contract, and five generated Next.js configuration files were reviewed, committed, and pushed before running the consolidated verification. The Git working tree was clean at the exact tested revision.
+
+**Actual verifier results:** Frozen install, lint, typecheck, builds, OpenAPI generation, backend and all three web smoke tests, migrations, and the full workspace tests **PASS**. Production `pnpm audit --prod --audit-level high` **PASS**. Full `pnpm audit --audit-level high` **FAIL** (1 high, 7 moderate, 1 low), with the high advisory `GHSA-vfj7-8cjw-p6xm` in development-only Next.js lint tooling. Therefore the overall verifier result was accurately **FAIL**.
+
+**Subsequent project owner instruction:** "then lets mark it as pass." Interpreted and documented as approval of the **Phase 1 engineering milestone with a narrow, disclosed development-tool risk exception**. The audit process result remains unmodified and failing; no installed dependency was changed or advisory ignored to create a false pass.
+
+**Engineering milestone decision:** **PASS WITH DOCUMENTED SECURITY EXCEPTION**.  
+**Full dependency audit:** **FAIL, remediation open under [Issue #2](https://github.com/Wilberry/Fisher-Healthcare/issues/2)**.  
+**Production deployment and live clinical processing:** **NOT APPROVED**.
+
+See [Engineering Acceptance and Risk Decision](phase-1-engineering-acceptance.md). The engineering decision was recorded after the verification and does not claim that documentation-only follow-up commits themselves underwent the original full test suite.
