@@ -81,6 +81,7 @@ function checkNextEnv(path) {
   for (const line of lines) {
     if (originalLines.includes(line)) continue;
     if (/^\/\/\/ <reference types="next(?:\/[a-z0-9\/-]+)?" \/>$/.test(line)) continue;
+    if (/^\/\/\/ <reference path="\.\/\.next\/(?:dev\/)?types\/[a-z0-9-]+\.d\.ts" \/>$/.test(line)) continue;
     if (/^\/\/ NOTE: This file should not be edited\.?$/.test(line)) continue;
     if (/^\/\/ see https:\/\/nextjs\.org\/docs\/.*$/.test(line)) continue;
     if (/^import ["']\.\/\.next\/(?:dev\/)?types\/[a-z0-9-]+\.d\.ts["'];?$/.test(line)) continue;
