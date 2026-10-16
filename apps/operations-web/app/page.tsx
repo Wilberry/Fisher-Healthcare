@@ -15,7 +15,7 @@ export default function Operations() {
       <div className="fisher-container">
         <p className="fisher-eyebrow">Internal operating platform · Foundation preview</p>
         <h1 className="fisher-section-title">A coordinated view of healthcare operations.</h1>
-        <p className="fisher-lead">Fisher Healthcare's internal platform is being designed to connect customer service, collection operations, laboratory coordination and financial administration.</p>
+        <p className="fisher-lead">Fisher Healthcare&apos;s internal platform is being designed to connect customer service, collection operations, laboratory coordination and financial administration.</p>
         <Notice title="Operational access is not active" tone="warning">
           This application is a design and engineering foundation. It does not connect to live bookings, patient records or laboratory results. Protected functions will be enabled only after server-side authorization and operational verification.
         </Notice>
