@@ -127,6 +127,9 @@ else
   LOCKFILE_REFRESHED=yes
   run_step 01-lockfile pnpm install --lockfile-only --ignore-scripts
 fi
+# Pinned pnpm 9 reads root package.json#pnpm.overrides; fail before a long
+# install/build if the generated lockfile still contains vulnerable versions.
+run_step 01b-dependency-resolution node scripts/check-dependency-resolution.mjs
 run_step 02-install pnpm install --frozen-lockfile
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 export NEXT_TELEMETRY_DISABLED=1
