@@ -160,3 +160,26 @@ The production high-severity findings resolve to four installed dependency versi
 **Repair committed after Round 8:** Move overrides to root `package.json` under `pnpm.overrides` for pinned pnpm 9.15.9; keep `pnpm-workspace.yaml` focused on workspace membership. Fail early with `scripts/check-dependency-resolution.mjs` unless the resolved lockfile has effective overrides and all four vulnerable production dependency groups and Vite satisfy their fixed minimums.
 
 **Remaining requirements:** Prove resolution with a local refreshed lockfile and both audits; separately handle the unpatched `braces` development-only advisory without weakening or bypassing the full audit; review and commit generated lockfile, OpenAPI and known Next.js framework changes; run final verification on the resulting clean pinned commit. None of these later actions is marked complete by Round 8's summary.
+
+## Round 9 — 16 October 2026, production dependency security clearance
+
+**Pinned branch checkout reported locally:** `a5d539f6ed5d1bed1c58b7ebf9a627f3ae75a5f8`  
+**Evidence directories shown in local VS Code:** `.verification/security-20261016-210928` and `.verification/security-20261016-212433`.
+
+The user-provided VS Code screenshot of local dependency verification reports:
+
+| Gate | Observed outcome |
+| --- | --- |
+| Focused pnpm 9 dependency override resolution | Reported successful by the local security verification workflow |
+| Production-only `pnpm audit --prod --audit-level high` | **PASS** — no reported high or critical production findings |
+| Full `pnpm audit --audit-level high` | **FAIL** — 9 reported findings: 1 high, 7 moderate, 1 low |
+| Remaining high finding | `braces@3.0.3`, from Next.js ESLint's development-only dependency path |
+| Lockfile | Untracked locally, still awaiting review and commit |
+| Generated OpenAPI and known Next.js configuration | Preserved locally; not yet committed |
+| Final Phase 1 acceptance | **OPEN** |
+
+The screenshot and VS Code assistant's summary establish the counts and outcome above, but not the complete underlying audit paths for all moderate and low findings. The full audit logs should be retained and reviewed separately; no deployment-ready security conclusion is inferred from the high-only production pass.
+
+The public GitHub advisory [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) reports no patched `braces` version as of 16 October 2026. The existing Next.js ESLint checks remain part of the project; none have been removed to silence the advisory. No dependency-ignore configuration, forced suppressions, broad waiver or severity reduction has been authorized.
+
+**Pending engineering acceptance tasks:** review and commit the resolved lockfile and generated artifacts, verify clean pinned-source reproducibility, evaluate the unpatched development-only advisory under an explicit security risk process, and rerun all functional tests. If the full audit remains nonzero, the current strict full-security gate remains failed until either a verified remediation is implemented or the project's documented release governance is separately updated and approved. This checkpoint is not Phase 1 approval.
