@@ -172,7 +172,7 @@ wait_for_http() {
 
 log "09-api-smoke: Smoke-test built API on loopback only"
 API_PORT="$(( 41000 + RANDOM % 5000 ))"
-env -u DATABASE_URL -u OIDC_ISSUER -u OIDC_AUDIENCE -u OIDC_JWKS_URI PORT="$API_PORT" node apps/api/dist/main.js > "$LOG_DIR/10-api-smoke.log" 2>&1 &
+env -u DATABASE_URL -u OIDC_ISSUER -u OIDC_AUDIENCE -u OIDC_JWKS_URI FISHER_API_BIND_HOST=127.0.0.1 PORT="$API_PORT" node apps/api/dist/main.js > "$LOG_DIR/10-api-smoke.log" 2>&1 &
 API_PID=$!
 wait_for_http "http://127.0.0.1:$API_PORT/api/v1/health" 200
 check_http "http://127.0.0.1:$API_PORT/api/v1/identity/session" 401
