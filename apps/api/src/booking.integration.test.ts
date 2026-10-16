@@ -72,15 +72,20 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
   expect(stored.rows[0].total_kobo).toBe(35000);
   expect(stored.rows[0].items).toHaveLength(1);
  });
+ it('rejects missing policy acknowledgment before touching slot capacity',async()=>{
+  const quotation=await bookings.quote({zoneId,slotId,labId,serviceTier:'regular',testIds:[testId]});
+  await expect(bookings.draft(one.sub,quotation.quoteId,one.patientId,one.addressId,false,'synthetic-2026-10'))
+   .rejects.toThrow('Current booking policy acknowledgment required');
+ });
  it('rejects mismatched or unapproved collection locations before reserving a slot',async()=>{
   const quotation=await bookings.quote({zoneId,slotId,labId,serviceTier:'regular',testIds:[testId]});
-  await expect(bookings.draft(one.sub,quotation.quoteId,one.patientId,two.addressId))
+  await expect(bookings.draft(one.sub,quotation.quoteId,one.patientId,two.addressId,true,'synthetic-2026-10'))
    .rejects.toThrow('COLLECTION_ADDRESS_NOT_VERIFIED');
   const unverified=randomUUID();
   await pool.query(`INSERT INTO patient_addresses(id,patient_id,owner_user_id,zone_id,label,address_line,locality)
      VALUES($1,$2,$3,$4,'Unverified','Synthetic unverified street','Synthetic locality')`,
      [unverified,one.patientId,one.id,zoneId]);
-  await expect(bookings.draft(one.sub,quotation.quoteId,one.patientId,unverified))
+  await expect(bookings.draft(one.sub,quotation.quoteId,one.patientId,unverified,true,'synthetic-2026-10'))
    .rejects.toThrow('COLLECTION_ADDRESS_NOT_VERIFIED');
  });
  it('locks capacity so two concurrent patient holds cannot oversell the final slot',async()=>{
@@ -88,8 +93,8 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
    zoneId,slotId,labId,serviceTier:'regular',testIds:[testId]
   })));
   const attempts=await Promise.allSettled([
-   bookings.draft(one.sub,q[0]!.quoteId,one.patientId,one.addressId),
-   bookings.draft(two.sub,q[1]!.quoteId,two.patientId,two.addressId)
+   bookings.draft(one.sub,q[0]!.quoteId,one.patientId,one.addressId,true,'synthetic-2026-10'),
+   bookings.draft(two.sub,q[1]!.quoteId,two.patientId,two.addressId,true,'synthetic-2026-10')
   ]);
   expect(attempts.filter(a=>a.status==='fulfilled')).toHaveLength(1);
   const index=attempts[0]!.status==='fulfilled'?0:1;
@@ -110,7 +115,7 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
    now()+interval '24 hours',1,true)`,[extraSlot,zoneId,labId]);
   const q=await bookings.quote({zoneId,slotId:extraSlot,labId,serviceTier:'regular',testIds:[testId]});
   await pool.query("UPDATE booking_quotes SET expires_at=now()-interval '1 second' WHERE id=$1",[q.quoteId]);
-  await expect(bookings.draft(one.sub,q.quoteId,one.patientId,one.addressId)).rejects.toThrow('QUOTE_EXPIRED');
+  await expect(bookings.draft(one.sub,q.quoteId,one.patientId,one.addressId,true,'synthetic-2026-10')).rejects.toThrow('QUOTE_EXPIRED');
  });
  it('verifies a synthetic webhook twice without duplicate ledger entries or reservations',async()=>{
   const originalFetch=globalThis.fetch;
@@ -165,7 +170,7 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
    VALUES($1,$2,$3,'regular',now()+interval '3 days',now()+interval '3 days 1 hour',
    now()+interval '48 hours',1,true)`,[slot,zoneId,labId]);
   const q=await bookings.quote({zoneId,slotId:slot,labId,serviceTier:'regular',testIds:[testId]});
-  const draft=await bookings.draft(one.sub,q.quoteId,one.patientId);
+  const draft=await bookings.draft(one.sub,q.quoteId,one.patientId,one.addressId,true,'synthetic-2026-10');
   await pool.query("UPDATE slot_holds SET expires_at=clock_timestamp()-interval '1 second' WHERE draft_id=$1",[draft.draftId]);
   await expect(bookings.commit(one.sub,draft.draftId,'synthetic_expired_hold_key')).rejects.toThrow('SLOT_HOLD_EXPIRED');
   const vacancies=await bookings.availability(zoneId,labId,'regular');
@@ -179,7 +184,7 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
    VALUES($1,$2,$3,'regular',now()+interval '5 days',now()+interval '5 days 1 hour',now()+interval '4 days',1,true)`,
    [slot,zoneId,labId]);
   const q=await bookings.quote({zoneId,slotId:slot,labId,serviceTier:'regular',testIds:[testId]});
-  const draft=await bookings.draft(two.sub,q.quoteId,two.patientId,two.addressId);
+  const draft=await bookings.draft(two.sub,q.quoteId,two.patientId,two.addressId,true,'synthetic-2026-10');
   const order=await bookings.commit(two.sub,draft.draftId,'synthetic_cancel_request_key');
   const result=await bookings.cancel(two.sub,order.bookingId);
   expect(result.status).toBe('cancelled');
@@ -193,7 +198,7 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
    VALUES($1,$2,$3,'regular',now()+interval '4 days',now()+interval '4 days 1 hour',
     now()+interval '72 hours',1,true)`,[slot,zoneId,labId]);
   const q=await bookings.quote({zoneId,slotId:slot,labId,serviceTier:'regular',testIds:[testId]});
-  const draft=await bookings.draft(two.sub,q.quoteId,two.patientId,two.addressId);
+  const draft=await bookings.draft(two.sub,q.quoteId,two.patientId,two.addressId,true,'synthetic-2026-10');
   const order=await bookings.commit(two.sub,draft.draftId,'synthetic_late_booking_key');
   const originalFetch=globalThis.fetch;
   vi.stubGlobal('fetch',vi.fn(async (url:string,opts?:RequestInit)=>{

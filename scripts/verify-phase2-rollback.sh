@@ -21,6 +21,7 @@ SET LOCAL search_path TO fisher_phase2_rollback_probe, public;
 \i packages/database/drizzle/0012_catalog_approval_workflow.sql
 \i packages/database/drizzle/0013_notification_delivery.sql
 \i packages/database/drizzle/0014_guest_assisted_intake.sql
+\i packages/database/drizzle/0015_booking_consent.sql
 ROLLBACK;
 SELECT CASE WHEN to_regnamespace('fisher_phase2_rollback_probe') IS NULL
  THEN 'ROLLBACK_OK' ELSE 'ROLLBACK_FAILED' END;

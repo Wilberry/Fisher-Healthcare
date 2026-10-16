@@ -11,12 +11,13 @@ DECLARE
  ];
  name text;
  bad boolean;
+ test_actor uuid;
 BEGIN
  IF current_database()<>'fisher_test' THEN
   RAISE EXCEPTION 'Refusing Phase 2 SQL checks outside fisher_test';
  END IF;
- IF (SELECT COUNT(*) FROM fisher_migrations)<>15 THEN
-  RAISE EXCEPTION 'Expected 15 checksummed migrations 0000 through 0014';
+ IF (SELECT COUNT(*) FROM fisher_migrations)<>16 THEN
+  RAISE EXCEPTION 'Expected 16 checksummed migrations 0000 through 0015';
  END IF;
  FOREACH name IN ARRAY names LOOP
   IF to_regclass('public.'||name) IS NULL THEN
@@ -45,13 +46,20 @@ BEGIN
  EXCEPTION WHEN check_violation THEN bad:=true;
  END;
  IF NOT bad THEN RAISE EXCEPTION 'Negative zone fee was allowed'; END IF;
+ INSERT INTO users(identity_subject) VALUES ('synthetic-negative-support-consent') RETURNING id INTO test_actor;
  bad:=false;
  BEGIN
   INSERT INTO support_cases(user_id,category,preferred_contact,idempotency_key)
-   VALUES(gen_random_uuid(),'medical_results','email','synthetic-invalid-case');
+   VALUES(test_actor,'medical_results','email','synthetic-invalid-case');
  EXCEPTION WHEN check_violation THEN bad:=true;
  END;
  IF NOT bad THEN RAISE EXCEPTION 'Unsupported sensitive support category allowed'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='booking_draft_consent_consistent') THEN
+  RAISE EXCEPTION 'Synthetic booking consent constraint missing';
+ END IF;
+ IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='guest_consent_consistent') THEN
+  RAISE EXCEPTION 'Synthetic guest consent constraint missing';
+ END IF;
  IF NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='catalog_review_two_actor') THEN
   RAISE EXCEPTION 'Two-person catalogue approval constraint missing';
  END IF;

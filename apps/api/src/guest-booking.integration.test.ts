@@ -2,7 +2,7 @@ import { randomBytes,randomUUID } from 'node:crypto';
 import { afterAll,beforeAll,describe,expect,it,vi } from 'vitest';
 import { Pool } from 'pg';
 import { AccessService } from './access.service';
-import { GuestBookingService } from './guest-booking.service';
+import { GuestBookingService,guestStartInput } from './guest-booking.service';
 import { guestBookingHandlers } from '../../worker/src/booking-notifications';
 import type { AuthenticatedIdentity } from './identity';
 const suite=process.env.FISHER_DISPOSABLE_DB_ACK==='disposable-test-only'&&process.env.DATABASE_URL?
@@ -59,12 +59,15 @@ suite.sequential('verified synthetic guest-assisted intake',()=>{
   await service?.onModuleDestroy();await access?.onModuleDestroy();await db?.end();
   for(const key of config){if(originals[key]===undefined)delete process.env[key];else process.env[key]=originals[key];}
  });
+ it('rejects a guest request without explicit synthetic policy acknowledgment',async()=>{
+  expect(guestStartInput.safeParse({email:emails[0],quoteId}).success).toBe(false);
+ });
  it('disallows unapproved recipients before sending an email',async()=>{
-  await expect(service.start({email:'unapproved@example.test',quoteId})).rejects.toThrow();
+  await expect(service.start({email:'unapproved@example.test',quoteId,policyAccepted:true,policyVersion:'synthetic-2026-10'})).rejects.toThrow();
   expect(send).not.toHaveBeenCalled();
  });
  it('records a one-time code and creates exactly one work item after verification',async()=>{
-  const started=await service.start({email:emails[0],quoteId});
+  const started=await service.start({email:emails[0],quoteId,policyAccepted:true,policyVersion:'synthetic-2026-10'});
   expect(started.status).toBe('email_verification_required');
   const dbCode=await db.query('SELECT code_hash,verified_at FROM guest_booking_requests WHERE id=$1',[started.requestId]);
   expect(dbCode.rows[0].code_hash).not.toBe(lastCode);
@@ -91,8 +94,8 @@ suite.sequential('verified synthetic guest-assisted intake',()=>{
   expect(noPatient.rows[0].count).toBe(0);
  });
  it('limits short-lived guest requests for one mailbox',async()=>{
-  for(let i=0;i<3;i++)await service.start({email:emails[1],quoteId});
-  await expect(service.start({email:emails[1],quoteId})).rejects.toThrow();
+  for(let i=0;i<3;i++)await service.start({email:emails[1],quoteId,policyAccepted:true,policyVersion:'synthetic-2026-10'});
+  await expect(service.start({email:emails[1],quoteId,policyAccepted:true,policyVersion:'synthetic-2026-10'})).rejects.toThrow();
   expect(send).toHaveBeenCalledTimes(4);
  });
 });
