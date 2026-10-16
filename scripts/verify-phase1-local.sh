@@ -55,11 +55,13 @@ require curl
 require sha256sum
 require timeout
 [[ -f package.json && -f pnpm-workspace.yaml && -d apps/api ]] || die "Not the Fisher monorepo root"
-# A failed first run can leave only these generated artifacts untracked.
-# Permit them for a follow-up verification without accepting an uncommitted lockfile.
+# A failed first run may leave generated artifacts untracked; these do not count as acceptance.
 STATUS_LINES="$(git status --porcelain --untracked-files=all)"
 if [[ -n "$STATUS_LINES" ]]; then
-  UNEXPECTED_CHANGES="$(printf '%s\n' "$STATUS_LINES" | grep -vE '^\\?\\? (pnpm-lock\\.yaml|docs/api/openapi\\.json)
+  UNEXPECTED_CHANGES="$(printf '%s\n' "$STATUS_LINES" | grep -vE '^\\?\\? (pnpm-lock\\.yaml|docs/api/openapi\\.json)$' || true)"
+  [[ -z "$UNEXPECTED_CHANGES" ]] || die "Unexpected worktree changes; do not reset or stash them automatically"
+fi
+[[ "$(git rev-parse --is-inside-work-tree)" == "true" ]] || die "No Git worktree"
 NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
 [[ "$NODE_MAJOR" == "22" ]] || die "Node.js 22 is required (found $(node -v))"
 docker info >/dev/null 2>&1 || die "Docker daemon unavailable; check permissions/service"
@@ -158,111 +160,8 @@ done
 
 log "Source verification finished"
 if [[ "$LOCKFILE_COMMITTED" != "yes" ]]; then
-  printf 'IMPORTANT: pnpm-lock.yaml is not committed. This is a diagnostic run, NOT a Phase 1 acceptance.\n'
-  printf 'Preserve the generated lockfile for review and commit after manifest stability.\n'
+  printf 'IMPORTANT: pnpm-lock.yaml is not committed. Diagnostic run only; no Phase 1 acceptance yet.\n'
+  printf 'Preserve and review the generated lockfile before committing.\n'
 fi
-if [[ ! -f docs/api/openapi.json ]]; then
-  die "OpenAPI artifact missing after generation"
-fi
-printf 'Do not merge, deploy or approve Phase 1 until all logs pass and the exact commit is reviewed.\n'
- || true)"
-  [[ -z "$UNEXPECTED_CHANGES" ]] || die "Non-generated worktree changes detected; do not modify or reset them automatically"
-fi
-[[ "$(git rev-parse --is-inside-work-tree)" == "true" ]] || die "No Git worktree"
-NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]')"
-[[ "$NODE_MAJOR" == "22" ]] || die "Node.js 22 is required (found $(node -v))"
-docker info >/dev/null 2>&1 || die "Docker daemon unavailable; check permissions/service"
-mkdir -p "$LOG_DIR"
-printf 'Exact commit: %s\n' "$(git rev-parse HEAD)" | tee "$LOG_DIR/commit.txt"
-printf 'Branch: %s\n' "$(git branch --show-current)" | tee -a "$LOG_DIR/commit.txt"
-[[ -z "${FISHER_EXPECTED_COMMIT:-}" || "$(git rev-parse HEAD)" == "$FISHER_EXPECTED_COMMIT" ]] ||
-  die "Current HEAD does not match FISHER_EXPECTED_COMMIT"
-
-run_step() {
-  local name="$1"; shift
-  log "$name"
-  printf '+ '; printf '%q ' "$@"; printf '\n'
-  "$@" 2>&1 | tee "$LOG_DIR/$name.log"
-}
-log "Enable pnpm via Corepack"
-corepack enable
-[[ "$(pnpm --version)" == "9.15.9" ]] || die "Expected pnpm 9.15.9"
-LOCKFILE_GENERATED=no
-if [[ ! -f pnpm-lock.yaml ]]; then
-  LOCKFILE_GENERATED=yes
-  run_step 01-lockfile pnpm install --lockfile-only --ignore-scripts
-fi
-run_step 02-install pnpm install --frozen-lockfile
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
-export NEXT_TELEMETRY_DISABLED=1
-run_step 03-lint pnpm exec turbo run lint --concurrency=1
-run_step 04-typecheck pnpm exec turbo run typecheck --concurrency=1
-run_step 05-build pnpm exec turbo run build --concurrency=1
-
-log "Start ONE disposable PostgreSQL container (no Supabase changes, no host port assumption)"
-POSTGRES_CONTAINER="fisher-phase1-verify-${UID:-0}-$STAMP-$$"
-docker run --detach --rm --name "$POSTGRES_CONTAINER" \
-  --memory 768m --cpus 1.5 \
-  -e POSTGRES_DB=fisher_test -e POSTGRES_USER=fisher -e POSTGRES_PASSWORD=fisher_local_verify_only \
-  -p 127.0.0.1::5432 postgres:16-alpine > "$LOG_DIR/postgres-container-id.txt"
-for attempt in $(seq 1 75); do
-  if [[ "$(docker inspect -f '{{.State.Health.Status}}' "$POSTGRES_CONTAINER" 2>/dev/null || true)" == "healthy" ]]; then break; fi
-  # The upstream image does not declare an image healthcheck: use pg_isready.
-  if docker exec "$POSTGRES_CONTAINER" pg_isready -U fisher -d fisher_test >/dev/null 2>&1; then break; fi
-  sleep 1
-done
-docker exec "$POSTGRES_CONTAINER" pg_isready -U fisher -d fisher_test >/dev/null ||
-  die "Disposable PostgreSQL did not become ready"
-PORT_OUTPUT="$(docker port "$POSTGRES_CONTAINER" 5432/tcp | grep '^127.0.0.1:' | head -n1)"
-DB_PORT="${PORT_OUTPUT##*:}"
-[[ "$DB_PORT" =~ ^[0-9]+$ ]] || die "Cannot resolve disposable PostgreSQL port"
-export DATABASE_URL="postgresql://fisher:fisher_local_verify_only@127.0.0.1:$DB_PORT/fisher_test"
-export FISHER_DISPOSABLE_DB_ACK=disposable-test-only
-run_step 06-migrations bash scripts/verify-database.sh
-run_step 07-tests pnpm exec turbo run test --concurrency=1
-run_step 08-openapi pnpm --filter @fisher/api openapi:generate
-run_step 09-dependency-audit pnpm audit --audit-level high
-
-check_http() {
-  local url="$1" expected="$2"
-  local actual
-  actual="$(curl --max-time 8 --silent --output /dev/null --write-out '%{http_code}' "$url")"
-  [[ "$actual" == "$expected" ]] || die "HTTP smoke expected $expected, got $actual for $url"
-}
-wait_for_http() {
-  local url="$1" expected="$2"
-  for attempt in $(seq 1 30); do
-    if [[ "$(curl --max-time 2 --silent --output /dev/null --write-out '%{http_code}' "$url" || true)" == "$expected" ]]; then return 0; fi
-    sleep 1
-  done
-  die "Service did not return $expected at $url. Consult smoke logs"
-}
-
-log "Smoke-test built API on loopback only"
-API_PORT="$(( 41000 + RANDOM % 5000 ))"
-PORT="$API_PORT" node apps/api/dist/main.js > "$LOG_DIR/10-api-smoke.log" 2>&1 &
-API_PID=$!
-wait_for_http "http://127.0.0.1:$API_PORT/api/v1/health" 200
-check_http "http://127.0.0.1:$API_PORT/api/v1/identity/session" 401
-kill "$API_PID" 2>/dev/null || true
-wait "$API_PID" 2>/dev/null || true
-API_PID=""
-
-log "Smoke-test built Next.js interfaces sequentially"
-WEB_PORT="$(( 46000 + RANDOM % 2000 ))"
-for app in patient-web operations-web field-pwa; do
-  pnpm --filter "@fisher/$app" exec next start -p "$WEB_PORT" -H 127.0.0.1 > "$LOG_DIR/11-$app-smoke.log" 2>&1 &
-  WEB_PID=$!
-  wait_for_http "http://127.0.0.1:$WEB_PORT/" 200
-  check_http "http://127.0.0.1:$WEB_PORT/" 200
-  kill "$WEB_PID" 2>/dev/null || true
-  wait "$WEB_PID" 2>/dev/null || true
-  WEB_PID=""
-  WEB_PORT="$((WEB_PORT + 1))"
-done
-
-log "Source verification finished"
-if [[ "$LOCKFILE_GENERATED" == "yes" ]]; then
-  printf 'IMPORTANT: A new pnpm-lock.yaml exists. Review and commit it before accepting Phase 1.\n'
-fi
+[[ -f docs/api/openapi.json ]] || die "OpenAPI artifact missing after generation"
 printf 'Do not merge, deploy or approve Phase 1 until all logs pass and the exact commit is reviewed.\n'
