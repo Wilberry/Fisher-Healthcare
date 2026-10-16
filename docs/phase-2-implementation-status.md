@@ -19,12 +19,12 @@
 | Collection location | Per-patient pending addresses, independent staffed zone/coverage approval, preserved booking location snapshot |
 | Staging payment | Paystack test-key only, allowlisted synthetic payers, server-verified currency/amount/reference/test domain, raw-body HMAC webhook, idempotent ledger/outbox, provider reconciliation, late-payment exception |
 | Booking account | Authorized dashboard, booking details, unpaid cancellation/rescheduling, provider status action, test-mode receipt, event-intent statuses |
-| Guest-assisted intake | Explicit booking-policy consent, approved synthetic email-only challenge, hashed 8-digit OTP, expiry, per-mailbox throttling and attempt limit, staff queue; does not grant patient access or reserve a slot |
+| Guest-assisted intake | PostgreSQL per-minute IP-hash throttle, explicit booking-policy consent, approved synthetic email-only challenge, hashed 8-digit OTP, expiry, per-mailbox throttling and attempt limit, staff queue; does not grant patient access or reserve a slot |
 | Notifications | PostgreSQL outbox creates idempotent email intent; fenced sender to Resend staging allowlist with provider idempotency, bounded retry, receipt acceptance and no clinical content |
 | Customer support | Signed-in idempotent cases, email/WhatsApp response preference without claiming vendor delivery, durable staff queue and auditable resolution |
 | Internal catalogue & finance | Separate staff-MFA catalogue author/reviewer, inactive-by-default slots and fees; staff support and payment-exception queues; no automated refunds |
 | Governance | Opaque reviewed evidence references, append-only audits, versioned synthetic policy acknowledgment; releases and clinical records are out of Phase 2 |
-| Tests | Synthetic PostgreSQL fixtures cover concurrent holds, authorization, consent, payment replay, late payment, guest OTP, email receipts, staff separation, support idempotency and catalogue approval |
+| Tests | Synthetic PostgreSQL fixtures cover shared API rate-limits, concurrent holds, authorization, consent, payment replay, late payment, guest OTP, email receipts, staff separation, support idempotency and catalogue approval |
 | Reproducibility | One resource-conscious pinned verifier `scripts/verify-phase2-local.sh` using one disposable loopback PostgreSQL instance, sequential builds/tests, OpenAPI and dependency audits |
 
 ## System constraints
@@ -37,7 +37,7 @@ Resend `sent` means the provider returned an acceptance identifier; it does not 
 
 ## Gates that still require real evidence
 
-1. **Exact pinned local one-pass verification** under Node 22, pnpm 9.15.9 and one disposable PostgreSQL 16, including migrations 0000–0015, lint/typecheck/build, unit/integration tests, signed HTTP negative cases, APIs, frontends, audits and OpenAPI. Fix any failures before acceptance.
+1. **Exact pinned local one-pass verification** under Node 22, pnpm 9.15.9 and one disposable PostgreSQL 16, including migrations 0000–0016, lint/typecheck/build, unit/integration tests, signed HTTP negative cases, APIs, frontends, audits and OpenAPI. Fix any failures before acceptance.
 2. **Reproducible lockfile and generated OpenAPI snapshot** reviewed and committed at the tested SHA. Source code without these artifacts is diagnostic only.
 3. **OIDC staging provider** configured with registered callback, issuer/JWKS/audience, signed MFA claims and verified patient contact email. Validate PKCE, cookie handling, login/logout and guardian revocation with real signed staging tokens.
 4. **External staging integration**: separately approved Paystack sandbox account/test recipients and signed callback, approved Resend domain/test inboxes, email idempotency window and operational telemetry. Do not put API keys in Git.

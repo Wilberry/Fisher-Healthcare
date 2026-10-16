@@ -157,3 +157,13 @@ export const guestBookingWorkItems=pgTable('guest_booking_work_items',{
  status:varchar('status',{length:24}).notNull().default('pending'),
  createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
 });
+
+export const publicRateLimits=pgTable('public_rate_limits',{
+ networkHash:varchar('network_hash',{length:64}).notNull(),
+ route:varchar('route',{length:40}).notNull(),
+ windowStartedAt:timestamp('window_started_at',{withTimezone:true}).notNull(),
+ requests:integer('requests').notNull().default(1)
+},t=>[
+ uniqueIndex('public_rate_limits_primary').on(t.networkHash,t.route,t.windowStartedAt),
+ index('public_rate_limit_retention').on(t.windowStartedAt)
+]);
