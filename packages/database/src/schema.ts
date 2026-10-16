@@ -7,7 +7,7 @@ export const patients = pgTable('patients',{id:uuid('id').primaryKey().defaultRa
 export const patientRelationships = pgTable('patient_relationships',{id:uuid('id').primaryKey().defaultRandom(),userId:uuid('user_id').notNull().references(()=>users.id),patientId:uuid('patient_id').notNull().references(()=>patients.id),relationship:varchar('relationship',{length:40}).notNull(),canBook:boolean('can_book').notNull().default(false),canViewResults:boolean('can_view_results').notNull().default(false),verifiedAt:timestamp('verified_at',{withTimezone:true}),revokedAt:timestamp('revoked_at',{withTimezone:true}),...timestamps},t=>[index('relationship_patient_idx').on(t.patientId)]);
 export const staff = pgTable('staff',{id:uuid('id').primaryKey().defaultRandom(),userId:uuid('user_id').notNull().references(()=>users.id).unique(),role:varchar('role',{length:40}).notNull(),active:boolean('active').notNull().default(false),...timestamps});
 export const laboratories = pgTable('laboratories',{id:uuid('id').primaryKey().defaultRandom(),name:varchar('name',{length:200}).notNull(),active:boolean('active').notNull().default(false),...timestamps});
-export const tests = pgTable('tests',{id:uuid('id').primaryKey().defaultRandom(),code:varchar('code',{length:64}).notNull().unique(),name:varchar('name',{length:200}).notNull(),specimenType:varchar('specimen_type',{length:80}).notNull(),active:boolean('active').notNull().default(false),...timestamps});
+export const tests = pgTable('tests',{id:uuid('id').primaryKey().defaultRandom(),code:varchar('code',{length:64}).notNull().unique(),name:varchar('name',{length:200}).notNull(),specimenType:varchar('specimen_type',{length:80}).notNull(),preparationText:text('preparation_text'),active:boolean('active').notNull().default(false),...timestamps});
 export const labOfferings = pgTable('lab_offerings',{id:uuid('id').primaryKey().defaultRandom(),labId:uuid('lab_id').notNull().references(()=>laboratories.id),testId:uuid('test_id').notNull().references(()=>tests.id),priceKobo:integer('price_kobo').notNull(),turnaroundHours:integer('turnaround_hours').notNull(),active:boolean('active').notNull().default(false)},t=>[uniqueIndex('lab_test_unique').on(t.labId,t.testId)]);
 export const orders = pgTable('orders',{id:uuid('id').primaryKey().defaultRandom(),patientId:uuid('patient_id').notNull().references(()=>patients.id),bookedBy:uuid('booked_by').notNull().references(()=>users.id),labId:uuid('lab_id').notNull().references(()=>laboratories.id),status:orderStatus('status').notNull().default('draft'),collectionAddressId:uuid('collection_address_id').references(()=>patientAddresses.id),collectionAddressSnapshot:jsonb('collection_address_snapshot'),tier:varchar('tier',{length:20}).notNull(),currency:varchar('currency',{length:3}).notNull().default('NGN'),totalKobo:integer('total_kobo').notNull(),collectionWindowStart:timestamp('collection_window_start',{withTimezone:true}),collectionWindowEnd:timestamp('collection_window_end',{withTimezone:true}),...timestamps});
 export const orderItems = pgTable('order_items',{id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),testId:uuid('test_id').notNull().references(()=>tests.id),priceKobo:integer('price_kobo').notNull()});
@@ -120,3 +120,14 @@ export const supportWorkItems=pgTable('support_work_items',{
  status:varchar('status',{length:24}).notNull().default('pending'),
  createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
 });
+
+export const catalogReviewRequests=pgTable('catalog_review_requests',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ resourceType:varchar('resource_type',{length:24}).notNull(),
+ resourceId:uuid('resource_id').notNull(),
+ creatorId:uuid('creator_id').notNull().references(()=>users.id),
+ approverId:uuid('approver_id').references(()=>users.id),
+ evidenceReference:varchar('evidence_reference',{length:128}),
+ approvedAt:timestamp('approved_at',{withTimezone:true}),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+},t=>[uniqueIndex('catalog_review_resource_unique').on(t.resourceType,t.resourceId)]);
