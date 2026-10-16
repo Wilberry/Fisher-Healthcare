@@ -87,3 +87,19 @@ The initial generator printed only `OpenAPI generation failed` without an except
 
 Phase 1 acceptance remains open. The next exact-commit run must demonstrate the OpenAPI step, dependency audit, and API/frontend smoke checks. The existing untracked lockfile and framework-generated configuration changes are preserved for review.
 
+## Round 5 — 16 October 2026
+
+**Pinned commit:** `0f8f23e316e99fc2b3ba6ccbf5bd587a1190fd67`  
+**Verification result:** FAIL at dependency audit. Installer, lint, TypeScript, production builds, PostgreSQL migrations, full tests, and OpenAPI generation all passed locally on this commit. HTTP smoke checks were not reached because the audit exited nonzero.
+
+**Audit counts:** 40 advisories — 3 critical, 15 high, 20 moderate, 2 low.
+
+The critical findings trace to old Vitest and Tinypool paths; high findings include Multer, Lodash, Drizzle ORM, Vite, PostCSS and js-yaml. The high-severity `braces` advisory has no patched version listed and is currently reached via Next.js development lint tooling. The exact advisory details are retained in the local audit log; no exposed patient data or exploitation is implied by these findings.
+
+**Source-level remediation:** Upgraded Vitest to v4 across testing packages, Drizzle ORM/kit to currently patched stable lines, and centrally pinned vulnerable transitive middleware/formatter/bundler components to patched minimum versions. These changes require a new resolved local lockfile and complete compatibility regression testing.
+
+**Verification improvement:** The verifier now backs up any previously generated untracked lockfile before refreshing the dependency resolution, runs separate production and full vulnerability audits, continues through API and web smoke tests even if either audit reports a failure, and exits nonzero at the end for outstanding security findings. The audit itself is not disabled or waived.
+
+**Security handling:** The remaining upstream unpatched `braces` advisory cannot be cleared by a harmless version bump. See [Phase 1 Dependency Remediation](../security/phase-1-dependency-remediation.md) for current dependency exposure, remediation status and acceptance requirements.
+
+**Acceptance status: OPEN.** The dependency upgrades, remaining vulnerability count, and runtime smoke tests have not yet been verified at the new commit. A final clean exact-commit run and a committed lockfile are still required.
