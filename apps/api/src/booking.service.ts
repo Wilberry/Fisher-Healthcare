@@ -156,8 +156,8 @@ export class BookingService implements OnModuleDestroy {
    const userId=await this.actor(c,subject);
    await this.authorize(c,userId,patientId);
    await this.approvedAddress(c,addressId,patientId,userId,q.rows[0].zone_id);
-   const d=await c.query<{id:string}>('INSERT INTO booking_drafts(user_id,patient_id,quote_id,address_id,consent_version,consented_at)
-    VALUES($1,$2,$3,$4,$5,clock_timestamp()) RETURNING id',[userId,patientId,quoteId,addressId,policyVersion]);
+   const d=await c.query<{id:string}>(`INSERT INTO booking_drafts(user_id,patient_id,quote_id,address_id,consent_version,consented_at)
+    VALUES($1,$2,$3,$4,$5,clock_timestamp()) RETURNING id`,[userId,patientId,quoteId,addressId,policyVersion]);
    await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
      VALUES($1,'booking.policy_acknowledged','booking_draft',$2,jsonb_build_object('version',$3))`,
      [userId,d.rows[0]!.id,policyVersion]);

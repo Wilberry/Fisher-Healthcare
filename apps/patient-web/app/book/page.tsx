@@ -1,6 +1,7 @@
 import { Notice, SiteShell } from '@fisher/ui';
 import { labs, tests, zones } from '../../lib/public-api';
 import { BookingPlanner } from './planner';
+import Link from 'next/link';
 export const dynamic='force-dynamic';
 export default async function BookPage(){
  const [offered,partners,areas]=await Promise.all([tests(),labs(),zones()]);
@@ -14,7 +15,7 @@ export default async function BookPage(){
    {offered.length&&partners.length&&areas.length?
      <BookingPlanner tests={offered} labs={partners} zones={areas}/>:
      <div className="fisher-quiet-state"><h2>Booking options are being prepared</h2><p>Approved tests, laboratories, service zones and collection capacity must be configured before appointment planning opens.</p>
-      <a href="/tests" className="fisher-button fisher-button--secondary">Explore the test catalogue</a></div>}
+      <Link href="/tests" className="fisher-button fisher-button--secondary">Explore the test catalogue</Link></div>}
   </div></section>
  </SiteShell>;
 }

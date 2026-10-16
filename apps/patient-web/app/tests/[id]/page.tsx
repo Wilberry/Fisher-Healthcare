@@ -1,5 +1,6 @@
 import { Card, Notice, SiteShell } from '@fisher/ui';
 import { naira, testDetail } from '../../../lib/public-api';
+import Link from 'next/link';
 export const dynamic='force-dynamic';
 export default async function TestDetail({params}:{params:Promise<{id:string}>}){
  const {id}=await params;
@@ -9,7 +10,7 @@ export default async function TestDetail({params}:{params:Promise<{id:string}>})
   {href:'/tests',label:'All tests'},{href:'/book',label:'Plan a booking'}
  ]}>
   <section className="fisher-section"><div className="fisher-container">
-   <a href="/tests">← Back to catalogue</a>
+   <Link href="/tests">← Back to catalogue</Link>
    {!item?<Notice title="Test not available">This offering is not currently available. Return to the active test catalogue.</Notice>:
     <><p className="fisher-eyebrow">{String(item.code??'Diagnostic service')}</p>
     <h1 className="fisher-section-title">{String(item.name)}</h1>

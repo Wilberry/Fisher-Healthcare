@@ -13,7 +13,7 @@ export default async function AccountPage(){
    {!account.signedIn?<div>
     <p className="fisher-lead">Sign in through the configured identity provider to see only the bookings and profiles you are authorized to access.</p>
     <a href="/auth/login?next=%2Faccount" className="fisher-button fisher-button--primary">Sign in securely</a>
-    <Notice title="Private by design">Family booking permission never grants access to another patient's diagnostic results.</Notice>
+    <Notice title="Private by design">Family booking permission never grants access to another patient&apos;s diagnostic results.</Notice>
    </div>:<>
     <form method="post" action="/auth/logout" className="fisher-logout"><button type="submit" className="fisher-button fisher-button--secondary">Sign out</button></form>
     {!account.available&&<Notice title="Account information unavailable">We could not verify the current patient data. No stored records are shown in place of server-authorized information.</Notice>}
