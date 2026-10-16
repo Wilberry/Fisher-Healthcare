@@ -68,3 +68,22 @@ Phase 1 remains **OPEN**; the reported passed gates are specifically those obser
 Run one consolidated local verification at the new pinned repair commit, with the generated lockfile preserved. If any later stage fails, retain the failure logs and apply source corrections on this branch. Phase 1 acceptance requires a reviewed committed lockfile and a clean full-suite rerun.
 
 The Round 1 log did **not** demonstrate a successful database migration, authenticated API integration, UI build, outbox recovery or runtime smoke test.
+
+## Round 4 — 16 October 2026
+
+**Pinned commit:** `5f0a84d2869157a2e0c907ea6459d2cd1f607223`
+
+| Gate | Reported local outcome |
+| --- | --- |
+| Installation, lint, type checks, production builds | Passed |
+| PostgreSQL migrations and database checks | Passed |
+| Full workspace test command | Passed |
+| Step 08 — OpenAPI generation | Failed, `@fisher/api openapi:generate` exited with code 1 |
+| Dependency audit and runtime smoke tests | Not reached |
+
+The initial generator printed only `OpenAPI generation failed` without an exception name or stage. Source inspection found that the OpenAPI runner used `tsx src/openapi.ts`, while the production NestJS backend is built by `tsc` with emitted decorator metadata. The running generator may therefore have different NestJS dependency-injection metadata from the compiled API; the logs do not establish the exact exception.
+
+**Remediation committed following Round 4:** Generate OpenAPI from `node dist/openapi.js` after the already-verified workspace build, add explicit bearer security metadata to protected controllers, validate the required route contract, and report stage-specific failures without printing raw exceptions by default. An explicitly authorized synthetic local debug mode is available for unexpected failures.
+
+Phase 1 acceptance remains open. The next exact-commit run must demonstrate the OpenAPI step, dependency audit, and API/frontend smoke checks. The existing untracked lockfile and framework-generated configuration changes are preserved for review.
+
