@@ -23,7 +23,7 @@ export class PaymentPatientController {
 export class PaymentWebhookController {
  constructor(private readonly payments:PaymentService){}
  @Post('paystack')
- process(@Req() req:AuthenticatedRequest,@Headers('x-paystack-signature') signature:string|undefined){
+ process(@Req() req:AuthenticatedRequest & {rawBody?:Buffer},@Headers('x-paystack-signature') signature:string|undefined){
   return this.payments.webhook(req.rawBody,signature);
  }
 }

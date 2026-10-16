@@ -11,6 +11,10 @@ export class BookingService implements OnModuleDestroy {
  private readonly pool?:Pool;
  constructor(){if(process.env.DATABASE_URL)this.pool=new Pool({connectionString:process.env.DATABASE_URL,max:8});}
  async onModuleDestroy(){await this.pool?.end();}
+ private bookingEnabled(){
+  if(process.env.FISHER_PHASE2_BOOKING_MODE!=='synthetic' || process.env.NODE_ENV==='production')
+   throw new ServiceUnavailableException('Booking is not activated');
+ }
  private get db(){if(!this.pool)throw new ServiceUnavailableException('Data service unavailable');return this.pool;}
  private async tx<T>(fn:(c:PoolClient)=>Promise<T>):Promise<T>{
   const c=await this.db.connect();
@@ -80,6 +84,7 @@ export class BookingService implements OnModuleDestroy {
    .filter(slot=>slot.remaining>0)};
  }
  async quote(input:BookingQuoteInput){
+  this.bookingEnabled();
   return this.tx(async c=>{
    const s=await this.slot(c,input.slotId);
    if(s.zone_id!==input.zoneId || s.lab_id!==input.labId || s.tier!==input.serviceTier)
@@ -112,6 +117,7 @@ export class BookingService implements OnModuleDestroy {
   return {data:r.rows[0]};
  }
  async draft(subject:string,quoteId:string,patientId:string){
+  this.bookingEnabled();
   return this.tx(async c=>{
    const q=await c.query<Quote>('SELECT * FROM booking_quotes WHERE id=$1',[quoteId]);
    if(!q.rows[0] || q.rows[0].expires_at<=new Date())throw new ConflictException('QUOTE_EXPIRED');
@@ -127,12 +133,16 @@ export class BookingService implements OnModuleDestroy {
   });
  }
  async commit(subject:string,draftId:string){
+  this.bookingEnabled();
   return this.tx(async c=>{
    const userId=await this.actor(c,subject);
    const d=(await c.query<Draft>('SELECT * FROM booking_drafts WHERE id=$1 FOR UPDATE',[draftId])).rows[0];
    if(!d || d.user_id!==userId)throw new NotFoundException('Draft not found');
    await this.authorize(c,userId,d.patient_id);
-   if(d.status==='committed' && d.order_id)return {bookingId:d.order_id,status:'awaiting_payment'};
+   if(d.status==='committed' && d.order_id){
+    const existing=await c.query<{status:string}>('SELECT status FROM orders WHERE id=$1',[d.order_id]);
+    return {bookingId:d.order_id,status:existing.rows[0]?.status??'unknown'};
+   }
    if(d.status!=='open')throw new ConflictException('Draft no longer available');
    const q=(await c.query<Quote>('SELECT * FROM booking_quotes WHERE id=$1',[d.quote_id])).rows[0];
    if(!q || q.expires_at<=new Date())throw new ConflictException('QUOTE_EXPIRED');

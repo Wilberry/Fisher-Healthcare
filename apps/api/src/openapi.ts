@@ -61,7 +61,7 @@ async function generate(): Promise<void> {
       app,
       new DocumentBuilder()
         .setTitle('Fisher Healthcare API')
-        .setDescription('Foundation API contracts. Booking, payments, and clinical endpoints are not activated.')
+        .setDescription('Phase 1 identity and Phase 2 booking contracts. Customer bookings and checkout require explicit synthetic/staging activation.')
         .setVersion('0.1.0')
         .addBearerAuth()
         .build()

@@ -29,7 +29,7 @@ export class PaymentService implements OnModuleDestroy {
  private stagingKey(){
   const secret=process.env.PAYSTACK_SECRET_KEY;
   // Production charging requires a separate reviewed deployment and pilot approval.
-  if(process.env.FISHER_PHASE2_PAYMENT_MODE!=='staging' || process.env.NODE_ENV==='production'
+  if(process.env.FISHER_PHASE2_BOOKING_MODE!=='synthetic' || process.env.FISHER_PHASE2_PAYMENT_MODE!=='staging' || process.env.NODE_ENV==='production'
     || !secret?.startsWith('sk_test_'))throw new ServiceUnavailableException('Checkout not activated');
   return secret;
  }
@@ -77,6 +77,9 @@ export class PaymentService implements OnModuleDestroy {
    !('data' in provider) || typeof provider.data!=='object' || provider.data===null ||
    !('authorization_url' in provider.data) || typeof provider.data.authorization_url!=='string')
    throw new ServiceUnavailableException('Invalid checkout response');
+  if(!('status' in provider) || provider.status!==true ||
+   !('reference' in provider.data) || provider.data.reference!==ref)
+   throw new ServiceUnavailableException('Checkout reference not acknowledged');
   const checkoutUrl=provider.data.authorization_url;
   let u:URL;
   try{u=new URL(checkoutUrl);}catch{throw new ServiceUnavailableException('Invalid checkout URL');}
