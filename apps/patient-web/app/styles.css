@@ -18,3 +18,34 @@
 @media(max-width: 1000px) { .fisher-hero-grid { gap: 32px; }.fisher-steps { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media(max-width: 800px) { .fisher-hero-grid,.fisher-about { grid-template-columns: 1fr; }.fisher-hero { padding: 58px 0 65px; }.fisher-two-col { grid-template-columns: 1fr; } }
 @media(max-width: 520px) { .fisher-steps { grid-template-columns: 1fr; }.fisher-hero-card { padding: 23px; }.fisher-hero h1 { font-size: 2.9rem; } }
+
+/* Phase 2: patient discovery and booking-planner components. */
+.fisher-collection-grid{margin:26px 0;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.fisher-collection-grid h2{font-size:1.18rem;letter-spacing:-.025em}
+.fisher-collection-grid .fisher-button{margin-top:8px}
+.fisher-search{display:grid;gap:10px;margin:30px 0;max-width:690px}
+.fisher-search label{font-weight:700}
+.fisher-search-controls{display:flex;gap:10px}
+.fisher-search-controls input{flex:1;min-width:0;padding:13px;border:1px solid #b7c4d4;border-radius:12px}
+.fisher-booking-planner{display:grid;gap:24px;margin-top:28px}
+.fisher-booking-planner fieldset{border:1px solid var(--fisher-border);border-radius:18px;padding:25px;background:white;min-width:0}
+.fisher-booking-planner legend{font-size:1.12rem;font-weight:800;color:var(--fisher-navy);padding:0 8px}
+.fisher-test-choice{display:grid;gap:9px;margin:12px 0 24px}
+.fisher-test-choice label{display:flex;align-items:flex-start;gap:12px;padding:13px;border:1px solid var(--fisher-border);border-radius:12px;cursor:pointer}
+.fisher-test-choice input{margin-top:5px}
+.fisher-test-choice small{display:block;color:var(--fisher-muted);margin-top:5px}
+.fisher-booking-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:14px 0 22px}
+.fisher-booking-controls label{display:grid;gap:8px;font-weight:700}
+.fisher-booking-controls select{min-width:0;padding:12px;border:1px solid #9baec2;border-radius:11px;background:white}
+.fisher-planner-error{border:1px solid #d48080;background:#fff1f1;padding:15px;border-radius:10px;color:#852b2b}
+.fisher-quote,.fisher-quiet-state{padding:24px;background:#eef9f5;border-radius:18px;border:1px solid #c9e8dc}
+.fisher-quote dl>div{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid #c9e8dc}
+.fisher-quote dd{margin:0}
+.fisher-quote p{line-height:1.7}
+@media(max-width:800px){.fisher-booking-controls{grid-template-columns:1fr}.fisher-search-controls{flex-wrap:wrap}}
+
+.fisher-record-list{display:grid;gap:12px;padding:0;list-style:none}.fisher-record-list li{display:grid;gap:4px;border-top:1px solid var(--fisher-border);padding-top:12px}.fisher-record-list span{color:var(--fisher-muted);font-size:.92rem}.fisher-logout{display:flex;justify-content:flex-end;margin:12px 0}.fisher-booking-planner select{display:block;min-width:min(100%,300px);padding:12px;border:1px solid #9baec2;border-radius:11px}.fisher-booking-label{display:block;font-weight:700;margin:12px 0}
+
+.fisher-patient-form{margin:26px 0;display:grid;gap:12px;max-width:600px}.fisher-patient-form label{font-weight:700;color:var(--fisher-navy)}.fisher-patient-form input,.fisher-patient-form select{padding:12px;border:1px solid #9baec2;background:white;border-radius:11px;min-width:0}.fisher-patient-form .fisher-button{justify-self:start}.fisher-patient-form p{color:var(--fisher-muted);line-height:1.6}
+
+.fisher-staff-action{display:grid;gap:10px;border-top:1px solid #d6e1e9;padding-top:12px}.fisher-staff-action label{font-weight:650;display:grid;gap:6px}.fisher-staff-action input{padding:10px;border:1px solid #96a7b8;border-radius:8px;width:min(100%,340px)}.fisher-staff-action button{justify-self:start}

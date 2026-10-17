@@ -5,7 +5,7 @@ import { AppModule } from './module';
 import { HttpErrorFilter } from './http-error.filter';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bodyParser: true });
+  const app = await NestFactory.create(AppModule, { bodyParser: true, rawBody: true });
   app.setGlobalPrefix('api/v1');
   app.useGlobalFilters(new HttpErrorFilter());
   app.enableShutdownHooks();

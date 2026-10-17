@@ -5,6 +5,26 @@ import { IdentityController } from './identity.controller';
 import { AccessService } from './access.service';
 import { AccessController } from './access.controller';
 import { FoundationController } from './foundation.controller';
+import { BookingService } from './booking.service';
+import { PublicRateLimitService } from './public-rate-limit.service';
+import { BookingPatientController, BookingPublicController } from './booking.controller';
+import { PaymentService } from './payment.service';
+import { PaymentPatientController, PaymentWebhookController } from './payment.controller';
+import { PatientsController } from './patients.controller';
+import { PatientsService } from './patients.service';
+import { AddressesService } from './addresses.service';
+import { SupportService } from './support.service';
+import { SupportController } from './support.controller';
+import { CatalogAdminService } from './catalog-admin.service';
+import { CatalogAdminController } from './catalog-admin.controller';
+import { GuestBookingService } from './guest-booking.service';
+import { PaymentReviewService } from './payment-review.service';
+import { WorkQueueController } from './work-queue.controller';
+import { GuestBookingPublicController, GuestBookingStaffController } from './guest-booking.controller';
+import { AccountProvisioningService } from './account-provisioning.service';
+import { AccountProvisioningController } from './account-provisioning.controller';
+import { BookingVerificationController, AddressVerificationController } from './booking-verification.controller';
+import { BookingVerificationService } from './booking-verification.service';
 
 @Controller('health')
 class HealthController {
@@ -15,7 +35,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, IdentityController, AccessController, FoundationController],
-  providers: [IdentityVerifier, IdentityGuard, AccessService]
+  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController, CatalogAdminController, GuestBookingPublicController, GuestBookingStaffController, WorkQueueController],
+  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PublicRateLimitService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService, PaymentReviewService]
 })
 export class AppModule {}

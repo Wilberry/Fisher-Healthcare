@@ -42,6 +42,68 @@ function validateDocument(document: OpenAPIObject): void {
     }
   }
 
+  const phase2Get = [
+    '/api/v1/catalog/tests','/api/v1/catalog/labs','/api/v1/service-zones',
+    '/api/v1/patients','/api/v1/me/bookings','/api/v1/me/notifications',
+    '/api/v1/bookings/{id}','/api/v1/bookings/{id}/receipt','/api/v1/payments/{id}',
+    '/api/v1/me/support-cases','/api/v1/patients/{id}/addresses',
+    '/api/v1/ops/catalog/reviews','/api/v1/ops/guest-booking/requests',
+    '/api/v1/ops/work-queue/support','/api/v1/ops/work-queue/payment-exceptions',
+    '/api/v1/ops/patient-relationships/pending','/api/v1/ops/patient-addresses/pending'
+  ];
+  const phase2Post = [
+    '/api/v1/availability/search','/api/v1/quotes','/api/v1/booking-drafts',
+    '/api/v1/bookings','/api/v1/payments/checkout','/api/v1/webhooks/payments/paystack',
+    '/api/v1/me/bootstrap','/api/v1/support/cases','/api/v1/patients/{id}/addresses',
+    '/api/v1/ops/catalog/tests','/api/v1/ops/catalog/laboratories',
+    '/api/v1/ops/catalog/zones','/api/v1/ops/catalog/offerings',
+    '/api/v1/ops/catalog/slots','/api/v1/ops/catalog/reviews/{type}/{id}/approve',
+    '/api/v1/ops/patient-relationships/{id}/approve-booking',
+    '/api/v1/ops/patient-addresses/{id}/approve',
+    '/api/v1/patients/{id}/revoke','/api/v1/payments/{id}/reconcile',
+    '/api/v1/guest-booking/start','/api/v1/guest-booking/verify',
+    '/api/v1/ops/guest-booking/requests/{id}/assign',
+    '/api/v1/ops/work-queue/support/{id}/{action}',
+    '/api/v1/ops/work-queue/payment-exceptions/{id}/acknowledge'
+  ];
+  for(const path of phase2Get) {
+    if(!document.paths[path]?.get)throw new OpenApiContractError('Phase 2 GET route missing: '+path);
+  }
+  for(const path of phase2Post) {
+    if(!document.paths[path]?.post)throw new OpenApiContractError('Phase 2 POST route missing: '+path);
+  }
+  for(const [path,method] of [
+    ['/api/v1/patients','get'],['/api/v1/me/bookings','get'],
+    ['/api/v1/bookings/{id}','get'],['/api/v1/payments/{id}','get'],
+    ['/api/v1/bookings','post'],['/api/v1/booking-drafts','post'],
+    ['/api/v1/payments/checkout','post'],
+    ['/api/v1/me/bootstrap','post'],['/api/v1/support/cases','post'],
+    ['/api/v1/me/support-cases','get'],['/api/v1/patients/{id}/addresses','post'],
+    ['/api/v1/patients/{id}/addresses','get'],
+    ['/api/v1/ops/catalog/reviews','get'],
+    ['/api/v1/ops/catalog/tests','post'],
+    ['/api/v1/ops/catalog/laboratories','post'],
+    ['/api/v1/ops/catalog/zones','post'],
+    ['/api/v1/ops/catalog/offerings','post'],
+    ['/api/v1/ops/catalog/slots','post'],
+    ['/api/v1/ops/catalog/reviews/{type}/{id}/approve','post'],
+    ['/api/v1/ops/patient-relationships/{id}/approve-booking','post'],
+    ['/api/v1/ops/patient-addresses/{id}/approve','post'],
+    ['/api/v1/patients/{id}/revoke','post'],
+    ['/api/v1/payments/{id}/reconcile','post'],
+    ['/api/v1/ops/guest-booking/requests/{id}/assign','post'],
+    ['/api/v1/ops/guest-booking/requests','get'],
+    ['/api/v1/ops/patient-relationships/pending','get'],
+    ['/api/v1/ops/patient-addresses/pending','get'],
+    ['/api/v1/ops/work-queue/support','get'],
+    ['/api/v1/ops/work-queue/payment-exceptions','get'],
+    ['/api/v1/ops/work-queue/support/{id}/{action}','post'],
+    ['/api/v1/ops/work-queue/payment-exceptions/{id}/acknowledge','post']
+  ] as const) {
+    const auth=document.paths[path]?.[method]?.security;
+    if(!auth?.some(s=>Object.hasOwn(s,'bearer')))
+      throw new OpenApiContractError('Missing Phase 2 bearer metadata: '+path);
+  }
   if (!document.components?.securitySchemes?.bearer) {
     throw new OpenApiContractError('Required bearer authentication scheme is not documented');
   }
@@ -61,7 +123,7 @@ async function generate(): Promise<void> {
       app,
       new DocumentBuilder()
         .setTitle('Fisher Healthcare API')
-        .setDescription('Foundation API contracts. Booking, payments, and clinical endpoints are not activated.')
+        .setDescription('Phase 1 identity and Phase 2 booking contracts. Customer bookings and checkout require explicit synthetic/staging activation.')
         .setVersion('0.1.0')
         .addBearerAuth()
         .build()
@@ -85,7 +147,7 @@ async function generate(): Promise<void> {
       // Detailed stack traces may include environment settings. Require an
       // explicit synthetic-only development scope to emit them.
       if (process.env.FISHER_OPENAPI_DEBUG === '1' &&
-          process.env.FISHER_PHASE1_LOCAL_ACK === 'synthetic-only') {
+          (process.env.FISHER_PHASE1_LOCAL_ACK === 'synthetic-only' || process.env.FISHER_PHASE2_LOCAL_ACK === 'synthetic-only')) {
         console.error(error);
       }
     }
