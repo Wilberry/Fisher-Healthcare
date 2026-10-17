@@ -235,6 +235,50 @@ suite.sequential('phase 2 synthetic booking and payment PostgreSQL invariants',(
   }finally{vi.stubGlobal('fetch',originalFetch);}
  });
 
+ it('never confirms a payment when patient booking authority was revoked before settlement',async()=>{
+  const slot=randomUUID();
+  await pool.query(`INSERT INTO collection_slots(id,zone_id,lab_id,tier,starts_at,ends_at,cutoff_at,capacity,active)
+   VALUES($1,$2,$3,'regular',now()+interval '6 days',now()+interval '6 days 1 hour',
+    now()+interval '5 days',1,true)`,[slot,zoneId,labId]);
+  const quotation=await bookings.quote({zoneId,slotId:slot,labId,serviceTier:'regular',testIds:[testId]});
+  const draft=await bookings.draft(two.sub,quotation.quoteId,two.patientId,two.addressId,true,'synthetic-2026-10');
+  const order=await bookings.commit(two.sub,draft.draftId,'synthetic_revocation_booking_key');
+  const previousFetch=globalThis.fetch;
+  vi.stubGlobal('fetch',vi.fn(async (url:string,opts?:RequestInit)=>{
+   if(url.endsWith('/transaction/initialize')){
+    const input=JSON.parse(String(opts?.body)) as {reference:string};
+    return {ok:true,json:async()=>({status:true,data:{
+     reference:input.reference,authorization_url:'https://checkout.paystack.com/revocation-synthetic'
+    }})};
+   }
+   const reference=decodeURIComponent(url.split('/').at(-1)!);
+   return {ok:true,json:async()=>({status:true,data:{
+    reference,amount:35000,currency:'NGN',domain:'test',status:'success',
+    paid_at:'2026-10-16T00:00:00Z'
+   }})};
+  }));
+  try{
+   const checkout=await payments.checkout(two.sub,order.bookingId,'synthetic_revocation_checkout_key');
+   await pool.query(`UPDATE patient_relationships SET can_book=false,revoked_at=now()
+    WHERE user_id=$1 AND patient_id=$2`,[two.id,two.patientId]);
+   const reference=(await pool.query<{provider_reference:string}>(
+    'SELECT provider_reference FROM payments WHERE id=$1',[checkout.paymentId])).rows[0]!.provider_reference;
+   const payload=Buffer.from(JSON.stringify({event:'charge.success',data:{reference}}));
+   const signature=createHmac('sha512',process.env.PAYSTACK_SECRET_KEY!).update(payload).digest('hex');
+   await payments.webhook(payload,signature);
+   const states=await pool.query<{payment_status:string;booking_status:string}>(`SELECT
+    p.status AS payment_status,o.status AS booking_status
+    FROM payments p JOIN orders o ON o.id=p.order_id WHERE p.id=$1`,[checkout.paymentId]);
+   expect(states.rows[0]).toMatchObject({payment_status:'paid',booking_status:'exception'});
+   const flagged=await pool.query(`SELECT 1 FROM outbox WHERE event_type='payment.manual_review'
+    AND payload->>'paymentId'=$1`,[checkout.paymentId]);
+   expect(flagged.rows).toHaveLength(1);
+  }finally{
+   vi.stubGlobal('fetch',previousFetch);
+   await pool.query(`UPDATE patient_relationships SET can_book=true,revoked_at=NULL
+     WHERE user_id=$1 AND patient_id=$2`,[two.id,two.patientId]);
+  }
+ });
  it('does not grant caregivers result rights through booking access',async()=>{
   const relationship=await pool.query('SELECT can_book,can_view_results FROM patient_relationships WHERE user_id=$1',[one.id]);
   expect(relationship.rows[0]).toMatchObject({can_book:true,can_view_results:false});

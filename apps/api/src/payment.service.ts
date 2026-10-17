@@ -163,11 +163,22 @@ export class PaymentService implements OnModuleDestroy {
    const link=await c.query<{slot_id:string|null}>('SELECT slot_id FROM orders WHERE id=$1',[p.order_id]);
    if(!link.rows[0]?.slot_id)throw new ConflictException('Booking has no collection slot');
    await c.query('SELECT id FROM collection_slots WHERE id=$1 FOR UPDATE',[link.rows[0].slot_id]);
-   const order=await c.query<{status:string;payment_expires_at:Date;total_kobo:number}>(
-    'SELECT status,payment_expires_at,total_kobo FROM orders WHERE id=$1 FOR UPDATE',[p.order_id]);
+   const order=await c.query<{status:string;payment_expires_at:Date;total_kobo:number;
+    slot_id:string|null;booked_by:string;patient_id:string}>(
+    'SELECT status,payment_expires_at,total_kobo,slot_id,booked_by,patient_id FROM orders WHERE id=$1 FOR UPDATE',
+    [p.order_id]);
+   if(!order.rows[0] || order.rows[0].slot_id!==link.rows[0].slot_id)
+    throw new ConflictException('Booking slot changed during payment verification; retry');
+   // Serialize authority revocation with settlement: revocation takes FOR UPDATE on this
+   // same relationship. A post-revocation test charge is accounted for but never confirms.
+   const authority=await c.query(`SELECT 1 FROM patient_relationships
+    WHERE user_id=$1 AND patient_id=$2 AND can_book
+      AND verified_at IS NOT NULL AND revoked_at IS NULL FOR SHARE`,
+    [order.rows[0].booked_by,order.rows[0].patient_id]);
+   const currentlyAuthorized=authority.rows.length>0;
    const locked=await c.query<{status:string}>(
     'SELECT status FROM payments WHERE id=$1 FOR UPDATE',[p.id]);
-   if(!order.rows[0] || !locked.rows[0])throw new ConflictException('Payment state missing');
+   if(!locked.rows[0])throw new ConflictException('Payment state missing');
    if(!verifiedPaymentMatches(verified,reference,p.amount_kobo) ||
     order.rows[0].total_kobo!==p.amount_kobo)throw new ConflictException('Verified amount mismatch');
    if(locked.rows[0].status==='paid'){await c.query('COMMIT');return {received:true};}
@@ -175,8 +186,8 @@ export class PaymentService implements OnModuleDestroy {
     [hash,reference]);
    await c.query("UPDATE payments SET status='paid',updated_at=now() WHERE id=$1",[p.id]);
    const confirmed=await c.query(
-    "UPDATE orders o SET status='confirmed',updated_at=now() WHERE o.id=$1 AND o.status='awaiting_payment' AND o.payment_expires_at>clock_timestamp() AND EXISTS (SELECT 1 FROM patient_relationships r WHERE r.user_id=o.booked_by AND r.patient_id=o.patient_id AND r.can_book AND r.verified_at IS NOT NULL AND r.revoked_at IS NULL) RETURNING o.id",
-    [p.order_id]);
+    "UPDATE orders o SET status='confirmed',updated_at=now() WHERE o.id=$1 AND o.status='awaiting_payment' AND o.payment_expires_at>clock_timestamp() AND $2::boolean AND EXISTS (SELECT 1 FROM patient_relationships r WHERE r.user_id=o.booked_by AND r.patient_id=o.patient_id AND r.can_book AND r.verified_at IS NOT NULL AND r.revoked_at IS NULL) RETURNING o.id",
+    [p.order_id,currentlyAuthorized]);
    const confirm=confirmed.rowCount===1;
    if(!confirm && order.rows[0].status!=='confirmed')
     await c.query("UPDATE orders SET status='exception',updated_at=now() WHERE id=$1",[p.order_id]);
