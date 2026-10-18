@@ -75,9 +75,9 @@ else
 fi
 {
  printf "Commit: %s\n" "$(git rev-parse HEAD)"
- printf "Next lint guards: %s\\n" "$GUARDS"
- printf "Workspace lint: %s\\n" "$LINT"
- printf "Production audit: %s\\n" "$PRODUCTION"
+ printf "Next lint guards: %s\n" "$GUARDS"
+ printf "Workspace lint: %s\n" "$LINT"
+ printf "Production audit: %s\n" "$PRODUCTION"
  printf "Full audit: %s\n" "$COMPLETE"
  printf "Lockfile tracked: %s\n" "$(git ls-files --error-unmatch pnpm-lock.yaml >/dev/null 2>&1 && echo yes || echo no)"
  printf "Pending working-tree changes:\n"
