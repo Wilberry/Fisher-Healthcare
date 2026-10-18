@@ -9,6 +9,7 @@ import { Phase3CustodyController } from './phase3/custody.controller';
 import { Phase3CustodyService } from './phase3/custody.service';
 import { Phase3DispatchController } from './phase3/dispatch.controller';
 import { Phase3DispatchService } from './phase3/dispatch.service';
+import { Phase3FieldAssignmentsController, Phase3FieldAssignmentsService } from './phase3/field-assignments.controller';
 
 @Controller('health')
 class HealthController {
@@ -19,7 +20,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, IdentityController, AccessController, FoundationController, Phase3CustodyController, Phase3DispatchController],
-  providers: [IdentityVerifier, IdentityGuard, AccessService, Phase3CustodyService, Phase3DispatchService]
+  controllers: [HealthController, IdentityController, AccessController, FoundationController, Phase3CustodyController, Phase3DispatchController, Phase3FieldAssignmentsController],
+  providers: [IdentityVerifier, IdentityGuard, AccessService, Phase3CustodyService, Phase3DispatchService, Phase3FieldAssignmentsService]
 })
 export class AppModule {}
