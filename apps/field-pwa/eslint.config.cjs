@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-require-imports -- Node ESLint flat configuration. */
+// Node ESLint flat configuration uses CommonJS for plugin setup.
 // Security review: replaces eslint-config-next, whose @next/next plugin pulls
 // fast-glob -> micromatch -> unpatched braces. Retains React/Hooks/a11y checks
 // and explicitly enforces internal Link navigation and key Next.js restrictions.

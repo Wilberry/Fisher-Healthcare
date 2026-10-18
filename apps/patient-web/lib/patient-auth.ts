@@ -78,7 +78,7 @@ export function unseal(raw:string|undefined):Sealed|null{
 export function cookieNames(){return {pending:PENDING,session:SESSION};}
 export function safeLocalRedirect(value:string|null|undefined):string{
  if(!value || !value.startsWith('/')||value.startsWith('//')||value.includes('\\')||
-  /[\u0000-\u001f]/.test(value))return '/account';
+  [...value].some(char=>char.charCodeAt(0)<32))return '/account';
  return value.slice(0,300);
 }
 export function makePending(next:string):Pending{
