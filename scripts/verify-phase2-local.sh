@@ -168,7 +168,33 @@ DB_PORT="${PORT_OUTPUT##*:}"
 [[ "$DB_PORT" =~ ^[0-9]+$ ]] || die "Cannot resolve disposable PostgreSQL loopback port"
 export DATABASE_URL="postgresql://fisher:fisher_local_verify_only@127.0.0.1:$DB_PORT/fisher_test"
 export FISHER_DISPOSABLE_DB_ACK=disposable-test-only
-run_step 06-migrations bash scripts/verify-phase2-database.sh
+# In-container pg_isready checks only its Unix socket. Confirm the exact
+# loopback host connection too before running even disposable migrations.
+POSTGRES_TCP_READY=no
+for attempt in $(seq 1 20); do
+  if PGCONNECT_TIMEOUT=3 psql "$DATABASE_URL" -X -w -v ON_ERROR_STOP=1 -A -t -q -c 'SELECT current_database()' \
+     > "$LOG_DIR/postgres-tcp-probe.log" 2>&1; then
+    [[ "$(cat "$LOG_DIR/postgres-tcp-probe.log")" == "fisher_test" ]] ||
+      die "Unexpected database identity from disposable TCP connection"
+    POSTGRES_TCP_READY=yes
+    break
+  fi
+  state="$(docker inspect --format '{{.State.Status}}' "$POSTGRES_CONTAINER" 2>/dev/null || true)"
+  case "$state" in
+    exited|dead|removing|'') die "Disposable PostgreSQL stopped before TCP readiness; inspect postgres-state.txt and postgres.log" ;;
+  esac
+  sleep 1
+done
+[[ "$POSTGRES_TCP_READY" == yes ]] ||
+  die "Disposable PostgreSQL TCP unavailable; inspect postgres-tcp-probe.log, postgres-state.txt and local-resources.txt"
+if run_step 06-migrations bash scripts/verify-phase2-database.sh; then
+  :
+else
+  printf 'ERROR: Migration verification failed; retained evidence: %s/06-migrations.log\n' "$LOG_DIR" >&2
+  docker inspect --format 'postgres_status={{.State.Status}} exit={{.State.ExitCode}} oom_killed={{.State.OOMKilled}} error={{.State.Error}}' \
+    "$POSTGRES_CONTAINER" >&2 || true
+  die "Migrations failed; inspect 06-migrations.log, postgres-state.txt, postgres.log and local-resources.txt"
+fi
 run_step 07-tests env FISHER_PHASE2_BOOKING_MODE=synthetic FISHER_PHASE2_PAYMENT_MODE=staging PAYSTACK_SECRET_KEY=sk_test_synthetic_fisher_phase2 pnpm exec turbo run test --concurrency=1
 run_step 08-openapi pnpm --filter @fisher/api openapi:generate
 

@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-[[ -n "$DATABASE_URL" && "$FISHER_DISPOSABLE_DB_ACK" == disposable-test-only ]] || exit 2
-[[ "$(psql "$DATABASE_URL" -X -A -t -q -c 'SELECT current_database()')" == fisher_test ]] || exit 2
+[[ -n "${DATABASE_URL:-}" && "${FISHER_DISPOSABLE_DB_ACK:-}" == disposable-test-only ]] || exit 2
+if ! DB_NAME="$(PGCONNECT_TIMEOUT=5 psql "$DATABASE_URL" -X -w -v ON_ERROR_STOP=1 -A -t -q -c 'SELECT current_database()')"; then
+ echo "ERROR: Disposable PostgreSQL connection lost before rollback probe" >&2
+ exit 2
+fi
+if [[ "$DB_NAME" != "fisher_test" ]]; then
+ echo "ERROR: Refusing rollback probe outside fisher_test (connected database: $DB_NAME)" >&2
+ exit 2
+fi
 result="$(psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -t -A <<'SQL'
 BEGIN;
 CREATE SCHEMA fisher_phase2_rollback_probe;
