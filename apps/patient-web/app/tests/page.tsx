@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card, Notice, SiteShell } from '@fisher/ui';
 import { naira, tests } from '../../lib/public-api';
 export const dynamic='force-dynamic';
@@ -23,7 +24,7 @@ export default async function TestsPage({searchParams}:{searchParams:Promise<{se
      <p className="fisher-eyebrow">{item.code}</p><h2>{item.name}</h2>
      <p>Specimen: {item.specimen_type}</p>
      <p><strong>From {naira(item.starting_from_kobo)}</strong> · Laboratory fees vary</p>
-     <a className="fisher-button fisher-button--secondary" href={'/tests/'+item.id}>View offering</a>
+     <Link className="fisher-button fisher-button--secondary" href={'/tests/'+item.id}>View offering</Link>
     </Card>)}</div>}
   </div></section>
  </SiteShell>;

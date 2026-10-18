@@ -28,7 +28,7 @@ export default async function TestDetail({params}:{params:Promise<{id:string}>})
       <p>Estimated processing: {String(o.turnaroundHours??'—')} hours from laboratory receipt, subject to validation.</p>
      </Card>;
     })}</div>
-    <a className="fisher-button fisher-button--primary" href="/book">Plan a collection</a></>}
+    <Link className="fisher-button fisher-button--primary" href="/book">Plan a collection</Link></>}
   </div></section>
  </SiteShell>;
 }

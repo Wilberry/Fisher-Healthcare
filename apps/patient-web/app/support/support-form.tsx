@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useRef, useState, type FormEvent } from 'react';
 export function SupportRequestForm(){
  const [category,setCategory]=useState('booking'),[preferredContact,setPreferredContact]=useState('email');
@@ -21,7 +22,7 @@ export function SupportRequestForm(){
  if(caseId)return <div role="status" className="fisher-quiet-state">
   <h2>Support case recorded</h2><p>Case reference: {caseId.slice(0,8).toUpperCase()}</p>
   <p>Request status: open. No email or WhatsApp delivery has been claimed.</p>
-  <a href="/account">View account</a>
+  <Link href="/account">View account</Link>
  </div>;
  return <form onSubmit={submit} className="fisher-patient-form">
   <label htmlFor="support-category">What do you need help with?</label>

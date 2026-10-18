@@ -37,3 +37,14 @@ bash scripts/phase2-security-preflight.sh
 ```
 
 This preflight refreshes the untracked lockfile (preserving its previous version), saves separate audit logs and a summary under `.verification`, and fails when either high-severity audit fails. It does not execute clinical operations or change production systems.
+
+## Replacing the unpatched lint-only dependency chain
+
+The final high-severity `braces@3.0.3` issue in the full dependency audit was introduced by the development-only `eslint-config-next@15` → `@next/eslint-plugin-next` → `fast-glob` → `micromatch` chain. The vulnerable package has no published patched release, so no version override or audit-ignore entry can truthfully remediate it.
+
+The three Next.js applications now use the existing root TypeScript ESLint configuration, direct React/React Hooks/JSX accessibility recommended rules, and local Next.js navigation, image and synchronous-script guards. They no longer depend on `eslint-config-next`. This is a deliberate lint migration and **not a claim of exact rule-for-rule parity** with the Next.js preset. The local rules contain executable RuleTester cases. Future work can extend the local rules or restore the official upstream preset when its dependency graph no longer includes vulnerable `braces`.
+
+All application-internal HTML anchors identified in the Phase 2 portal have been migrated to `next/link`; external Paystack checkout links and fragment-only anchors remain HTML anchors.
+
+Release gates: refresh the full pnpm lockfile, reinstall all dependencies, run local Next guard tests and lint across 11 packages, confirm the full `pnpm audit --audit-level high` passes, confirm `pnpm audit --prod --audit-level high` passes, then repeat tests, builds, migration checks and API/UI smoke checks. Do not assume the advisory has disappeared until a newly generated lockfile has been audited.
+

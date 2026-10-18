@@ -17,7 +17,7 @@ tester.run('no-internal-anchor', lint, {
   invalid: [
     { code: '<a href="/tests">Tests</a>', errors: [{ messageId: 'link' }] },
     { code: '<a href={"/account/" + id}>Account</a>', errors: [{ messageId: 'link' }] },
-    { code: '<a href={\`/book/\${id}\`}>Booking</a>', errors: [{ messageId: 'link' }] }
+    { code: '<a href={`/book/${id}`}>Booking</a>', errors: [{ messageId: 'link' }] }
   ]
 });
 tester.run('no-img-element', plugin.rules['no-img-element'], {

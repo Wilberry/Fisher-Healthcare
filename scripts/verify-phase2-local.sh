@@ -130,6 +130,7 @@ fi
 run_step 02-install pnpm install --frozen-lockfile
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 export NEXT_TELEMETRY_DISABLED=1
+run_step 02b-next-lint-guards node scripts/eslint-next-guards.test.cjs
 run_step 03-lint pnpm exec turbo run lint --concurrency=1
 run_step 04-typecheck pnpm exec turbo run typecheck --concurrency=1
 run_step 05-build pnpm exec turbo run build --concurrency=1

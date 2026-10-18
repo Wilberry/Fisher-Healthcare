@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card,Notice,SiteShell } from '@fisher/ui';
 import { readSession } from '../../lib/patient-auth';
 import { patientApi } from '../../lib/patient-api';
@@ -31,7 +32,7 @@ export default async function StaffConsole(){
   <section className="fisher-section"><div className="fisher-container">
    <h1 className="fisher-section-title">Fisher Healthcare operations</h1>
    <Notice title="Restricted synthetic administration">Every action requires a validated staff bearer token, MFA, current database role and server-side audit. Approvals do not authorize clinical results, live charging, provider refunds or customer messaging.</Notice>
-   {!session?<p><a href="/auth/login?next=%2Fstaff">Sign in using authorized staff identity</a></p>:
+   {!session?<p><Link href="/auth/login?next=%2Fstaff">Sign in using authorized staff identity</Link></p>:
     !permitted?<Notice title="Staff role or MFA required">No operational queue is available to this identity. A patient session is not an operations permission.</Notice>:
     <>
      <div className="fisher-grid fisher-collection-grid">{queues.map((q,i)=>{
