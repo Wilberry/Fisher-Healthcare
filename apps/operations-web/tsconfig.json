@@ -14,7 +14,8 @@
         "name": "next"
       }
     ],
-    "noEmit": true
+    "noEmit": true,
+    "allowJs": true
   },
   "include": [
     "next-env.d.ts",
