@@ -1,5 +1,11 @@
 # Fisher Healthcare — Phase 1 Engineering Acceptance
 
+## Subsequent security remediation — 18 October 2026
+
+The original Phase 1 engineering acceptance decision and its audit exception below are preserved as historical evidence. **The specific high-severity GHSA-vfj7-8cjw-p6xm finding has since been remediated at locally verified commit `3f65f647bbf6f92af994ff67e8f9aec1138dc1a8`.** A root pnpm override replaces `braces@3.0.3` with `@franciscosolis/braces@3.1.1`; the committed lockfile contains the fork and no original vulnerable snapshot.
+
+The frozen-lockfile installation, lint, typecheck, build, workspace tests, OpenAPI, HTTP smoke checks, disposable PostgreSQL migrations, and database checks passed. Both production and complete high-severity audits passed (production: 6 moderate, 1 low; full: 7 moderate, 1 low). The Next.js lint policies and strict audit commands remain in place. The verification is local and the remediation branch must still be pushed and integrated. Production/live patient-data approval remains **NOT APPROVED**. See [Dependency Security Remediation](../security/phase-1-dependency-remediation.md).
+
 **Decision date:** 16 October 2026  
 **Decision:** **PASS — Phase 1 engineering foundation accepted with a documented development-dependency security exception**  
 **Decision authority:** Project owner direction in the development conversation ("then lets mark it as pass"). This records an engineering-phase acceptance decision, **not** an independently performed professional security assessment or production-release authorization.

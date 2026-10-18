@@ -1,5 +1,13 @@
 # Phase 1 — Dependency Security Remediation
 
+## Remediation verification — 18 October 2026
+
+**GHSA-vfj7-8cjw-p6xm: REMEDIATED at locally verified commit `3f65f647bbf6f92af994ff67e8f9aec1138dc1a8` (pending push and integration).** The root `pnpm.overrides` now maps `braces` to `npm:@franciscosolis/braces@^3.1.1`. The regenerated, committed `pnpm-lock.yaml` resolves `@franciscosolis/braces@3.1.1` and no longer contains `braces@3.0.3`. Next.js ESLint rules remain enabled; no audit suppression or lowered threshold was introduced.
+
+**Exact-commit local evidence:** frozen-lockfile install; 11 lint tasks, 15 typecheck tasks, 11 build tasks, 15 workspace test tasks; OpenAPI generation; API and three web smoke checks; four PostgreSQL migrations and database checks all passed. Some workspace tasks reused Turbo cache; the integrated database checks ran. `pnpm audit --prod --audit-level high` passed with 6 moderate and 1 low findings; `pnpm audit --audit-level high` passed with 7 moderate and 1 low findings. Neither audit reported high or critical vulnerabilities.
+
+This closes the **specific high-severity braces remediation at the tested revision**, not the remaining moderate/low findings or production-release controls. The earlier exception and failing audits below remain historical evidence from 16 October, not current audit status. Issue #2 should be closed only after the verified commit and this update are pushed and reviewed. No live patient data or production deployment is authorized.
+
 **Security gate:** OPEN until exact-commit local verification confirms no unresolved high/critical advisory and approved deployment artifacts.  
 **Verification mode:** Local execution only; GitHub Actions is unavailable because of billing restrictions.
 
