@@ -1,13 +1,3 @@
 packages:
   - 'apps/*'
   - 'packages/*'
-
-# Security-validated minimums for vulnerable transitive dependencies.
-# Maintained centrally for pnpm 9; never downgrade a dependency to clear an audit.
-# Versions must be tested together with the lockfile and all runtime checks.
-overrides:
-  multer: ^2.3.0
-  lodash: ^4.18.1
-  js-yaml: ^4.3.2
-  postcss: ^8.5.18
-  vite: ^6.4.3
