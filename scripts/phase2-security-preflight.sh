@@ -41,6 +41,24 @@ else
  pnpm install --lockfile-only --ignore-scripts 2>&1 | tee "$LOG_DIR/01-lockfile.log"
 fi
 
+# Install the refreshed lockfile and exercise the replacement lint stack.
+# Keep independent results and run both audits even if lint needs correction.
+pnpm install --frozen-lockfile 2>&1 | tee "$LOG_DIR/02-install.log"
+GUARDS=PASS
+LINT=PASS
+if node scripts/eslint-next-guards.test.cjs > "$LOG_DIR/03-next-guards.log" 2>&1; then
+ echo "PASS: Next.js lint guard regression tests"
+else
+ GUARDS=FAIL
+ echo "FAIL: Next.js lint guard regression tests — inspect 03-next-guards.log"
+fi
+if pnpm exec turbo run lint --concurrency=1 > "$LOG_DIR/04-lint.log" 2>&1; then
+ echo "PASS: workspace lint"
+else
+ LINT=FAIL
+ echo "FAIL: workspace lint — inspect 04-lint.log"
+fi
+
 PRODUCTION=PASS
 COMPLETE=PASS
 if pnpm audit --prod --audit-level high > "$LOG_DIR/02-production-audit.log" 2>&1; then
@@ -57,12 +75,14 @@ else
 fi
 {
  printf "Commit: %s\n" "$(git rev-parse HEAD)"
- printf "Production audit: %s\n" "$PRODUCTION"
+ printf "Next lint guards: %s\\n" "$GUARDS"
+ printf "Workspace lint: %s\\n" "$LINT"
+ printf "Production audit: %s\\n" "$PRODUCTION"
  printf "Full audit: %s\n" "$COMPLETE"
  printf "Lockfile tracked: %s\n" "$(git ls-files --error-unmatch pnpm-lock.yaml >/dev/null 2>&1 && echo yes || echo no)"
  printf "Pending working-tree changes:\n"
  git status --short
 } | tee "$LOG_DIR/summary.txt"
 echo "Audit details: $LOG_DIR"
-[[ "$PRODUCTION" == PASS && "$COMPLETE" == PASS ]] || exit 1
-echo "Audits passed; full verification and committed-lockfile acceptance are still required."
+[[ "$GUARDS" == PASS && "$LINT" == PASS && "$PRODUCTION" == PASS && "$COMPLETE" == PASS ]] || exit 1
+echo "Lint and audits passed; full verification and committed-lockfile acceptance are still required."
