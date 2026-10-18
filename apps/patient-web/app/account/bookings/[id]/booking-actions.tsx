@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useRef,useState } from 'react';
 import { useRouter } from 'next/navigation';
 type Slot={id:string;startsAt:string;remaining:number};
@@ -49,7 +50,7 @@ export function BookingActions({id,status,paymentId,available}:{
   {paymentId&&status!=='confirmed'&&status!=='completed'&&
    <p><button type="button" className="fisher-button fisher-button--secondary" disabled={busy} onClick={()=>action('reconcile')}>
     Verify payment status with Paystack</button></p>}
-  <p><a href="/support">Need cancellation, refund or payment assistance? Open a support case.</a></p>
+  <p><Link href="/support">Need cancellation, refund or payment assistance? Open a support case.</Link></p>
   {message&&<p role="status">{message}</p>}
   {error&&<p role="alert" className="fisher-planner-error">{error}</p>}
  </div>;

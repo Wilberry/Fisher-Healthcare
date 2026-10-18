@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Notice, SiteShell } from '@fisher/ui';
 import { patientApi } from '../../../../../lib/patient-api';
 import { naira } from '../../../../../lib/public-api';
@@ -10,7 +11,7 @@ export default async function Receipt({params}:{params:Promise<{id:string}>}){
   ?response.data.data as Record<string,unknown>:null;
  return <SiteShell subtitle="Payment receipt" navigation={[{href:'/account',label:'My account'}]}>
   <section className="fisher-section"><div className="fisher-container">
-   <a href={'/account/bookings/'+id}>← Booking details</a><h1 className="fisher-section-title">Payment receipt</h1>
+   <Link href={'/account/bookings/'+id}>← Booking details</Link><h1 className="fisher-section-title">Payment receipt</h1>
    {!record?<Notice title="Receipt not available">The payment is not verified, the booking is unavailable, or your current account does not have access.</Notice>:
     <div className="fisher-quiet-state">
      <h2>Fisher Healthcare · Synthetic Payment Receipt</h2>

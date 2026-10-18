@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Notice, SiteShell } from '@fisher/ui';
 import { readSession } from '../../../../lib/patient-auth';
 import { patientApi } from '../../../../lib/patient-api';
@@ -34,7 +35,7 @@ export default async function BookingDetail({params}:{params:Promise<{id:string}
   {href:'/account',label:'My account'},{href:'/book',label:'New booking'}
  ]}>
   <section className="fisher-section"><div className="fisher-container">
-   <a href="/account">← Back to account</a>
+   <Link href="/account">← Back to account</Link>
    <h1 className="fisher-section-title">Booking details</h1>
    {!signedIn?<Notice title="Sign-in required">Please sign in again to access your booking records.</Notice>:
     !data?<Notice title="Booking unavailable">This booking is not found or cannot be accessed with your current permissions.</Notice>:
@@ -49,7 +50,7 @@ export default async function BookingDetail({params}:{params:Promise<{id:string}
      {typeof data.payment_expires_at==='string'&&data.status==='awaiting_payment'&&
       <p><strong>Payment deadline:</strong> {new Date(data.payment_expires_at).toLocaleString('en-NG',{timeZone:'Africa/Lagos',dateStyle:'medium',timeStyle:'short'})}</p>}
      {['confirmed','assigned','collected','completed'].includes(String(data.status))&&
-      <p><a href={'/account/bookings/'+id+'/receipt'}>View verified payment receipt</a></p>}
+      <p><Link href={'/account/bookings/'+id+'/receipt'}>View verified payment receipt</Link></p>}
      <BookingActions id={id} status={String(data.status)} paymentId={typeof data.payment_id==='string'?data.payment_id:null} available={slots}/>
      <p>Only verified payments can confirm bookings. Laboratory results are governed by a separate release and permission process.</p>
     </div>}

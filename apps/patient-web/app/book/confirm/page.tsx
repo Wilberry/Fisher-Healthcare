@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Notice, SiteShell } from '@fisher/ui';
 import { patientAccountData, patientApi } from '../../../lib/patient-api';
 import { quoteDetail } from '../../../lib/public-api';
@@ -35,12 +36,12 @@ export default async function Confirm({searchParams}:{searchParams:Promise<{quot
    {!quote?<Notice title="Invalid or expired quotation">Return to the booking planner to obtain a fresh quote.</Notice>:
    !session?<div>
     <Notice title="Verify your identity">To reserve a slot, you must sign in and have current booking authority for the patient.</Notice>
-    <a href={'/auth/login?next='+encodeURIComponent('/book/confirm?quoteId='+quoteId)} className="fisher-button fisher-button--primary">Sign in to continue</a>
+    <Link href={'/auth/login?next='+encodeURIComponent('/book/confirm?quoteId='+quoteId)} className="fisher-button fisher-button--primary">Sign in to continue</Link>
    </div>:!account?.available?<Notice title="Account unavailable">The patient service could not verify your account. Please try again after the service is available.</Notice>:
    eligible.length===0?<Notice title="Patient authorization required">No approved patient booking profile is linked to this account. Submit a patient profile for verification or contact Fisher Healthcare support. Creating a profile does not grant permission.</Notice>:
    !hasVerifiedAddress?<div>
     <Notice title="Collection location verification required">No approved collection address is linked to these patients in the quoted service zone. Add a synthetic collection address for coverage review before committing the booking.</Notice>
-    <a href={'/account/patients/'+eligible[0]!.id+'/addresses/new'} className="fisher-button fisher-button--secondary">Request address verification</a>
+    <Link href={'/account/patients/'+eligible[0]!.id+'/addresses/new'} className="fisher-button fisher-button--secondary">Request address verification</Link>
    </div>:
     <BookingConfirmation quoteId={quoteId} eligible={choices.filter(v=>v.addresses.length>0)} paymentAvailable={paymentAvailable}/>}
   </div></section>

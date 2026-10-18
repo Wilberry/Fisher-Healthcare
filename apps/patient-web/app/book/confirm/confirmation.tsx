@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useRef, useState } from 'react';
 type Profile={id:string;label:string;addresses:{id:string;label:string}[]};
 type Props={quoteId:string;eligible:Profile[];paymentAvailable:boolean};
@@ -66,7 +67,7 @@ export function BookingConfirmation({quoteId,eligible,paymentAvailable}:Props){
    </select>
    <label className="fisher-booking-label"><input type="checkbox" checked={consent}
      onChange={e=>setConsent(e.target.checked)}/>
-    I have read the <a href="/policies/booking" target="_blank" rel="noreferrer">synthetic booking policy</a>
+    I have read the <Link href="/policies/booking" target="_blank" rel="noreferrer">synthetic booking policy</Link>
     and understand that permission, collection coverage and payment are verified separately.
    </label>
    <p>Quotation validity and slot capacity will be checked again on the server. Payment is never inferred from a browser redirect.</p>
@@ -77,7 +78,7 @@ export function BookingConfirmation({quoteId,eligible,paymentAvailable}:Props){
     <h2>Booking created</h2>
     <p>Reference: <strong>{created.bookingId.slice(0,8).toUpperCase()}</strong></p>
     <p>Current status: {created.status.replaceAll('_',' ')}. A booking is not confirmed until verified payment succeeds.</p>
-    <a href={'/account/bookings/'+created.bookingId}>View your booking</a>
+    <Link href={'/account/bookings/'+created.bookingId}>View your booking</Link>
     {paymentAvailable&&!checkout&&<p><button type="button" className="fisher-button fisher-button--secondary" disabled={busy} onClick={startCheckout}>Proceed to Paystack sandbox checkout</button></p>}
     {checkout&&<p><a className="fisher-button fisher-button--primary" href={checkout} rel="noreferrer">Open Paystack test checkout</a></p>}
     {!paymentAvailable&&<p>Payment remains disabled until staging checkout has been approved and configured.</p>}

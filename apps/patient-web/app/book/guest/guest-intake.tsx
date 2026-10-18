@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useState,type FormEvent } from 'react';
 export function GuestIntake({quoteId}:{quoteId:string}){
  const [email,setEmail]=useState(''),[code,setCode]=useState(''),[consent,setConsent]=useState(false);
@@ -29,7 +30,7 @@ export function GuestIntake({quoteId}:{quoteId:string}){
  if(done)return <div className="fisher-quiet-state" role="status">
   <h2>Guest contact verified</h2>
   <p>Your assisted booking request is pending staff review. No collection slot has been reserved and no payment has been processed.</p>
-  <a href="/book">Return to booking planner</a>
+  <Link href="/book">Return to booking planner</Link>
  </div>;
  return <form className="fisher-patient-form" onSubmit={submit}>
   {!requestId?<>
@@ -38,7 +39,7 @@ export function GuestIntake({quoteId}:{quoteId:string}){
     onChange={e=>setEmail(e.target.value)} />
    <p>We send a one-time verification code only to a staging-approved test inbox.</p>
    <label><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>
-    I have read the <a href="/policies/booking" target="_blank" rel="noreferrer">synthetic booking policy</a>.
+    I have read the <Link href="/policies/booking" target="_blank" rel="noreferrer">synthetic booking policy</Link>.
     I understand that this request does not reserve a slot or confirm a payment.</label>
   </>:<>
    <p>An eight-digit code was submitted to your approved test email inbox. It expires after ten minutes.</p>

@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Notice, SiteShell } from '@fisher/ui';
 import { patientAccountData } from '../../../../../../lib/patient-api';
 import { zones } from '../../../../../../lib/public-api';
@@ -14,7 +15,7 @@ export default async function RequestAddress({params}:{params:Promise<{id:string
   <section className="fisher-section"><div className="fisher-container">
    <h1 className="fisher-section-title">Request collection address verification</h1>
    <Notice title="Synthetic development only">Do not enter your actual home, workplace or medical information while the Phase 2 system is under development. Selecting a service zone does not confirm collection coverage.</Notice>
-   {!account.signedIn?<a href={'/auth/login?next='+encodeURIComponent('/account/patients/'+id+'/addresses/new')} className="fisher-button fisher-button--primary">Sign in</a>:
+   {!account.signedIn?<Link href={'/auth/login?next='+encodeURIComponent('/account/patients/'+id+'/addresses/new')} className="fisher-button fisher-button--primary">Sign in</Link>:
     !patient?<Notice title="Patient authorization required">The selected patient is not currently approved for booking under this account.</Notice>:
     !areas.length?<Notice title="Zones not configured">No reviewed synthetic service zone is currently enabled.</Notice>:
      <AddressRequestForm patientId={id} patientName={patient.display_name} zones={areas}/>}

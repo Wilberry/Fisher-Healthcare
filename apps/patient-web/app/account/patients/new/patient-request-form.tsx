@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 export function PatientRequestForm(){
  const [name,setName]=useState(''),[relation,setRelation]=useState<'self'|'dependent'|'caregiver'>('self');
@@ -19,7 +20,7 @@ export function PatientRequestForm(){
  if(submitted)return <div className="fisher-quiet-state" role="status">
   <h2>Profile request recorded</h2>
   <p>The profile is pending identity and relationship verification. No booking or diagnostic result permissions have been granted.</p>
-  <a href="/account">Return to your account</a>
+  <Link href="/account">Return to your account</Link>
  </div>;
  return <form onSubmit={submit} className="fisher-patient-form">
   <label htmlFor="patient-name">Patient name</label>

@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import type { ZonePreview } from '../../../../../../lib/public-api';
 export function AddressRequestForm({patientId,patientName,zones}:{patientId:string;patientName:string;zones:ZonePreview[]}){
@@ -20,7 +21,7 @@ export function AddressRequestForm({patientId,patientName,zones}:{patientId:stri
  }
  if(done)return <div className="fisher-quiet-state" role="status"><h2>Coverage review requested</h2>
   <p>This location cannot be used for appointments until authorized staff verify coverage and record approval.</p>
-  <a href="/account">Back to your account</a>
+  <Link href="/account">Back to your account</Link>
  </div>;
  return <form onSubmit={submit} className="fisher-patient-form">
   <p><strong>Patient:</strong> {patientName}</p>

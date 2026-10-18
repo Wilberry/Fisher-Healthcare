@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card, Notice, SiteShell } from '@fisher/ui';
 import { patientAccountData } from '../../lib/patient-api';
 import { naira } from '../../lib/public-api';
@@ -12,7 +13,7 @@ export default async function AccountPage(){
    <p className="fisher-eyebrow">Private patient portal</p><h1 className="fisher-section-title">Your account</h1>
    {!account.signedIn?<div>
     <p className="fisher-lead">Sign in through the configured identity provider to see only the bookings and profiles you are authorized to access.</p>
-    <a href="/auth/login?next=%2Faccount" className="fisher-button fisher-button--primary">Sign in securely</a>
+    <Link href="/auth/login?next=%2Faccount" className="fisher-button fisher-button--primary">Sign in securely</Link>
     <Notice title="Private by design">Family booking permission never grants access to another patient&apos;s diagnostic results.</Notice>
    </div>:<>
     <form method="post" action="/auth/logout" className="fisher-logout"><button type="submit" className="fisher-button fisher-button--secondary">Sign out</button></form>
@@ -20,7 +21,7 @@ export default async function AccountPage(){
     <div className="fisher-grid fisher-collection-grid">
      <Card><h2>Booking history</h2>
       {account.bookings.length?<ul className="fisher-record-list">{account.bookings.map(b=><li key={b.id}>
-       <a href={'/account/bookings/'+b.id}>Booking {b.id.slice(0,8).toUpperCase()}</a>
+       <Link href={'/account/bookings/'+b.id}>Booking {b.id.slice(0,8).toUpperCase()}</Link>
        <span>{b.status.replaceAll('_',' ')} · {naira(b.total_kobo)}</span>
       </li>)}</ul>:<p>No authorized bookings are available.</p>}
      </Card>
@@ -30,9 +31,9 @@ export default async function AccountPage(){
        <span>{p.relationship} · {p.can_book&&p.verified?'Booking authorized':'Verification required'}</span>
        <RevokePatient patientId={p.id}/>
       </li>)}</ul>:<p>No profiles are currently linked to your verified account.</p>}
-      <a href="/account/patients/new">Add a family profile</a>
+      <Link href="/account/patients/new">Add a family profile</Link>
       {account.patients.filter(p=>p.can_book&&p.verified).map(p=>
-       <p key={p.id}><a href={'/account/patients/'+p.id+'/addresses/new'}>Request collection address for {p.display_name}</a></p>)}
+       <p key={p.id}><Link href={'/account/patients/'+p.id+'/addresses/new'}>Request collection address for {p.display_name}</Link></p>)}
      </Card>
      <Card><h2>Booking notifications</h2>
       {account.notifications.length?<ul className="fisher-record-list">{account.notifications.map(n=><li key={n.id}>
@@ -40,7 +41,7 @@ export default async function AccountPage(){
       </li>)}</ul>:<p>No verified delivery information is available.</p>}
      </Card>
     </div>
-    <p><a href="/support" className="fisher-button fisher-button--secondary">Get booking or payment assistance</a></p>
+    <p><Link href="/support" className="fisher-button fisher-button--secondary">Get booking or payment assistance</Link></p>
     <Card><h2>Support history</h2>{account.supportCases.length?
      <ul className="fisher-record-list">{account.supportCases.map(s=><li key={s.id}>
       <strong>{s.category.replaceAll('_',' ')}</strong><span>{s.status} · {s.preferred_contact} preferred</span>
