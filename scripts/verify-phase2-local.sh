@@ -50,6 +50,7 @@ cleanup() {
       printf 'Production dependency audit: %s\n' "${PROD_AUDIT_STATUS:-NOT_RUN}"
       printf 'Full dependency audit: %s\n' "${FULL_AUDIT_STATUS:-NOT_RUN}"
       printf 'Previously generated Next.js tracked differences: %s\n' "${NEXT_GENERATED_DIRTY:-no}"
+      printf 'Final acceptance: %s\n' "${FINAL_ACCEPTANCE_STATUS:-NOT_REQUESTED}"
       printf 'Pending working-tree changes:\n'
       git status --short
     } > "$LOG_DIR/summary.txt"
@@ -100,6 +101,17 @@ printf 'Exact commit: %s\n' "$(git rev-parse HEAD)" | tee "$LOG_DIR/commit.txt"
 printf 'Branch: %s\n' "$(git branch --show-current)" | tee -a "$LOG_DIR/commit.txt"
 [[ -z "${FISHER_EXPECTED_COMMIT:-}" || "$(git rev-parse HEAD)" == "$FISHER_EXPECTED_COMMIT" ]] ||
   die "Current HEAD does not match FISHER_EXPECTED_COMMIT"
+FINAL_ACCEPTANCE_STATUS=NOT_REQUESTED
+if [[ "${FISHER_PHASE2_ACCEPTANCE_ACK:-}" == "exact-commit" ]]; then
+  FINAL_ACCEPTANCE_STATUS=FAIL
+  [[ -n "${FISHER_EXPECTED_COMMIT:-}" ]] || die "Exact-commit acceptance requires a pinned commit"
+  [[ "$NEXT_GENERATED_DIRTY" == no && -z "$STATUS_LINES" ]] ||
+    die "Exact-commit acceptance requires initially clean committed artifacts"
+  git ls-files --error-unmatch pnpm-lock.yaml >/dev/null 2>&1 ||
+    die "Exact-commit acceptance requires a committed pnpm lockfile"
+  git ls-files --error-unmatch docs/api/openapi.json >/dev/null 2>&1 ||
+    die "Exact-commit acceptance requires a committed generated OpenAPI contract"
+fi
 
 run_step() {
   local name="$1"; shift
@@ -293,4 +305,12 @@ fi
 if [[ "$PROD_AUDIT_STATUS" != PASS || "$FULL_AUDIT_STATUS" != PASS ]]; then
   die "Dependency security gate remains OPEN: production=$PROD_AUDIT_STATUS full=$FULL_AUDIT_STATUS. Review both audit logs. No waiver is applied."
 fi
-printf 'Phase 2 source verification finished. Do not merge or deploy until exact-commit acceptance and Phase 1 acceptance are both complete.\n'
+if [[ "${FISHER_PHASE2_ACCEPTANCE_ACK:-}" == "exact-commit" ]]; then
+  [[ "$LOCKFILE_COMMITTED" == yes ]] || die "Final acceptance requires the committed dependency lockfile"
+  [[ -z "$(git status --porcelain --untracked-files=all)" ]] ||
+    die "Final acceptance requires no generated or other uncommitted changes"
+  FINAL_ACCEPTANCE_STATUS=PASS
+  printf 'PASS: Phase 2 exact-commit local verification. Deployment and merge remain separate decisions.\n'
+else
+  printf 'Phase 2 diagnostic verification finished; exact-commit acceptance not requested.\n'
+fi
