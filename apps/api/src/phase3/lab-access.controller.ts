@@ -134,6 +134,32 @@ export class Phase3LabAccessService implements OnModuleDestroy {
       throw error;
     } finally { client.release(); }
   }
+  async reject(identity: AuthenticatedIdentity, requestId: string, note: string) {
+    const client=await this.authorize(identity);
+    try {
+      await client.query('BEGIN');
+      const reviewer=await this.administrator(identity.subject,client);
+      const request=await client.query<{requested_by:string;status:string}>(
+        'SELECT requested_by,status FROM phase3_lab_access_requests WHERE id=$1 FOR UPDATE',
+        [requestId]);
+      const pending=request.rows[0];
+      if(!pending||pending.status!=='pending')
+        throw new ConflictException('Grant request unavailable');
+      if(pending.requested_by===reviewer)
+        throw new ForbiddenException('A second administrator must reject this request');
+      await client.query(
+        "UPDATE phase3_lab_access_requests SET status='rejected',reviewed_by=$2," +
+        "reviewed_at=now(),review_note=$3 WHERE id=$1 AND status='pending'",
+        [requestId,reviewer,note]);
+      await client.query(
+        'INSERT INTO audit_events(actor_id,action,resource_type,resource_id) ' +
+        "VALUES($1,'phase3.lab_access.rejected','lab_access_request',$2)",
+        [reviewer,requestId]);
+      await client.query('COMMIT');
+      return {data:{id:requestId,status:'rejected'}};
+    }catch(error){await client.query('ROLLBACK');throw error;}
+    finally{client.release();}
+  }
   async revoke(identity: AuthenticatedIdentity, labId: string, staffId: string) {
     const client = await this.authorize(identity);
     try {
@@ -182,6 +208,15 @@ export class Phase3LabAccessController {
         typeof b.reason !== 'string' || b.reason.trim().length < 10 ||
         b.reason.length > 240) throw new BadRequestException('Invalid lab grant request');
     return this.service.request(req.identity,b.labId.toLowerCase(),b.staffId.toLowerCase(),b.reason.trim());
+  }
+  @Post('access-requests/:id/reject')
+  reject(@Req() req:AuthenticatedRequest,@Param('id') id:string,@Body() body:unknown){
+    if(!req.identity||!uuid.test(id)||!body||typeof body!=='object'||Array.isArray(body))
+      throw new BadRequestException('Invalid rejection');
+    const b=body as Record<string,unknown>;
+    if(typeof b.reason!=='string'||b.reason.trim().length<10||b.reason.length>240)
+      throw new BadRequestException('Rejection reason required');
+    return this.service.reject(req.identity,id.toLowerCase(),b.reason.trim());
   }
   @Post('access-requests/:id/approve')
   approve(@Req() req: AuthenticatedRequest, @Param('id') id:string) {

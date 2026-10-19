@@ -8,6 +8,7 @@ const allow = [
   /^ops\/lab-manifests\/[0-9a-f-]{36}\/receipt$/,
   /^ops\/labs\/access-requests$/,
   /^ops\/labs\/access-requests\/[0-9a-f-]{36}\/approve$/,
+  /^ops\/labs\/access-requests\/[0-9a-f-]{36}\/reject$/,
   /^ops\/labs\/access\/[0-9a-f-]{36}\/staff\/[0-9a-f-]{36}\/revoke$/
 ] as const;
 

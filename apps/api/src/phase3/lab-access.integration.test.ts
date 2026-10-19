@@ -99,6 +99,22 @@ suite.sequential('Phase 3 two-person lab grant review (disposable PostgreSQL)', 
     expect(active.data.some((entry:Record<string,unknown>)=>entry.staff_id===staffReceiver)).toBe(true);
   });
 
+  it('records rejected requests without granting coordinator access',async()=>{
+    const opened=await grants.request(identity(names.requester),lab,staffReceiver,
+      'Review before reactivation of synthetic coordinator');
+    await expect(grants.reject(identity(names.requester),opened.data.id,
+      'Synthetic request not approved')).rejects.toThrow('A second administrator');
+    const denied=await grants.reject(identity(names.reviewer),opened.data.id,
+      'Synthetic request not approved');
+    expect(denied.data.status).toBe('rejected');
+    await expect(grants.approve(identity(names.reviewer),opened.data.id))
+      .rejects.toThrow('Grant request unavailable');
+    const record=await pool.query<{status:string;review_note:string}>(
+      'SELECT status,review_note FROM phase3_lab_access_requests WHERE id=$1',[opened.data.id]);
+    expect(record.rows[0]?.status).toBe('rejected');
+    expect(record.rows[0]?.review_note).toBe('Synthetic request not approved');
+  });
+
   it('revokes immediately and records the operation in the audit log', async () => {
     const revoked=await grants.revoke(identity(names.requester),lab,staffReceiver);
     expect(revoked.data.status).toBe('revoked');
