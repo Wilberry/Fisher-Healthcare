@@ -76,10 +76,14 @@ export class Phase3IncidentsService implements OnModuleDestroy {
     await this.access.requireStaffCapability(identity.subject, 'dispatch:manage');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
     const result = await this.pool.query(
-      `UPDATE phase3_incidents i SET resolution_status='resolved',resolved_at=now(),
-       resolved_by=usr.id,resolution_note=$3
-       FROM users usr WHERE i.id=$1 AND usr.identity_subject=$2
-       AND i.resolution_status='open' RETURNING i.id`,
+      "WITH resolved AS (" +
+      " UPDATE phase3_incidents i SET resolution_status='resolved',resolved_at=now()," +
+      " resolved_by=usr.id,resolution_note=$3" +
+      " FROM users usr WHERE i.id=$1 AND usr.identity_subject=$2" +
+      " AND i.resolution_status='open' RETURNING i.id,i.resolved_by" +
+      ") INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)" +
+      " SELECT resolved_by,'phase3.incident.resolved','incident',id,'{}'::jsonb FROM resolved" +
+      " RETURNING resource_id",
       [incidentId, identity.subject, note]);
     if (result.rowCount !== 1) throw new ConflictException('Incident unavailable');
     return { data: { id: incidentId, status: 'resolved' } };

@@ -65,6 +65,12 @@ export class Phase3ManifestService implements OnModuleDestroy {
         'SELECT sp.id,sp.status,sp.custody_version ' +
         'FROM phase3_manifest_specimens ms JOIN specimens sp ON sp.id=ms.specimen_id ' +
         'WHERE ms.manifest_id=$1 ORDER BY sp.id FOR UPDATE OF sp', [manifestId]);
+      // A newly reported unresolved incident can stop laboratory receipt even
+      // after manifest preparation. Receipts never bypass exception review.
+      const unresolved = await client.query(
+        "SELECT 1 FROM phase3_incidents WHERE specimen_id=ANY($1::uuid[]) " +
+        "AND resolution_status='open' LIMIT 1", [members.rows.map(member => member.id)]);
+      if (unresolved.rowCount) throw new ConflictException('Open specimen incident blocks lab receipt');
       const disposition = normalizeManifestDisposition(
         members.rows.map(member => member.id), acceptedIds, rejectedIds, rejectionCode);
       const existing = await client.query<{
