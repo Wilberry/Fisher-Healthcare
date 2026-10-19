@@ -9,7 +9,10 @@ const required=[
  'apps/operations-web/app/lab-manifests/prepare-manifest.tsx',
  'apps/operations-web/app/lab-manifests/[id]/receive-manifest.tsx',
  'apps/field-pwa/app/visits/[id]/visit-actions.tsx',
- 'apps/field-pwa/app/handoffs/courier-acknowledge.tsx'
+ 'apps/field-pwa/app/handoffs/courier-acknowledge.tsx',
+ 'apps/operations-web/app/lab-access/lab-access-actions.tsx',
+ 'apps/field-pwa/components/offline-recovery-panel.tsx',
+ 'apps/field-pwa/app/signed-out/page.tsx'
 ];
 const failures=[];
 const read=path=>readFileSync(join(root,path),'utf8');
@@ -21,7 +24,7 @@ for(const path of required){
 }
 const migrationDir=join(root,'packages/database/drizzle');
 const sql=readdirSync(migrationDir).filter(f=>f.endsWith('.sql'));
-for(let version=17;version<=24;version++){
+for(let version=17;version<=25;version++){
  const prefix=String(version).padStart(4,'0')+'_phase3_';
  const matches=sql.filter(f=>f.startsWith(prefix));
  if(matches.length!==1)failures.push('Expected one Phase 3 migration for '+prefix);

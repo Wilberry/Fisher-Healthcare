@@ -51,7 +51,7 @@ git merge-base --is-ancestor a4ee07a95532a7be4252191d56dc8a9fbf906d0b HEAD ||
 git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
 [[ "$(git rev-parse "refs/remotes/origin/$BRANCH")" == "$SOURCE_SHA" ]] ||
   fail "Remote Phase 3 has changed; reconcile before verification"
-for version in 0017 0018 0019 0020 0021 0022 0023 0024; do
+for version in 0017 0018 0019 0020 0021 0022 0023 0024 0025; do
   compgen -G "packages/database/drizzle/${version}_phase3_*.sql" >/dev/null ||
     fail "Missing Phase 3 migration $version"
 done
@@ -143,6 +143,8 @@ for app in operations-web field-pwa; do
       fail "Unverified courier handoff detail must remain access locked"
     [[ "$(http_status "http://127.0.0.1:$WEB_PORT/visits/00000000-0000-4000-8000-000000000001")" == 200 ]] ||
       fail "Unverified field visit must show an access-locked response"
+    [[ "$(http_status "http://127.0.0.1:$WEB_PORT/api/phase3/field/offline/context")" == 503 ]] ||
+      fail "Synthetic offline context must fail closed when not explicitly enabled"
     code="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
       -X POST "http://127.0.0.1:$WEB_PORT/api/phase3/field/events/sync" \
       -H 'Content-Type: application/json' --data '{"events":[]}')"
@@ -150,7 +152,7 @@ for app in operations-web field-pwa; do
       fail "Originless field mutation was not blocked by the same-origin BFF"
   fi
   if [[ "$app" == operations-web ]]; then
-    for route in exceptions lab-manifests lab-manifests/00000000-0000-4000-8000-000000000001; do
+    for route in exceptions lab-access lab-manifests lab-manifests/00000000-0000-4000-8000-000000000001; do
       [[ "$(http_status "http://127.0.0.1:$WEB_PORT/$route")" == 200 ]] ||
         fail "Unauthorized $route view must stay access-locked"
     done

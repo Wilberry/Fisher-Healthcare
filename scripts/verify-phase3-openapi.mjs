@@ -24,8 +24,11 @@ const methods = [
   ['get','/api/v1/ops/lab-manifests/{id}'],
   ['post','/api/v1/ops/lab-manifests'],
   ['post','/api/v1/ops/lab-manifests/{id}/receipt'],
+  ['get','/api/v1/ops/labs/access-requests'],
+  ['get','/api/v1/ops/labs/access'],
   ['post','/api/v1/ops/labs/access-requests'],
   ['post','/api/v1/ops/labs/access-requests/{id}/approve'],
+  ['post','/api/v1/ops/labs/access-requests/{id}/reject'],
   ['post','/api/v1/ops/labs/access/{labId}/staff/{staffId}/revoke']
 ];
 for (const [method,path] of methods) {
