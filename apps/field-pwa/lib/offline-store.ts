@@ -4,11 +4,12 @@ import {
 } from './offline-policy';
 
 const NAME='fisher_phase3_synthetic_custody_v1';
+const aad=(owner:string,id:string)=>new TextEncoder().encode(owner+':'+id);
 const STORE='events';
 const KEY_STORE='keys';
 type SealedRecord={
   id:string;owner:string;createdAt:number;iv:Uint8Array;
-  ciphertext:ArrayBuffer;review:boolean
+  ciphertext:ArrayBuffer;review:boolean;aadVersion?:1
 };
 export type RecoveryEntry={event:QueuedCustodyEvent;review:boolean};
 function supported(){
@@ -40,7 +41,7 @@ async function open():Promise<IDBDatabase>{
       if(!db.objectStoreNames.contains(KEY_STORE))
         db.createObjectStore(KEY_STORE);
     };
-    r.onsuccess=()=>resolve(r.result);
+    r.onsuccess=()=>{r.result.onversionchange=()=>r.result.close();resolve(r.result);};
     r.onerror=()=>reject(r.error??new Error('Cannot open encrypted queue'));
     r.onblocked=()=>reject(new Error('Local queue is locked by another tab'));
   });
@@ -77,10 +78,34 @@ async function erase(db:IDBDatabase,id:string):Promise<void>{
   tx.objectStore(STORE).delete(id);
   await done;
 }
-async function write(db:IDBDatabase,record:SealedRecord):Promise<void>{
-  const tx=db.transaction(STORE,'readwrite');
-  const done=completed(tx);
-  tx.objectStore(STORE).put(record);
+async function writeNew(db:IDBDatabase,record:SealedRecord):Promise<void>{
+  // Atomic capacity and event-ID collision checks across simultaneous tabs.
+  await new Promise<void>((resolve,reject)=>{
+    const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+    const existing=store.get(record.id);
+    existing.onsuccess=()=>{
+      if(existing.result){tx.abort();return;}
+      const count=store.count();
+      count.onsuccess=()=>{
+        if(count.result>=OFFLINE_MAX_EVENTS){tx.abort();return;}
+        store.add(record);
+      };
+    };
+    tx.oncomplete=()=>resolve();
+    tx.onabort=()=>reject(new Error('Recovery queue changed or is full'));
+    tx.onerror=()=>reject(tx.error??new Error('Recovery write failed'));
+  });
+}
+async function mutate(db:IDBDatabase,owner:string,eventId:string,review:boolean):Promise<void>{
+  // Avoid read-then-write races that could resurrect a reconciled event.
+  const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+  const done=completed(tx),pending=store.get(eventId);
+  pending.onsuccess=()=>{
+    const record=pending.result as SealedRecord|undefined;
+    if(record?.owner!==owner)return;
+    if(review)store.put({...record,review:true});
+    else store.delete(eventId);
+  };
   await done;
 }
 async function readAll(db:IDBDatabase,owner:string):Promise<RecoveryEntry[]>{
@@ -91,7 +116,9 @@ async function readAll(db:IDBDatabase,owner:string):Promise<RecoveryEntry[]>{
     if(record.owner!==owner){await erase(db,record.id);continue;}
     try{
       const plaintext=await crypto.subtle.decrypt(
-        {name:'AES-GCM',iv:record.iv},secret,record.ciphertext);
+        {name:'AES-GCM',iv:record.iv,
+          ...(record.aadVersion===1?{additionalData:aad(record.owner,record.id)}:{})},
+        secret,record.ciphertext);
       const raw:unknown=JSON.parse(new TextDecoder().decode(plaintext));
       if(!validOfflineEvent(raw)||record.id!==(raw as QueuedCustodyEvent).eventId){
         await erase(db,record.id);continue;
@@ -120,33 +147,29 @@ export async function saveOfflineEvent(owner:string,event:QueuedCustodyEvent):Pr
   try{
     const pending=await readAll(db,owner);
     if(pending.some(item=>item.event.eventId===event.eventId))return;
+    if(pending.some(item=>item.event.specimenId===event.specimenId&&
+        item.event.action===event.action&&item.event.expectedVersion===event.expectedVersion))
+      throw Error('Matching event already awaits reconciliation');
     if(pending.length>=OFFLINE_MAX_EVENTS)
       throw Error('Recovery queue is full; reconnect to reconcile');
     const secret=await key(db);
     const iv=crypto.getRandomValues(new Uint8Array(12));
     const plaintext=new TextEncoder().encode(JSON.stringify(minimal));
-    const ciphertext=await crypto.subtle.encrypt({name:'AES-GCM',iv},secret,plaintext);
-    await write(db,{id:event.eventId,owner,createdAt:event.createdAt,
-      iv,ciphertext,review:false});
+    const ciphertext=await crypto.subtle.encrypt(
+      {name:'AES-GCM',iv,additionalData:aad(owner,event.eventId)},secret,plaintext);
+    await writeNew(db,{id:event.eventId,owner,createdAt:event.createdAt,
+      iv,ciphertext,review:false,aadVersion:1});
   }finally{db.close();}
 }
 export async function markOfflineConflict(owner:string,eventId:string):Promise<void>{
   if(!validOfflineScope(owner))throw Error('Fresh staff authentication required');
   const db=await open();
-  try{
-    const record=await request<SealedRecord|undefined>(
-      db.transaction(STORE,'readonly').objectStore(STORE).get(eventId));
-    if(record?.owner===owner)await write(db,{...record,review:true});
-  }finally{db.close();}
+  try{await mutate(db,owner,eventId,true);}finally{db.close();}
 }
 export async function removeOfflineEvent(owner:string,eventId:string):Promise<void>{
   if(!validOfflineScope(owner))throw Error('Fresh staff authentication required');
   const db=await open();
-  try{
-    const record=await request<SealedRecord|undefined>(
-      db.transaction(STORE,'readonly').objectStore(STORE).get(eventId));
-    if(record?.owner===owner)await erase(db,eventId);
-  }finally{db.close();}
+  try{await mutate(db,owner,eventId,false);}finally{db.close();}
 }
 export async function clearOfflineRecovery():Promise<void>{
   if(typeof indexedDB==='undefined')return;
