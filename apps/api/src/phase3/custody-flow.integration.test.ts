@@ -104,6 +104,10 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
     assignmentEvents = new Phase3AssignmentEventsService(access);
     handoffs = new Phase3HandoffService(access);
     incidents = new Phase3IncidentsService(access);
+    await pool.query(
+      'INSERT INTO phase3_lab_staff_access(lab_id,staff_id,granted_by,active) ' +
+      'VALUES($1,$2,$3,true)',
+      [lab,labStaff,dispatcher]);
     manifests = new Phase3ManifestService(access);
   });
 

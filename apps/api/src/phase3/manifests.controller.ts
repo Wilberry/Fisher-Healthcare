@@ -54,26 +54,26 @@ export class Phase3ManifestService implements OnModuleDestroy {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      // Lock the manifest before authenticating its specific receiving laboratory.
+      // A global labs:manage role alone cannot receive an unrelated lab's samples.
+      const manifest = await client.query<{ status: string; lab_id: string }>(
+        'SELECT status,lab_id FROM phase3_lab_manifests WHERE id=$1 FOR UPDATE', [manifestId]);
+      if (!manifest.rows[0]) throw new ConflictException('Manifest unavailable');
       const receiver = await client.query<{ id: string }>(
         "SELECT usr.id FROM users usr JOIN staff st ON st.user_id=usr.id " +
-        "WHERE usr.identity_subject=$1 AND st.active AND st.role='lab_coordinator'",
-        [identity.subject]);
+        "JOIN phase3_lab_staff_access scoped ON scoped.staff_id=st.id " +
+        "JOIN laboratories lab ON lab.id=scoped.lab_id " +
+        "WHERE usr.identity_subject=$1 AND scoped.lab_id=$2 " +
+        "AND st.active AND st.role='lab_coordinator' " +
+        "AND scoped.active AND scoped.revoked_at IS NULL AND lab.active " +
+        "FOR UPDATE OF scoped",
+        [identity.subject,manifest.rows[0].lab_id]);
       if (receiver.rowCount !== 1) throw new ForbiddenException('Receiving lab staff not authorized');
       const actorId = receiver.rows[0]!.id;
-      // One manifest row lock fences concurrent handoffs and receipt-key retries.
-      const manifest = await client.query<{ status: string }>(
-        'SELECT status FROM phase3_lab_manifests WHERE id=$1 FOR UPDATE', [manifestId]);
-      if (!manifest.rows[0]) throw new ConflictException('Manifest unavailable');
       const members = await client.query<{ id: string; status: string; custody_version: number }>(
         'SELECT sp.id,sp.status,sp.custody_version ' +
         'FROM phase3_manifest_specimens ms JOIN specimens sp ON sp.id=ms.specimen_id ' +
         'WHERE ms.manifest_id=$1 ORDER BY sp.id FOR UPDATE OF sp', [manifestId]);
-      // A newly reported unresolved incident can stop laboratory receipt even
-      // after manifest preparation. Receipts never bypass exception review.
-      const unresolved = await client.query(
-        "SELECT 1 FROM phase3_incidents WHERE specimen_id=ANY($1::uuid[]) " +
-        "AND resolution_status='open' LIMIT 1", [members.rows.map(member => member.id)]);
-      if (unresolved.rowCount) throw new ConflictException('Open specimen incident blocks lab receipt');
       const disposition = normalizeManifestDisposition(
         members.rows.map(member => member.id), acceptedIds, rejectedIds, rejectionCode);
       const existing = await client.query<{
@@ -94,6 +94,12 @@ export class Phase3ManifestService implements OnModuleDestroy {
         }
         throw new ConflictException('Manifest receipt already finalized');
       }
+      // A newly reported unresolved incident can stop laboratory receipt even
+      // after manifest preparation. Receipts never bypass exception review.
+      const unresolved = await client.query(
+        "SELECT 1 FROM phase3_incidents WHERE specimen_id=ANY($1::uuid[]) " +
+        "AND resolution_status='open' LIMIT 1", [members.rows.map(member => member.id)]);
+      if (unresolved.rowCount) throw new ConflictException('Open specimen incident blocks lab receipt');
       if (existing.rowCount !== 0 || members.rows.some(member => member.status !== 'in_transit')) {
         throw new ConflictException('Manifest custody state has changed');
       }

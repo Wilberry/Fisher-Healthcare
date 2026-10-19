@@ -56,6 +56,10 @@ suite.sequential('Phase 3 lab manifest receipt (disposable PostgreSQL only)', ()
       "INSERT INTO specimens(id,order_id,barcode,status,custody_version) " +
       "VALUES($1,$3,$4,'in_transit',3),($2,$3,$5,'in_transit',5)",
       [first,second,order,'syn-' + randomUUID(),'syn-' + randomUUID()]);
+    await pool.query(
+      'INSERT INTO phase3_lab_staff_access(lab_id,staff_id,granted_by,active) ' +
+      'VALUES($1,$2,$3,true)',
+      [lab,coordinatorStaff,dispatcher]);
     access = new AccessService();
     manifests = new Phase3ManifestService(access);
     const created = await manifests.prepare(authenticatedDispatcher, lab, [first, second]);
@@ -69,6 +73,15 @@ suite.sequential('Phase 3 lab manifest receipt (disposable PostgreSQL only)', ()
     await access?.onModuleDestroy();
     await pool?.end();
     // Fixture rows deliberately remain inside the disposable synthetic DB.
+  });
+
+  it('denies coordinators whose current lab scope is missing or revoked', async () => {
+    await pool.query('UPDATE phase3_lab_staff_access SET active=false,revoked_at=now() ' +
+      'WHERE lab_id=$1 AND staff_id=$2',[lab,coordinatorStaff]);
+    await expect(manifests.receive(authenticatedLab,manifestId,receiptKey,
+      [first,second],[])).rejects.toThrow('Receiving lab staff not authorized');
+    await pool.query('UPDATE phase3_lab_staff_access SET active=true,revoked_at=NULL ' +
+      'WHERE lab_id=$1 AND staff_id=$2',[lab,coordinatorStaff]);
   });
 
   it('denies an unauthenticated or wrong-role lab receiver', async () => {
