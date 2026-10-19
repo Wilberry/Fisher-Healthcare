@@ -115,9 +115,13 @@ suite.sequential('Phase 3 two-person lab grant review (disposable PostgreSQL)', 
     expect(record.rows[0]?.review_note).toBe('Synthetic request not approved');
   });
 
-  it('revokes immediately and records the operation in the audit log', async () => {
+  it('revokes immediately and fences any older pending approval', async () => {
+    const stale=await grants.request(identity(names.requester),lab,staffReceiver,
+      'Separate synthetic approval pending before revocation');
     const revoked=await grants.revoke(identity(names.requester),lab,staffReceiver);
     expect(revoked.data.status).toBe('revoked');
+    await expect(grants.approve(identity(names.reviewer),stale.data.id))
+      .rejects.toThrow('Grant request predates revocation');
     const scope=await pool.query<{active:boolean;revoked_at:Date|null}>(
       'SELECT active,revoked_at FROM phase3_lab_staff_access WHERE lab_id=$1 AND staff_id=$2',
       [lab,staffReceiver]);
@@ -131,5 +135,11 @@ suite.sequential('Phase 3 two-person lab grant review (disposable PostgreSQL)', 
       "SELECT action FROM audit_events WHERE resource_type='lab_access_request' " +
       "AND resource_id=$1 ORDER BY occurred_at", [requestId]);
     expect(audits.rows.map(row=>row.action)).toContain('phase3.lab_access.approved');
+    await grants.reject(identity(names.reviewer),stale.data.id,
+      'Stale request invalidated by explicit revocation');
+    const fresh=await grants.request(identity(names.requester),lab,staffReceiver,
+      'New coordinator grant after independently reviewed revocation');
+    expect((await grants.approve(identity(names.reviewer),fresh.data.id)).data.status)
+      .toBe('approved');
   });
 });
