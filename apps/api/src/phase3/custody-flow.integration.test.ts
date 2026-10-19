@@ -96,6 +96,11 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
       [order,patient,owner,lab,ids.slot,
         new Date(now + 2 * 60 * 60_000),new Date(now + 3 * 60 * 60_000),
         ids.competingOrder]);
+    // Phase 2 settlement is authoritative; 'confirmed' alone is not payment proof.
+    await pool.query(
+      "INSERT INTO payments(order_id,provider_reference,amount_kobo,status) " +
+      "VALUES($1,$3,0,'paid'),($2,$4,0,'paid')",
+      [order,ids.competingOrder,'syn-paid-'+randomUUID(),'syn-paid-'+randomUUID()]);
     await pool.query('INSERT INTO specimens(id,order_id,barcode) VALUES($1,$3,$4),($2,$3,$5)',
       [specimenA,specimenB,order,'syn-' + randomUUID(),'syn-' + randomUUID()]);
     access = new AccessService();
@@ -125,6 +130,13 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
   it('assigns only a confirmed order to the eligible on-shift collector', async () => {
     await expect(dispatch.assign(identity(subs.collector),ids.order,ids.collectorStaff,ids.shift))
       .rejects.toThrow();
+    await pool.query("UPDATE payments SET status='pending' WHERE order_id=$1",[ids.order]);
+    await expect(dispatch.assign(identity(subs.dispatcher),ids.order,ids.collectorStaff,ids.shift))
+      .rejects.toThrow('Verified payment required before dispatch');
+    const unpublished = await pool.query(
+      'SELECT id FROM phase3_assignments WHERE order_id=$1',[ids.order]);
+    expect(unpublished.rowCount).toBe(0);
+    await pool.query("UPDATE payments SET status='paid' WHERE order_id=$1",[ids.order]);
     const assigned = await dispatch.assign(
       identity(subs.dispatcher),ids.order,ids.collectorStaff,ids.shift);
     assignmentId = assigned.data.id;
@@ -232,6 +244,10 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
       "SELECT x.id,$2,$3,$4,'confirmed','regular',0,$5,s.starts_at,s.ends_at " +
       'FROM unnest($1::uuid[]) AS x(id) CROSS JOIN collection_slots s WHERE s.id=$5',
       [[firstOrder,secondOrder],ids.patient,ids.owner,ids.lab,ids.slot]);
+    await pool.query(
+      "INSERT INTO payments(order_id,provider_reference,amount_kobo,status) " +
+      "VALUES($1,$3,0,'paid'),($2,$4,0,'paid')",
+      [firstOrder,secondOrder,'syn-concurrent-'+randomUUID(),'syn-concurrent-'+randomUUID()]);
     const outcomes = await Promise.allSettled([
       dispatch.assign(identity(subs.dispatcher),firstOrder,workerStaff,workerShift),
       dispatch.assign(identity(subs.dispatcher),secondOrder,workerStaff,workerShift)

@@ -21,6 +21,8 @@ export class Phase3DispatchService implements OnModuleDestroy {
       'FROM orders ord JOIN collection_slots slot ON slot.id=ord.slot_id ' +
       'JOIN service_zones zone ON zone.id=slot.zone_id ' +
       'WHERE ord.status=$1 AND slot.active AND zone.active ' +
+      "AND EXISTS (SELECT 1 FROM payments pay WHERE pay.order_id=ord.id " +
+      "AND pay.status='paid' AND pay.amount_kobo=ord.total_kobo) " +
       'AND ord.collection_window_start IS NOT NULL ' +
       'AND ord.collection_window_end IS NOT NULL ' +
       "AND NOT EXISTS(SELECT 1 FROM phase3_assignments a WHERE a.order_id=ord.id " +
@@ -51,6 +53,11 @@ export class Phase3DispatchService implements OnModuleDestroy {
       const order = await client.query<{ status: string }>(
         'SELECT status FROM orders WHERE id=$1 FOR UPDATE', [orderId]);
       if (order.rows[0]?.status !== 'confirmed') throw new ConflictException('Order not eligible for dispatch');
+      const settled = await client.query(
+        "SELECT 1 FROM payments WHERE order_id=$1 AND status='paid' " +
+        'AND amount_kobo=(SELECT total_kobo FROM orders WHERE id=$1) LIMIT 1', [orderId]);
+      if (settled.rowCount !== 1)
+        throw new ConflictException('Verified payment required before dispatch');
       // Serialize all claims for one worker first. This is a separate statement:
       // a waiting dispatcher obtains a NEW READ COMMITTED snapshot for capacity
       // after the preceding dispatcher commits, even across different shifts.
@@ -66,6 +73,8 @@ export class Phase3DispatchService implements OnModuleDestroy {
         "JOIN service_zones zone ON zone.id=slot.zone_id " +
         "WHERE sh.id=$1 AND sh.staff_id=$3 AND sh.active AND st.active " +
         "AND st.role='phlebotomist' AND zone.active AND slot.active " +
+        "AND EXISTS (SELECT 1 FROM payments pay WHERE pay.order_id=ord.id " +
+        "AND pay.status='paid' AND pay.amount_kobo=ord.total_kobo) " +
         "AND sh.zone_code=zone.code " +
         "AND ord.collection_window_start >= sh.starts_at " +
         "AND ord.collection_window_end <= sh.ends_at " +
