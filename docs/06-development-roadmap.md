@@ -4,6 +4,8 @@
 
 ## Phase 1 — Product foundation, UX and architecture
 
+**Engineering milestone status: PASS WITH DOCUMENTED SECURITY EXCEPTION (16 October 2026).** The exact pinned baseline `a504bee8d858712a8ada350a9792a87d23ecbb9a` passed builds, tests, migrations, OpenAPI, runtime smoke, and production high/critical dependency audit. The full development dependency audit remained **FAIL** because of an unpatched Next.js ESLint `braces` advisory; its follow-up remains open in [Issue #2](https://github.com/Wilberry/Fisher-Healthcare/issues/2). This permits continued engineering work, **not** production release or use of real clinical/patient data. [Acceptance and exception record](operations/phase-1-engineering-acceptance.md).
+
 **Strategic objective:** Establish the software engineering, product design, data architecture, and security foundations required for subsequent service development.
 
 **Planned capabilities and deliverables:**
@@ -16,7 +18,7 @@
 - CI lint, typecheck, unit/integration tests, dependency/security scanning.
 - Environment and secret handling, containerized local development and staging plan.
 
-**Phase completion criteria:** Fresh checkout boots; all CI checks pass; schema migrate/rollback tested; forbidden resource access denied; design flows reviewed; core business invariants documented.
+**Engineering closure evidence:** Reproducible committed-lockfile local verification passed the functional foundation checks, including database and authorization tests. GitHub Actions remained unavailable; the full dependency audit was a documented failing gate, specifically excepted for **Phase 1 engineering milestone acceptance only**. Separate security, clinical, privacy and release controls remain required for production.
 
 ## Phase 2 — Patient booking and payment
 

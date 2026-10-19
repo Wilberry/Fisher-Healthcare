@@ -9,7 +9,7 @@ async function bootstrap(): Promise<void> {
   app.setGlobalPrefix('api/v1');
   app.useGlobalFilters(new HttpErrorFilter());
   app.enableShutdownHooks();
-  await app.listen(Number(process.env.PORT ?? 4000), '0.0.0.0');
+  await app.listen(Number(process.env.PORT ?? 4000), process.env.FISHER_API_BIND_HOST ?? '0.0.0.0');
   writeOperationalRecord({ service: 'api', level: 'info', event: 'api.started' });
 }
 

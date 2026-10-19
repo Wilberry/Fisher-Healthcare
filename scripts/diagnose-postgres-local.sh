@@ -31,6 +31,8 @@ capture() {
 cleanup() {
   local status=$?
   trap - EXIT
+  # Recover an exact-name container when docker run failed after create.
+  if [[ "$CREATED" != yes ]] && docker inspect "$CONTAINER" >/dev/null 2>&1; then CREATED=yes; fi
   capture
   if [[ "$CREATED" == yes ]]; then
     docker rm -f "$CONTAINER" >/dev/null 2>&1 || true

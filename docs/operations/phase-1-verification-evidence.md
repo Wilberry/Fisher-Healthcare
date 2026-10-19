@@ -103,3 +103,100 @@ The critical findings trace to old Vitest and Tinypool paths; high findings incl
 **Security handling:** The remaining upstream unpatched `braces` advisory cannot be cleared by a harmless version bump. See [Phase 1 Dependency Remediation](../security/phase-1-dependency-remediation.md) for current dependency exposure, remediation status and acceptance requirements.
 
 **Acceptance status: OPEN.** The dependency upgrades, remaining vulnerability count, and runtime smoke tests have not yet been verified at the new commit. A final clean exact-commit run and a committed lockfile are still required.
+
+## Round 6 — 16 October 2026
+
+**Pinned commit:** `67970de0690d9b3e60a4d9548cf8efec1eb45776`  
+**Observed outcome:** FAIL at disposable PostgreSQL startup; actual underlying cause remains undetermined because the prior verifier removed its container without preserving Docker logs.
+
+| Gate | Actual result for Round 6 |
+| --- | --- |
+| Lockfile resolution and frozen installation | Passed |
+| Lint | Passed — 11/11 tasks |
+| TypeScript verification | Passed — 15/15 tasks including prerequisite builds |
+| Production build | Passed — 11/11 tasks |
+| Disposable PostgreSQL startup | **Failed** — readiness not reached |
+| Migration, integration tests, OpenAPI, production/full audit and HTTP smoke checks | **Not reached in this run** |
+
+The local lockfile resolution reported Vitest 4.1.12 expecting Vite 6/7/8 while `vite@5.4.21` was installed as a peer. This is a dependency compatibility warning, not the observed PostgreSQL failure. The security-remediation commit therefore remains unverified for the database, test and audit gates.
+
+**Subsequent engineering changes:**
+- Added `vite@^6.4.3` as an explicit development peer dependency in the API workspace; this still requires local verification.
+- Added a fast, single-container, no-build diagnostic (`scripts/diagnose-postgres-local.sh`) which records PostgreSQL logs, container exit/OOM state, Docker capacity and host resource snapshots. It removes only its uniquely named synthetic test container after saving evidence.
+- Updated the full verifier to capture Docker startup and shutdown evidence before cleaning up its own container, detect early exit, and make the failed state visible.
+- Reordered the consolidated verification to generate OpenAPI, collect production/full security audits and run API/web smoke checks **before** PostgreSQL migrations/tests. A database startup issue will therefore not obscure independent runtime/security checks during the next full run.
+- Bound local API smoke testing explicitly to `127.0.0.1`, without changing deployment defaults or stopping unrelated containers.
+
+**Next action:** Run only the quick PostgreSQL diagnostic first on the local workstation. Do not repeat a four-minute build until the container startup condition has been observed. If it passes, proceed to consolidated exact-commit verification; if it fails, preserve the generated diagnostic directory and address the actual resource or Docker problem. No presumed root cause or security acceptance is recorded.
+
+**Phase 1 acceptance:** OPEN. The generated untracked lockfile and Next.js generated modifications are preserved; they require review and a committed clean final run.
+
+## Round 7 — 16 October 2026
+
+**Exact-commit check:** `794161165bca7322bc93eefbb73ea53d53817bfa`; the user verified this commit at checkout before the full consolidated run.
+
+**Observed failure:** The last user-provided segment is `pnpm exec turbo run test --concurrency=1`, where `@fisher/auth#test` exited unsuccessfully with Vitest 4.1.12. The authored TypeScript suites `src/permissions.test.ts` (4 tests) and `src/policy.test.ts` (3 tests) both **passed**, but Vitest also discovered `dist/permissions.test.js` and `dist/policy.test.js`. Those JavaScript files are emitted CommonJS tests from the previous `tsc` build; importing Vitest 4 via `require()` caused the two suites to fail before any tests could execute. Turbo reported 8 successful tasks out of 14 at interruption. The provided output does not include the run summary, production/full vulnerability audit results, or HTTP smoke evidence, and those gates therefore cannot be marked passed based on this excerpt.
+
+**Root cause in committed sources:** Both `packages/auth/tsconfig.json` and `packages/contracts/tsconfig.json` built the entire `src/**/*.ts` tree including `*.test.ts`; unlike API/worker/database/observability builds, these two packages had no build-time test exclusion. Vitest's default discovery was not constrained to `src/`.
+
+**Remediation committed for the next round:**
+- Added `packages/auth/vitest.config.ts` and `packages/contracts/vitest.config.ts` with an explicit `src/**/*.test.ts` / `src/**/*.spec.ts` inclusion, excluding generated `dist/` artifacts, even when old compiled tests remain on the developer's disk.
+- Added `tsconfig.build.json` for each package to exclude test files from production JavaScript builds while retaining the original `tsconfig.json` for full TypeScript checking of tests.
+- Updated both package build commands to invoke the build-only configuration. No local generated files were removed, and dependency security checks were not bypassed.
+
+**Acceptance status:** OPEN. The next verification should first run the two affected package tests and then re-execute the full exact-commit script, collecting security and smoke evidence plus any remaining database or test failures. The uncommitted resolved lockfile and generated configuration still require review and final committed acceptance.
+
+## Round 8 — 16 October 2026
+
+**Pinned commit:** `dc26f0cd5773cc95f32cb4ee4d9bcd0bc385783e`  
+**Local run:** `phase1-20261016-203835`, from the user-provided local summary and audit logs.
+
+**Passed:** Focused `@fisher/auth` (7) and `@fisher/contracts` (5) tests; the consolidated run's lint, typecheck, build, OpenAPI generation, API/web smoke, PostgreSQL migrations and complete workspace test steps.
+
+**Failed security acceptance:** Production audit **27** advisories (2 low, 13 moderate, **12 high**, 0 critical); full audit **29** advisories (2 low, 14 moderate, **13 high**, 0 critical). The full dependency security gate remains strict and failed correctly.
+
+The production high-severity findings resolve to four installed dependency versions: `multer@2.0.2` (six advisories), `lodash@4.17.21` (one), `js-yaml@4.1.0` (three), and `postcss@8.4.31` (two). All four packages already had patched minimums documented, but these did not take effect under the pinned pnpm 9 workspace configuration. The additional full-only high finding is the unpatched `braces@3.0.3` used by Next.js ESLint tooling.
+
+**Repair committed after Round 8:** Move overrides to root `package.json` under `pnpm.overrides` for pinned pnpm 9.15.9; keep `pnpm-workspace.yaml` focused on workspace membership. Fail early with `scripts/check-dependency-resolution.mjs` unless the resolved lockfile has effective overrides and all four vulnerable production dependency groups and Vite satisfy their fixed minimums.
+
+**Remaining requirements:** Prove resolution with a local refreshed lockfile and both audits; separately handle the unpatched `braces` development-only advisory without weakening or bypassing the full audit; review and commit generated lockfile, OpenAPI and known Next.js framework changes; run final verification on the resulting clean pinned commit. None of these later actions is marked complete by Round 8's summary.
+
+## Round 9 — 16 October 2026, production dependency security clearance
+
+**Pinned branch checkout reported locally:** `a5d539f6ed5d1bed1c58b7ebf9a627f3ae75a5f8`  
+**Evidence directories shown in local VS Code:** `.verification/security-20261016-210928` and `.verification/security-20261016-212433`.
+
+The user-provided VS Code screenshot of local dependency verification reports:
+
+| Gate | Observed outcome |
+| --- | --- |
+| Focused pnpm 9 dependency override resolution | Reported successful by the local security verification workflow |
+| Production-only `pnpm audit --prod --audit-level high` | **PASS** — no reported high or critical production findings |
+| Full `pnpm audit --audit-level high` | **FAIL** — 9 reported findings: 1 high, 7 moderate, 1 low |
+| Remaining high finding | `braces@3.0.3`, from Next.js ESLint's development-only dependency path |
+| Lockfile | Untracked locally, still awaiting review and commit |
+| Generated OpenAPI and known Next.js configuration | Preserved locally; not yet committed |
+| Final Phase 1 acceptance | **OPEN** |
+
+The screenshot and VS Code assistant's summary establish the counts and outcome above, but not the complete underlying audit paths for all moderate and low findings. The full audit logs should be retained and reviewed separately; no deployment-ready security conclusion is inferred from the high-only production pass.
+
+The public GitHub advisory [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) reports no patched `braces` version as of 16 October 2026. The existing Next.js ESLint checks remain part of the project; none have been removed to silence the advisory. No dependency-ignore configuration, forced suppressions, broad waiver or severity reduction has been authorized.
+
+**Pending engineering acceptance tasks:** review and commit the resolved lockfile and generated artifacts, verify clean pinned-source reproducibility, evaluate the unpatched development-only advisory under an explicit security risk process, and rerun all functional tests. If the full audit remains nonzero, the current strict full-security gate remains failed until either a verified remediation is implemented or the project's documented release governance is separately updated and approved. This checkpoint is not Phase 1 approval.
+
+## Round 10 — 16 October 2026: verified baseline and owner engineering milestone decision
+
+**Precisely tested source commit:** `a504bee8d858712a8ada350a9792a87d23ecbb9a`  
+**Local evidence directory:** `.verification/phase1-20261016-215109/`
+
+The user reported that the lockfile, OpenAPI contract, and five generated Next.js configuration files were reviewed, committed, and pushed before running the consolidated verification. The Git working tree was clean at the exact tested revision.
+
+**Actual verifier results:** Frozen install, lint, typecheck, builds, OpenAPI generation, backend and all three web smoke tests, migrations, and the full workspace tests **PASS**. Production `pnpm audit --prod --audit-level high` **PASS**. Full `pnpm audit --audit-level high` **FAIL** (1 high, 7 moderate, 1 low), with the high advisory `GHSA-vfj7-8cjw-p6xm` in development-only Next.js lint tooling. Therefore the overall verifier result was accurately **FAIL**.
+
+**Subsequent project owner instruction:** "then lets mark it as pass." Interpreted and documented as approval of the **Phase 1 engineering milestone with a narrow, disclosed development-tool risk exception**. The audit process result remains unmodified and failing; no installed dependency was changed or advisory ignored to create a false pass.
+
+**Engineering milestone decision:** **PASS WITH DOCUMENTED SECURITY EXCEPTION**.  
+**Full dependency audit:** **FAIL, remediation open under [Issue #2](https://github.com/Wilberry/Fisher-Healthcare/issues/2)**.  
+**Production deployment and live clinical processing:** **NOT APPROVED**.
+
+See [Engineering Acceptance and Risk Decision](phase-1-engineering-acceptance.md). The engineering decision was recorded after the verification and does not claim that documentation-only follow-up commits themselves underwent the original full test suite.

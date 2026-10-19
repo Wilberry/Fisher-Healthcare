@@ -69,14 +69,8 @@ Development milestones are governed by the [Development Roadmap](docs/06-develop
 
 The documentation in this repository defines the company's intended product capabilities, architecture, and delivery programme. Product and technical decisions will be reflected in the relevant specifications as the platform develops. Engineering milestones will be accepted only after the corresponding security, functional, and operational criteria have been verified.
 
-## Current development position
+## Project status
 
-**Phase 1 — Engineering foundation in progress.** The repository contains initial application scaffolding, domain schemas, authorization policy foundations, and supporting engineering configuration. The platform is not yet operational or approved for live healthcare service delivery.
+**Current development phase: Phase 2 — Patient Booking and Customer Experience** · [Development Roadmap](docs/06-development-roadmap.md)
 
-[Phase 1 Implementation Status](docs/phase-1-implementation-status.md) · [Phase 1 Verification Plan](docs/phase-1-verification-plan.md) · [Local Verification Procedure](docs/operations/phase-1-local-verification.md)
-
-Phase 1 acceptance verification is conducted locally while GitHub Actions is unavailable due to billing restrictions. The consolidated verification entry point is `scripts/verify-phase1-local.sh`; results require exact-commit review before merging into `main`.
-
-
-## Concurrent Phase 2 work
-Phase 2 is being implemented independently on `feat/phase2-patient-booking-payment`, founded on a fixed Phase 1 commit while Phase 1 local verification remains open. This is **not** a launch authorization. The customer discovery/booking code, payment safeguards, known gaps and verification boundary are recorded in [Phase 2 Engineering Status](docs/phase-2-implementation-status.md). Phase 2 must satisfy its own local exact-commit acceptance and cannot merge before accepted Phase 1 foundations.
+Phase 2 engineering status: [Phase 2 Implementation Status](docs/phase-2-implementation-status.md).

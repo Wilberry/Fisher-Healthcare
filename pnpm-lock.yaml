@@ -10,6 +10,7 @@ overrides:
   js-yaml: 4.3.2
   postcss: 8.5.18
   vite: ^6.4.3
+  braces: npm:@franciscosolis/braces@^3.1.1
 
 importers:
 

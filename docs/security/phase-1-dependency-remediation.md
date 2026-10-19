@@ -1,5 +1,13 @@
 # Phase 1 — Dependency Security Remediation
 
+## Remediation verification — 18 October 2026
+
+**GHSA-vfj7-8cjw-p6xm: REMEDIATED at locally verified commit `3f65f647bbf6f92af994ff67e8f9aec1138dc1a8` (pending push and integration).** The root `pnpm.overrides` now maps `braces` to `npm:@franciscosolis/braces@^3.1.1`. The regenerated, committed `pnpm-lock.yaml` resolves `@franciscosolis/braces@3.1.1` and no longer contains `braces@3.0.3`. Next.js ESLint rules remain enabled; no audit suppression or lowered threshold was introduced.
+
+**Exact-commit local evidence:** frozen-lockfile install; 11 lint tasks, 15 typecheck tasks, 11 build tasks, 15 workspace test tasks; OpenAPI generation; API and three web smoke checks; four PostgreSQL migrations and database checks all passed. Some workspace tasks reused Turbo cache; the integrated database checks ran. `pnpm audit --prod --audit-level high` passed with 6 moderate and 1 low findings; `pnpm audit --audit-level high` passed with 7 moderate and 1 low findings. Neither audit reported high or critical vulnerabilities.
+
+This closes the **specific high-severity braces remediation at the tested revision**, not the remaining moderate/low findings or production-release controls. The earlier exception and failing audits below remain historical evidence from 16 October, not current audit status. Issue #2 should be closed only after the verified commit and this update are pushed and reviewed. No live patient data or production deployment is authorized.
+
 **Security gate:** OPEN until exact-commit local verification confirms no unresolved high/critical advisory and approved deployment artifacts.  
 **Verification mode:** Local execution only; GitHub Actions is unavailable because of billing restrictions.
 
@@ -32,7 +40,33 @@ The following dependency ranges are **proposed source-level remediations**. They
 | PostCSS source-map file disclosure | `postcss@8.4.31` | `postcss >=8.5.18` | Workspace override; rerun three Next.js builds. |
 | Vite development-server issues | `vite@5.4.21` | `vite >=6.4.3` | Upgraded Vitest toolchain and overridden transitive Vite. Verify test initialization and all test runs. |
 
-The pnpm 9.15.9 workspace holds its overrides in `pnpm-workspace.yaml`. All manifest changes must be reflected in the reviewed `pnpm-lock.yaml` before acceptance.
+**Correction following Round 8:** The repository is pinned to pnpm **9.15.9**. The previous overrides were placed in `pnpm-workspace.yaml`, but the resolved lockfile continued to include vulnerable versions. The source has been corrected to place overrides in the root `package.json` under `pnpm.overrides`, the supported location for the pinned version. The workspace YAML now contains workspace declarations only. This is a configuration remediation proposal pending a freshly resolved local lockfile and an audit proving the selected versions changed.
+
+
+## Round 8 — audit evidence after functional gates passed
+
+**Local run:** `dc26f0cd5773cc95f32cb4ee4d9bcd0bc385783e`, 16 October 2026. The user-provided execution summary reports successful focused auth/contracts tests, workspace lint, typecheck, build, OpenAPI, local API and web smoke checks, migrations and workspace tests.
+
+| Dependency audit scope | Total | Low | Moderate | High | Critical |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Production | 27 | 2 | 13 | 12 | 0 |
+| Full development + production | 29 | 2 | 14 | 13 | 0 |
+
+The 12 **production high** advisories are grouped under Multer (six advisories for `2.0.2`), js-yaml (three for `4.1.0`), PostCSS (two for `8.4.31`), and Lodash (one for `4.17.21`). These exact resolved versions predate the already proposed patched minimums. The **thirteenth full-audit high** comes from `braces@3.0.3` under the Next.js lint-tool dependency chain.
+
+**Engineering response:**
+- Moved the five shared transitive overrides into root `package.json#pnpm.overrides`, appropriate to the repository's pinned pnpm 9.15.9.
+- Removed conflicting/ineffective configuration from `pnpm-workspace.yaml` to maintain one source of truth.
+- Added `scripts/check-dependency-resolution.mjs` and invoked it immediately after lockfile resolution in the consolidated verifier. It checks override presence and package-version minima **before** expensive compilation, and fails closed on stale/vulnerable entries.
+- No audit severity threshold was lowered, no advisory was whitelisted or ignored, and no generated lockfile was invented or committed remotely.
+
+**Required evidence:** A new locally refreshed `pnpm-lock.yaml` must show effective overrides and patched package resolutions, followed by production and full audit reports. The unpatched `braces` advisory still blocks strict all-graph acceptance unless a real patch, verified equivalent dependency replacement or separately authorized security decision resolves it.
+
+## Post-upgrade compatibility observation
+
+The 16 October 2026 local attempt at `67970de` resolved `vitest@4.1.12` but reported that the API workspace still resolved `vite@5.4.21` as a peer, outside Vitest 4's supported Vite 6/7/8 range. The full build and TypeScript checks passed, but the PostgreSQL container did not become ready, so tests and renewed security audits were not executed in this attempt.
+
+An explicit `vite@^6.4.3` devDependency has now been added to `apps/api/package.json` to satisfy Vitest's supported peer range. The dependency lockfile must be refreshed and the resulting graph checked locally; this is **not** yet proof that the vulnerable Vite 5 path has been eliminated.
 
 ## Unpatched upstream advisory — braces
 
@@ -62,3 +96,42 @@ If the updated dependency graph still reports advisories, use `pnpm why <package
 3. Commit the reviewed lockfile and generated API contract only after the source and dependency graph stabilize.
 4. Execute the complete verifier on that exact clean commit with the lockfile frozen.
 5. Obtain explicit security and engineering acceptance before merging or deploying.
+
+
+## Round 9 — Production audit passing, full audit remains blocked
+
+**Local results shown 16 October 2026:** the focused dependency-security runs on the pinned remediation branch reported a **PASS** for `pnpm audit --prod --audit-level high`. The full `pnpm audit --audit-level high` remains **FAIL**: 9 total advisories (1 high, 7 moderate, 1 low). The remaining high finding is `braces@3.0.3` under the Next.js ESLint development-only dependency chain.
+
+This represents a substantial reduction from 40 findings (3 critical, 15 high) at the initial local audit. It confirms no known **high/critical advisories reported by the production-only pnpm audit at that checkpoint**. It is not proof that the production graph has no moderate/low findings, or that the platform is ready for patient data.
+
+The upstream advisory [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm) has no patched release listed. Retain `next/core-web-vitals` and `next/typescript` coverage. Do **not** disable Next.js lint rules, delete vulnerable dependencies without equivalent tested lint functionality, substitute an unreviewed fork, or set `auditConfig.ignoreGhsas` simply to make the report green.
+
+**Risk and gate treatment:** the existing full-audit command intentionally fails. A development-only exposure assessment can separately document how the vulnerable tool is used, whether attacker-controlled patterns can reach it, and whether isolating CI/developer execution reduces risk. This is a human-reviewed risk disposition, not a claim of remediation. Any formal exception to the Phase 1 strict full-graph security acceptance policy requires separate authorized approval and an explicit change to the acceptance criteria; none exists.
+
+Next steps: review and commit the generated pnpm lockfile and OpenAPI contract; normalize verified Next.js-generated configuration without resets; run a final exact-commit full regression. Record the residual full audit as FAIL until a genuinely patched dependency chain or an authorized revised acceptance policy is verified.
+
+## Owner engineering milestone decision — 16 October 2026
+
+**Decision: PHASE 1 ENGINEERING PASSED WITH DOCUMENTED SECURITY EXCEPTION.**
+The project owner directed that the engineering phase be marked passed after the
+clean, exact-commit local verification at `a504bee8d858712a8ada350a9792a87d23ecbb9a`.
+The production audit was **PASS** at the high/critical threshold. The full
+development + production audit was **FAIL**: 1 high, 7 moderate, 1 low.
+
+**Exception scope:** The high `GHSA-vfj7-8cjw-p6xm` finding for `braces@3.0.3`
+in the development-only Next.js lint dependency tree. This is an owner-approved
+**milestone decision**, not a finding that the package is safe or the advisory
+has been fixed. No suppression, weakened full-audit threshold, replacement of
+the verifier's nonzero exit status, or disabling of Next.js lint rules is
+authorized.
+
+**Security risk remains open** in [Issue #2](https://github.com/Wilberry/Fisher-Healthcare/issues/2).
+The moderate/low findings are also unresolved and must be assessed for live
+deployment. Before release, update the risk analysis, assess affected usage,
+review patches or equivalent maintained lint dependencies, and obtain separate
+production security and healthcare-operational approval. The accepted Phase 1
+engineering milestone is **not** a permit for real patient information,
+payment settlement, or clinical result delivery.
+
+The precise owner decision and verification baseline are recorded in
+[Phase 1 Engineering Acceptance](../operations/phase-1-engineering-acceptance.md).

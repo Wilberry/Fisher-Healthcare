@@ -127,6 +127,9 @@ else
   LOCKFILE_REFRESHED=yes
   run_step 01-lockfile pnpm install --lockfile-only --ignore-scripts
 fi
+# Pinned pnpm 9 reads root package.json#pnpm.overrides; fail before a long
+# install/build if the generated lockfile still contains vulnerable versions.
+run_step 01b-dependency-resolution node scripts/check-dependency-resolution.mjs
 run_step 02-install pnpm install --frozen-lockfile
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 export NEXT_TELEMETRY_DISABLED=1
@@ -134,7 +137,66 @@ run_step 03-lint pnpm exec turbo run lint --concurrency=1
 run_step 04-typecheck pnpm exec turbo run typecheck --concurrency=1
 run_step 05-build pnpm exec turbo run build --concurrency=1
 
-log "Start ONE disposable PostgreSQL container (no other services touched)"
+# Verify database-independent contracts and smoke tests first. A low-resource
+# workstation can now collect these results even if Docker later fails to start.
+run_step 06-openapi pnpm --filter @fisher/api openapi:generate
+
+# Collect both production and full graph audit results, then ALWAYS exercise
+# smoke tests; security findings still fail the overall acceptance afterward.
+PROD_AUDIT_STATUS=PASS
+FULL_AUDIT_STATUS=PASS
+if run_step 07-production-audit pnpm audit --prod --audit-level high; then
+  :
+else
+  PROD_AUDIT_STATUS=FAIL
+  printf 'Production dependency audit found high/critical advisories.\n' >&2
+fi
+if run_step 08-dependency-audit pnpm audit --audit-level high; then
+  :
+else
+  FULL_AUDIT_STATUS=FAIL
+  printf 'Full dependency audit found high/critical advisories. Smoke tests will still run.\n' >&2
+fi
+
+check_http() {
+  local url="$1" expected="$2"
+  local actual
+  actual="$(curl --max-time 8 --silent --output /dev/null --write-out '%{http_code}' "$url")"
+  [[ "$actual" == "$expected" ]] || die "HTTP smoke expected $expected, got $actual for $url"
+}
+wait_for_http() {
+  local url="$1" expected="$2"
+  for attempt in $(seq 1 30); do
+    if [[ "$(curl --max-time 2 --silent --output /dev/null --write-out '%{http_code}' "$url" || true)" == "$expected" ]]; then return 0; fi
+    sleep 1
+  done
+  die "Service did not return $expected at $url. Consult smoke logs"
+}
+
+log "09-api-smoke: Smoke-test built API on loopback only"
+API_PORT="$(( 41000 + RANDOM % 5000 ))"
+env -u DATABASE_URL -u OIDC_ISSUER -u OIDC_AUDIENCE -u OIDC_JWKS_URI FISHER_API_BIND_HOST=127.0.0.1 PORT="$API_PORT" node apps/api/dist/main.js > "$LOG_DIR/10-api-smoke.log" 2>&1 &
+API_PID=$!
+wait_for_http "http://127.0.0.1:$API_PORT/api/v1/health" 200
+check_http "http://127.0.0.1:$API_PORT/api/v1/identity/session" 401
+kill "$API_PID" 2>/dev/null || true
+wait "$API_PID" 2>/dev/null || true
+API_PID=""
+
+log "10-web-smoke: Smoke-test built Next.js interfaces sequentially"
+WEB_PORT="$(( 46000 + RANDOM % 2000 ))"
+for app in patient-web operations-web field-pwa; do
+  env -u DATABASE_URL pnpm --filter "@fisher/$app" exec next start -p "$WEB_PORT" -H 127.0.0.1 > "$LOG_DIR/11-$app-smoke.log" 2>&1 &
+  WEB_PID=$!
+  wait_for_http "http://127.0.0.1:$WEB_PORT/" 200
+  check_http "http://127.0.0.1:$WEB_PORT/" 200
+  kill "$WEB_PID" 2>/dev/null || true
+  wait "$WEB_PID" 2>/dev/null || true
+  WEB_PID=""
+  WEB_PORT="$((WEB_PORT + 1))"
+done
+
+log "11-postgres: Start ONE disposable PostgreSQL container (no other services touched)"
 POSTGRES_CONTAINER="fisher-phase1-verify-${UID:-0}-$STAMP-$$"
 if docker run --detach --name "$POSTGRES_CONTAINER" \
   --memory 768m --cpus 1.5 \
@@ -168,65 +230,8 @@ DB_PORT="${PORT_OUTPUT##*:}"
 [[ "$DB_PORT" =~ ^[0-9]+$ ]] || die "Cannot resolve disposable PostgreSQL loopback port"
 export DATABASE_URL="postgresql://fisher:fisher_local_verify_only@127.0.0.1:$DB_PORT/fisher_test"
 export FISHER_DISPOSABLE_DB_ACK=disposable-test-only
-run_step 06-migrations bash scripts/verify-database.sh
-run_step 07-tests pnpm exec turbo run test --concurrency=1
-run_step 08-openapi pnpm --filter @fisher/api openapi:generate
-
-# Collect both production and full graph audit results, then ALWAYS exercise
-# smoke tests; security findings still fail the overall acceptance afterward.
-PROD_AUDIT_STATUS=PASS
-FULL_AUDIT_STATUS=PASS
-if run_step 09-production-audit pnpm audit --prod --audit-level high; then
-  :
-else
-  PROD_AUDIT_STATUS=FAIL
-  printf 'Production dependency audit found high/critical advisories.\n' >&2
-fi
-if run_step 10-dependency-audit pnpm audit --audit-level high; then
-  :
-else
-  FULL_AUDIT_STATUS=FAIL
-  printf 'Full dependency audit found high/critical advisories. Smoke tests will still run.\n' >&2
-fi
-
-check_http() {
-  local url="$1" expected="$2"
-  local actual
-  actual="$(curl --max-time 8 --silent --output /dev/null --write-out '%{http_code}' "$url")"
-  [[ "$actual" == "$expected" ]] || die "HTTP smoke expected $expected, got $actual for $url"
-}
-wait_for_http() {
-  local url="$1" expected="$2"
-  for attempt in $(seq 1 30); do
-    if [[ "$(curl --max-time 2 --silent --output /dev/null --write-out '%{http_code}' "$url" || true)" == "$expected" ]]; then return 0; fi
-    sleep 1
-  done
-  die "Service did not return $expected at $url. Consult smoke logs"
-}
-
-log "Smoke-test built API on loopback only"
-API_PORT="$(( 41000 + RANDOM % 5000 ))"
-PORT="$API_PORT" node apps/api/dist/main.js > "$LOG_DIR/10-api-smoke.log" 2>&1 &
-API_PID=$!
-wait_for_http "http://127.0.0.1:$API_PORT/api/v1/health" 200
-check_http "http://127.0.0.1:$API_PORT/api/v1/identity/session" 401
-kill "$API_PID" 2>/dev/null || true
-wait "$API_PID" 2>/dev/null || true
-API_PID=""
-
-log "Smoke-test built Next.js interfaces sequentially"
-WEB_PORT="$(( 46000 + RANDOM % 2000 ))"
-for app in patient-web operations-web field-pwa; do
-  pnpm --filter "@fisher/$app" exec next start -p "$WEB_PORT" -H 127.0.0.1 > "$LOG_DIR/11-$app-smoke.log" 2>&1 &
-  WEB_PID=$!
-  wait_for_http "http://127.0.0.1:$WEB_PORT/" 200
-  check_http "http://127.0.0.1:$WEB_PORT/" 200
-  kill "$WEB_PID" 2>/dev/null || true
-  wait "$WEB_PID" 2>/dev/null || true
-  WEB_PID=""
-  WEB_PORT="$((WEB_PORT + 1))"
-done
-
+run_step 12-migrations bash scripts/verify-database.sh
+run_step 13-tests pnpm exec turbo run test --concurrency=1
 log "Source verification finished"
 if [[ "$LOCKFILE_COMMITTED" != "yes" || "$NEXT_GENERATED_DIRTY" == "yes" ]]; then
   printf 'IMPORTANT: Generated lockfile or Next.js tracked changes remain uncommitted.\n'
