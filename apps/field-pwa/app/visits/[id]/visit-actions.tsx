@@ -5,6 +5,7 @@ import type { FieldAssignment } from '../../../lib/staff-auth';
 import { Notice } from '@fisher/ui';
 import {useSyntheticRecovery} from '../../../lib/use-synthetic-recovery';
 import {validOfflineEvent,type OfflineAction} from '../../../lib/offline-policy';
+import {markOfflineConflict,removeOfflineEvent} from '../../../lib/offline-store';
 
 const canCollect=(status:string)=>status==='collecting';
 const isUid=(v:string)=>/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(v);
@@ -71,6 +72,23 @@ export function FieldVisitActions({assignment,couriers}:{
       return;
     }
     setBusy(true);setMessage('');
+    // Synthetic write-ahead: a lost response must not lose the event UUID.
+    // Only a minimal custody envelope is eligible; never cache label scans.
+    const candidate=specimenPath&&
+      (payload.action==='collect'||payload.action==='package')?{
+        specimenId:specimenPath[1]!,eventId:payload.eventId as string,
+        action:payload.action as OfflineAction,
+        expectedVersion:payload.expectedVersion as number,createdAt:Date.now()
+      }:null;
+    let durable=false;
+    if(candidate&&validOfflineEvent(candidate)&&recovery.capability){
+      try{
+        await recovery.save(candidate);
+        durable=true;
+      }catch{
+        // Online custody still requires the server; local recovery is optional.
+      }
+    }
     try{
       const response=await fetch(path,{method:'POST',credentials:'same-origin',
         headers:{'content-type':'application/json'},body:JSON.stringify(payload),
@@ -83,7 +101,15 @@ export function FieldVisitActions({assignment,couriers}:{
           router.refresh();
           return;
         }
-        if(response.status===409)pending.current.delete(operation);
+        if(response.status===409){
+          pending.current.delete(operation);
+          if(durable&&candidate&&recovery.capability){
+            try{
+              await markOfflineConflict(recovery.capability.scope,candidate.eventId);
+              await recovery.refresh();
+            }catch{/* Leave encrypted event for later manual reconciliation. */}
+          }
+        }
         setMessage(response.status===409 ?
           'Conflict: the visit or specimen changed. Review the latest server status before retrying.' :
           'Operation not accepted. Verify your assignment and staff session before retrying.');
@@ -91,6 +117,17 @@ export function FieldVisitActions({assignment,couriers}:{
         return;
       }
       pending.current.delete(operation);
+      if(durable&&candidate&&recovery.capability){
+        try{
+          await removeOfflineEvent(recovery.capability.scope,candidate.eventId);
+          await recovery.refresh();
+        }catch{
+          // A successful API receipt is authoritative. Replaying the same ID is safe.
+          setMessage('Server accepted the event; encrypted local cleanup needs review.');
+          router.refresh();
+          return;
+        }
+      }
       if(operation.startsWith('label:')){
         const specimenId=operation.slice('label:'.length);
         setBarcodes(values=>({...values,[specimenId]:''}));
@@ -98,9 +135,10 @@ export function FieldVisitActions({assignment,couriers}:{
       setMessage('Event accepted and recorded. Updating the assigned visit.');
       router.refresh();
     }catch{
-      // Preserve this event ID only in memory so a manual retry is idempotent.
-      // No barcode, patient record, session or specimen data is cached offline.
-      setMessage('The network response is unknown. Retry this same action to recover its receipt.');
+      // A lost response leaves the SAME event ID encrypted when eligible.
+      setMessage(durable?
+        'Network outcome unknown. Encrypted synthetic event retained for manual reconciliation.':
+        'Network outcome unknown. Keep this page open to retry using the original event ID.');
     }finally{setBusy(false);}
   }
   function assignmentEvent(action:'arrive'|'start_collection'){
