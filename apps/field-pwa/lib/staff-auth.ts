@@ -9,10 +9,9 @@ const hostPrefix=process.env.NODE_ENV==='production'?'__Host-':'';
 const pendingName=hostPrefix+'fisher_'+scope+'_oidc_pending';
 const sessionName=hostPrefix+'fisher_'+scope+'_staff_session';
 const now=()=>Math.floor(Date.now()/1000);
-const allowedCaps=scope==='operations'?['dispatch:manage','labs:manage','staff:manage']:
-  ['specimens:collect','specimens:transport'];
+const allowedCaps=['specimens:collect','specimens:transport'];
 export function safeReturnPath(raw:string|null|undefined):string {
-  const fallback=scope==='operations'?'/dispatch':'/visits';
+  const fallback='/visits';
   if(!raw||raw.length>300||!raw.startsWith('/')||raw.startsWith('//')||
      raw.includes('\\')||[...raw].some(ch=>ch.charCodeAt(0)<32))return fallback;
   return raw;
