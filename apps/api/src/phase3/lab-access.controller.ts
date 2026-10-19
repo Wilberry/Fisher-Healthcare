@@ -1,7 +1,7 @@
 import { ApiBearerAuth } from '@nestjs/swagger';
 import {
   BadRequestException, Body, ConflictException, Controller, ForbiddenException,
-  Injectable, OnModuleDestroy, Param, Post, Req, ServiceUnavailableException,
+  Get, Injectable, OnModuleDestroy, Param, Post, Req, ServiceUnavailableException,
   UseGuards
 } from '@nestjs/common';
 import { Pool } from 'pg';
@@ -37,6 +37,37 @@ export class Phase3LabAccessService implements OnModuleDestroy {
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
     return this.pool.connect();
   }
+  async requests(identity: AuthenticatedIdentity) {
+    const client = await this.authorize(identity);
+    try {
+      await client.query('BEGIN READ ONLY');
+      await this.administrator(identity.subject,client);
+      const rows = await client.query(
+        'SELECT req.id,req.lab_id,req.staff_id,req.reason,req.status,req.created_at, ' +
+        'req.requested_by,req.reviewed_at FROM phase3_lab_access_requests req ' +
+        "WHERE req.status='pending' ORDER BY req.created_at,req.id LIMIT 100");
+      await client.query('COMMIT');
+      return { data:rows.rows };
+    } catch(error) { await client.query('ROLLBACK');throw error; }
+    finally { client.release(); }
+  }
+  async grants(identity: AuthenticatedIdentity) {
+    const client = await this.authorize(identity);
+    try {
+      await client.query('BEGIN READ ONLY');
+      await this.administrator(identity.subject,client);
+      const rows = await client.query(
+        'SELECT scoped.lab_id,scoped.staff_id,scoped.granted_at ' +
+        'FROM phase3_lab_staff_access scoped JOIN laboratories lab ON lab.id=scoped.lab_id ' +
+        'JOIN staff st ON st.id=scoped.staff_id ' +
+        "WHERE scoped.active AND scoped.revoked_at IS NULL AND lab.active AND st.active " +
+        'ORDER BY scoped.granted_at DESC,scoped.lab_id,scoped.staff_id LIMIT 100');
+      await client.query('COMMIT');
+      return { data:rows.rows };
+    } catch(error) {await client.query('ROLLBACK');throw error;}
+    finally {client.release();}
+  }
+
   async request(identity: AuthenticatedIdentity, labId: string, staffId: string, reason: string) {
     const client = await this.authorize(identity);
     try {
@@ -131,6 +162,16 @@ export class Phase3LabAccessService implements OnModuleDestroy {
 @Controller('ops/labs')
 export class Phase3LabAccessController {
   constructor(private readonly service: Phase3LabAccessService) {}
+  @Get('access-requests')
+  requests(@Req() req: AuthenticatedRequest) {
+    if (!req.identity) throw new ForbiddenException();
+    return this.service.requests(req.identity);
+  }
+  @Get('access')
+  grants(@Req() req: AuthenticatedRequest) {
+    if (!req.identity) throw new ForbiddenException();
+    return this.service.grants(req.identity);
+  }
   @Post('access-requests')
   request(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
     if (!req.identity || !body || typeof body !== 'object' || Array.isArray(body))

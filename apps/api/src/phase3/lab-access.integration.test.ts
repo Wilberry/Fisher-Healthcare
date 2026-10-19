@@ -73,6 +73,9 @@ suite.sequential('Phase 3 two-person lab grant review (disposable PostgreSQL)', 
       'Verified internal lab coordinator');
     requestId=opened.data.id;
     expect(opened.data.status).toBe('pending');
+    const pending = await grants.requests(identity(names.requester));
+    expect(pending.data.some((entry:Record<string,unknown>)=>entry.id===requestId)).toBe(true);
+    await expect(grants.requests(identity(names.receiver))).rejects.toThrow();
     await expect(grants.request(identity(names.requester),lab,staffReceiver,
       'Verified internal lab coordinator')).rejects.toThrow('Pending lab access request already exists');
     const scope=await pool.query(
@@ -92,6 +95,8 @@ suite.sequential('Phase 3 two-person lab grant review (disposable PostgreSQL)', 
       'SELECT active,granted_by FROM phase3_lab_staff_access WHERE lab_id=$1 AND staff_id=$2',
       [lab,staffReceiver]);
     expect(scope.rows[0]).toEqual({active:true,granted_by:reviewer});
+    const active=await grants.grants(identity(names.reviewer));
+    expect(active.data.some((entry:Record<string,unknown>)=>entry.staff_id===staffReceiver)).toBe(true);
   });
 
   it('revokes immediately and records the operation in the audit log', async () => {
@@ -102,6 +107,8 @@ suite.sequential('Phase 3 two-person lab grant review (disposable PostgreSQL)', 
       [lab,staffReceiver]);
     expect(scope.rows[0]?.active).toBe(false);
     expect(scope.rows[0]?.revoked_at).not.toBeNull();
+    expect((await grants.grants(identity(names.reviewer))).data
+      .some((entry:Record<string,unknown>)=>entry.staff_id===staffReceiver)).toBe(false);
     await expect(grants.revoke(identity(names.requester),lab,staffReceiver))
       .rejects.toThrow('Active lab access not found');
     const audits=await pool.query<{action:string}>(
