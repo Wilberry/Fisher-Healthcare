@@ -3,7 +3,7 @@ import { IdentityGuard, type AuthenticatedRequest } from '../identity.guard';
 import { Phase3CustodyService, type FieldCustodyInput } from './custody.service';
 import { CustodyConflict, type CustodyAction } from './custody';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const actions: readonly string[] = ['collect','package','dispatch','receive_at_lab','accept','reject','report_lost','report_damaged','quarantine'];
+const actions: readonly string[] = ['collect','package','report_damaged'];
 @Controller('field/specimens')
 @UseGuards(IdentityGuard)
 export class Phase3CustodyController {
@@ -16,17 +16,15 @@ export class Phase3CustodyController {
     if (!uuid.test(specimenId) || typeof b.eventId !== 'string' || !uuid.test(b.eventId) ||
         typeof b.action !== 'string' || !actions.includes(b.action) ||
         !Number.isSafeInteger(b.expectedVersion) || (b.expectedVersion as number) < 0 ||
-        (b.recipientId !== undefined && (typeof b.recipientId !== 'string' || !uuid.test(b.recipientId))) ||
-        (b.recipientAcknowledged !== undefined && typeof b.recipientAcknowledged !== 'boolean')) {
+        b.recipientId !== undefined || b.recipientAcknowledged !== undefined) {
       throw new BadRequestException('Invalid event');
     }
     const input: FieldCustodyInput = {
-      eventId: b.eventId, action: b.action as CustodyAction, expectedVersion: b.expectedVersion as number,
-      recipientId: b.recipientId as string | undefined,
-      recipientAcknowledged: b.recipientAcknowledged as boolean | undefined
+      eventId: b.eventId.toLowerCase(), action: b.action as CustodyAction,
+      expectedVersion: b.expectedVersion as number
     };
     try {
-      return await this.service.apply(req.identity, specimenId, input);
+      return await this.service.apply(req.identity, specimenId.toLowerCase(), input);
     } catch (error) {
       if (error instanceof CustodyConflict) throw new ConflictException(error.code);
       throw error;

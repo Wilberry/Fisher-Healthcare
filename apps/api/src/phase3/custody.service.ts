@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Pool } from 'pg';
 import { requireStaffMfa, type AuthenticatedIdentity } from '../identity';
 import { type CustodyAction, type CustodyRole } from './custody';
@@ -63,6 +63,10 @@ export class Phase3CustodyService implements OnModuleDestroy {
       return { data: receipt };
     } catch (error) {
       await client.query('ROLLBACK');
+      if (error && typeof error === 'object' && 'code' in error &&
+          (error as { code: unknown }).code === '23505') {
+        throw new ConflictException('EVENT_ID_REUSED');
+      }
       throw error;
     } finally { client.release(); }
   }

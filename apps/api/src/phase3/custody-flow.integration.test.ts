@@ -219,9 +219,9 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
     await pool.query(
       'INSERT INTO orders(id,patient_id,booked_by,lab_id,status,tier,total_kobo,' +
       'slot_id,collection_window_start,collection_window_end) ' +
-      "SELECT x.id,$3,$4,$5,'confirmed','regular',0,$6,s.starts_at,s.ends_at " +
-      'FROM unnest($1::uuid[]) AS x(id) CROSS JOIN collection_slots s WHERE s.id=$6',
-      [[firstOrder,secondOrder],workerUser,ids.patient,ids.owner,ids.lab,ids.slot]);
+      "SELECT x.id,$2,$3,$4,'confirmed','regular',0,$5,s.starts_at,s.ends_at " +
+      'FROM unnest($1::uuid[]) AS x(id) CROSS JOIN collection_slots s WHERE s.id=$5',
+      [[firstOrder,secondOrder],ids.patient,ids.owner,ids.lab,ids.slot]);
     const outcomes = await Promise.allSettled([
       dispatch.assign(identity(subs.dispatcher),firstOrder,workerStaff,workerShift),
       dispatch.assign(identity(subs.dispatcher),secondOrder,workerStaff,workerShift)
