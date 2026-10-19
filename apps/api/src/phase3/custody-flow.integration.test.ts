@@ -17,7 +17,8 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
   const ids = {
     owner: randomUUID(), collector: randomUUID(), courier: randomUUID(),
     outsider: randomUUID(), dispatcher: randomUUID(), labWorker: randomUUID(),
-    patient: randomUUID(), lab: randomUUID(), order: randomUUID(),
+    patient: randomUUID(), lab: randomUUID(), order: randomUUID(), competingOrder: randomUUID(),
+    zone: randomUUID(), slot: randomUUID(),
     shift: randomUUID(), specimenA: randomUUID(), specimenB: randomUUID(),
     collectorStaff: randomUUID(), courierStaff: randomUUID(), outsiderStaff: randomUUID(),
     dispatcherStaff: randomUUID(), labStaff: randomUUID()
@@ -70,10 +71,23 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
       [shift,collectorStaff,'synthetic-lagos-zone',
         new Date(now + 60 * 60_000),new Date(now + 6 * 60 * 60_000)]);
     await pool.query(
+      'INSERT INTO service_zones(id,code,name,active,regular_fee_kobo,premium_fee_kobo) ' +
+      'VALUES($1,$2,$3,true,0,0)',
+      [ids.zone,'synthetic-lagos-zone','Synthetic Dispatch Zone']);
+    await pool.query(
+      'INSERT INTO collection_slots(id,zone_id,lab_id,tier,starts_at,ends_at,cutoff_at,capacity,active) ' +
+      "VALUES($1,$2,$3,'regular',$4,$5,$6,2,true)",
+      [ids.slot,ids.zone,lab,
+        new Date(now + 2 * 60 * 60_000),new Date(now + 3 * 60 * 60_000),
+        new Date(now + 60 * 60_000)]);
+    await pool.query(
       'INSERT INTO orders(id,patient_id,booked_by,lab_id,status,tier,total_kobo,' +
-      'collection_window_start,collection_window_end) ' +
-      "VALUES($1,$2,$3,$4,'confirmed','regular',0,$5,$6)",
-      [order,patient,owner,lab,new Date(now + 2 * 60 * 60_000),new Date(now + 3 * 60 * 60_000)]);
+      'slot_id,collection_window_start,collection_window_end) ' +
+      "VALUES($1,$2,$3,$4,'confirmed','regular',0,$5,$6,$7)," +
+      "($8,$2,$3,$4,'confirmed','regular',0,$5,$6,$7)",
+      [order,patient,owner,lab,ids.slot,
+        new Date(now + 2 * 60 * 60_000),new Date(now + 3 * 60 * 60_000),
+        ids.competingOrder]);
     await pool.query('INSERT INTO specimens(id,order_id,barcode) VALUES($1,$3,$4),($2,$3,$5)',
       [specimenA,specimenB,order,'syn-' + randomUUID(),'syn-' + randomUUID()]);
     access = new AccessService();
@@ -99,6 +113,8 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
       identity(subs.dispatcher),ids.order,ids.collectorStaff,ids.shift);
     assignmentId = assigned.data.id;
     expect(assigned.data.status).toBe('assigned');
+    await expect(dispatch.assign(identity(subs.dispatcher),ids.competingOrder,ids.collectorStaff,ids.shift))
+      .rejects.toThrow('Staff shift not eligible');
   });
 
   it('requires current collector assignment and protects custody handoff commands', async () => {
