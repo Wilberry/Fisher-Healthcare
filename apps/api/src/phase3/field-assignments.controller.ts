@@ -18,13 +18,20 @@ export class Phase3FieldAssignmentsService implements OnModuleDestroy {
        JOIN staff st ON st.id=a.staff_id
        JOIN users usr ON usr.id=st.user_id
        JOIN orders ord ON ord.id=a.order_id
-       WHERE usr.identity_subject=$1 AND st.active=TRUE
+       WHERE usr.identity_subject=$1 AND st.active=TRUE AND st.role='phlebotomist'
          AND a.status IN ('assigned','arrived','collecting')
          AND ($2::uuid IS NULL OR a.id=$2::uuid)
        ORDER BY ord.collection_window_start ASC LIMIT 100`, [subject, id ?? null]
     );
     if (id && result.rowCount !== 1) throw new ForbiddenException('Assignment access denied');
-    return { data: id ? result.rows[0] : result.rows };
+    if (!id) return { data: result.rows };
+    const assigned = result.rows[0] as { order_id: string };
+    // The assignment identity/role check above precedes this minimal specimen read.
+    // Never include patient contact information, lab results or other assignments.
+    const specimens = await this.pool.query(
+      'SELECT id,barcode,status,custody_version FROM specimens ' +
+      'WHERE order_id=$1 ORDER BY id LIMIT 100', [assigned.order_id]);
+    return { data: { ...assigned, specimens: specimens.rows } };
   }
 }
 @Controller('field/assignments')

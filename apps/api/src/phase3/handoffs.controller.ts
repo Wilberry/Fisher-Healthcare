@@ -1,5 +1,5 @@
 import {
-  BadRequestException, Body, Controller, Param, Post, Req, UseGuards,
+  BadRequestException, Body, Controller, Get, Param, Post, Req, UseGuards,
   Injectable, OnModuleDestroy, ServiceUnavailableException, ForbiddenException, ConflictException
 } from '@nestjs/common';
 import { Pool } from 'pg';
@@ -29,6 +29,22 @@ export class Phase3HandoffService implements OnModuleDestroy {
     });
   }
   async onModuleDestroy() { await this.pool?.end(); }
+
+  async listForCourier(identity: AuthenticatedIdentity) {
+    requireStaffMfa(identity);
+    await this.access.requireStaffCapability(identity.subject, 'specimens:transport');
+    if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
+    const result = await this.pool.query(
+      'SELECT h.id,h.assignment_id,h.status,h.created_at,count(hs.specimen_id)::integer AS specimen_count ' +
+      'FROM phase3_handoff_offers h ' +
+      'JOIN staff st ON st.id=h.courier_staff_id JOIN users usr ON usr.id=st.user_id ' +
+      'JOIN phase3_handoff_specimens hs ON hs.offer_id=h.id ' +
+      "WHERE usr.identity_subject=$1 AND st.active AND st.role='courier' AND h.status='offered' " +
+      'GROUP BY h.id,h.assignment_id,h.status,h.created_at ' +
+      'ORDER BY h.created_at ASC LIMIT 100',
+      [identity.subject]);
+    return { data: result.rows };
+  }
 
   async offer(identity: AuthenticatedIdentity, assignmentId: string, courierStaffId: string, requestKey: string) {
     requireStaffMfa(identity);
@@ -180,6 +196,11 @@ export class Phase3HandoffService implements OnModuleDestroy {
 @UseGuards(IdentityGuard)
 export class Phase3HandoffController {
   constructor(private readonly service: Phase3HandoffService) {}
+  @Get('handoff-offers')
+  list(@Req() req: AuthenticatedRequest) {
+    if (!req.identity) throw new ForbiddenException();
+    return this.service.listForCourier(req.identity);
+  }
   @Post('assignments/:id/handoff-offers')
   offer(@Req() req: AuthenticatedRequest, @Param('id') id: string, @Body() body: unknown) {
     if (!req.identity || !uuid.test(id) || !body || typeof body !== 'object' || Array.isArray(body))

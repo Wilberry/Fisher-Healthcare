@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { IdentityGuard, type AuthenticatedRequest } from '../identity.guard';
 import { Phase3DispatchService } from './dispatch.service';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -6,6 +6,16 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 @UseGuards(IdentityGuard)
 export class Phase3DispatchController {
   constructor(private readonly service: Phase3DispatchService) {}
+  @Get('queue')
+  queue(@Req() req: AuthenticatedRequest) {
+    if (!req.identity) throw new BadRequestException('Identity missing');
+    return this.service.queue(req.identity);
+  }
+  @Get()
+  assignments(@Req() req: AuthenticatedRequest) {
+    if (!req.identity) throw new BadRequestException('Identity missing');
+    return this.service.list(req.identity);
+  }
   @Post()
   assign(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
     if (!req.identity || typeof body !== 'object' || body === null || Array.isArray(body))

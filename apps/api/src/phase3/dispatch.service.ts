@@ -9,6 +9,30 @@ export class Phase3DispatchService implements OnModuleDestroy {
     if (process.env.DATABASE_URL) this.pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 4 });
   }
   async onModuleDestroy() { await this.pool?.end(); }
+  async queue(identity: AuthenticatedIdentity) {
+    requireStaffMfa(identity);
+    await this.access.requireStaffCapability(identity.subject, 'dispatch:manage');
+    if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
+    const result = await this.pool.query(
+      'SELECT ord.id,ord.lab_id,ord.tier,ord.collection_window_start,ord.collection_window_end ' +
+      'FROM orders ord WHERE ord.status=$1 AND ord.collection_window_start IS NOT NULL ' +
+      'AND ord.collection_window_end IS NOT NULL ' +
+      "AND NOT EXISTS(SELECT 1 FROM phase3_assignments a WHERE a.order_id=ord.id " +
+      "AND a.status IN ('assigned','arrived','collecting')) " +
+      'ORDER BY ord.collection_window_start,id LIMIT 100', ['confirmed']);
+    return { data: result.rows };
+  }
+  async list(identity: AuthenticatedIdentity) {
+    requireStaffMfa(identity);
+    await this.access.requireStaffCapability(identity.subject, 'dispatch:manage');
+    if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
+    const result = await this.pool.query(
+      'SELECT a.id,a.order_id,a.staff_id,a.status,a.created_at,ord.collection_window_start,' +
+      'ord.collection_window_end FROM phase3_assignments a ' +
+      'JOIN orders ord ON ord.id=a.order_id ORDER BY a.created_at DESC LIMIT 100');
+    return { data: result.rows };
+  }
+
   async assign(identity: AuthenticatedIdentity, orderId: string, staffId: string, shiftId: string) {
     requireStaffMfa(identity);
     await this.access.requireStaffCapability(identity.subject, 'dispatch:manage');
