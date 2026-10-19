@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Card, Notice, SiteShell } from '@fisher/ui';
-import { staffAssignmentDetail,oidcConfig } from '../../../lib/staff-auth';
+import { staffAssignmentDetail,staffApi,oidcConfig } from '../../../lib/staff-auth';
 import { FieldVisitActions } from './visit-actions';
 export const dynamic='force-dynamic';
 
@@ -9,6 +9,12 @@ export default async function VisitDetails({params}:{
 }){
   const {id}=await params;
   const result=await staffAssignmentDetail(id);
+  const available=result.authorized&&result.assignment?.status==='collecting'?
+    await staffApi('field/assignments/'+id.toLowerCase()+'/eligible-couriers'):null;
+  const couriers=(available?.authorized?available.records:[]).flatMap(entry=>{
+    if(typeof entry.staff_id!=='string'||typeof entry.zone_code!=='string')return [];
+    return [{staffId:entry.staff_id,zone:entry.zone_code}];
+  });
   return <SiteShell subtitle="Assigned field visit" navigation={[
     {href:'/',label:'Home'},{href:'/visits',label:'My assignments'}
   ]}>
@@ -31,7 +37,7 @@ export default async function VisitDetails({params}:{
               {' '}{result.assignment.collectionWindowStart||'Not specified'}</p>
             <p>Identifiers and custody events only. Patient contact details and laboratory results are not exposed.</p>
           </Card>
-          <FieldVisitActions assignment={result.assignment}/>
+          <FieldVisitActions assignment={result.assignment} couriers={couriers}/>
         </>}
     </div></section>
   </SiteShell>;
