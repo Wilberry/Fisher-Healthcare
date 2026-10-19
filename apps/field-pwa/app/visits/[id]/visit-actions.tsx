@@ -61,12 +61,27 @@ export function FieldVisitActions({assignment,couriers}:{
       return;
     }
     if(!isUid(assignment.id))return;
+    const specimenPath=/^\/api\/phase3\/field\/specimens\/([0-9a-f-]{36})\/events$/.exec(path);
+    const existing=specimenPath&&recovery.entries.some(item=>
+      item.event.specimenId===specimenPath[1]&&item.event.action===payload.action&&
+      item.event.expectedVersion===payload.expectedVersion);
+    if(existing){
+      setMessage('A matching encrypted custody event awaits reconciliation. Review it before sending another event.');
+      return;
+    }
     setBusy(true);setMessage('');
     try{
       const response=await fetch(path,{method:'POST',credentials:'same-origin',
         headers:{'content-type':'application/json'},body:JSON.stringify(payload),
         cache:'no-store'});
       if(!response.ok){
+        if(response.status===401||response.status===403){
+          setBarcodes({});
+          pending.current.clear();
+          setMessage('Your staff session expired or your permission was revoked. Sign in again before recording work.');
+          router.refresh();
+          return;
+        }
         if(response.status===409)pending.current.delete(operation);
         setMessage(response.status===409 ?
           'Conflict: the visit or specimen changed. Review the latest server status before retrying.' :

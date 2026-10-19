@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  cookieNames,crossSite,makePending,oidcConfig,safeReturnPath,seal,unseal
+  cookieNames,crossSite,makePending,oidcConfig,safeReturnPath,seal,unseal,
+  verifyActiveStaff,StaffSessionError
 } from './staff-auth';
 
 const environment = [
@@ -17,6 +18,7 @@ describe('operations staff session and PKCE policy',()=>{
     process.env.FISHER_STAFF_AUTH_ALLOW_LOOPBACK_HTTP='synthetic-only';
   });
   afterEach(()=>{
+    vi.unstubAllGlobals();
     for(const name of environment){
       if(saved[name]===undefined)delete process.env[name];
       else process.env[name]=saved[name];
@@ -51,6 +53,22 @@ describe('operations staff session and PKCE policy',()=>{
     expect(crossSite(local)).toBe(false);
     expect(crossSite(bad)).toBe(true);
     expect(crossSite(new Request('https://staff.example.test/auth/logout'))).toBe(true);
+  });
+  it('classifies expired, revoked and unavailable staff authorization distinctly',async()=>{
+    const originalFetch=vi.fn().mockResolvedValue(
+      Response.json({error:'expired'},{status:401}));
+    vi.stubGlobal('fetch',originalFetch);
+    await expect(verifyActiveStaff('synthetic','https://api.example.test'))
+      .rejects.toMatchObject({reason:'reauth_required'});
+    originalFetch.mockResolvedValue(Response.json({error:'forbidden'},{status:403}));
+    await expect(verifyActiveStaff('synthetic','https://api.example.test'))
+      .rejects.toMatchObject({reason:'access_denied'});
+    originalFetch.mockResolvedValue(Response.json({error:'unavailable'},{status:503}));
+    await expect(verifyActiveStaff('synthetic','https://api.example.test'))
+      .rejects.toMatchObject({reason:'service_unavailable'});
+    originalFetch.mockRejectedValue(new Error('offline'));
+    await expect(verifyActiveStaff('synthetic','https://api.example.test'))
+      .rejects.toBeInstanceOf(StaffSessionError);
   });
   it('requires a complete, origin-matched OIDC configuration',()=>{
     expect(oidcConfig()).toBeNull();
