@@ -3,6 +3,7 @@
 CREATE TABLE phase3_handoff_offers (
  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
  assignment_id uuid NOT NULL REFERENCES phase3_assignments(id),
+ request_key uuid NOT NULL UNIQUE,
  sender_staff_id uuid NOT NULL REFERENCES staff(id),
  courier_staff_id uuid NOT NULL REFERENCES staff(id),
  status varchar(16) NOT NULL DEFAULT 'offered'
