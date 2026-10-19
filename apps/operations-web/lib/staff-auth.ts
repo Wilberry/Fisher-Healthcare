@@ -176,3 +176,44 @@ export async function staffApi(path:string){
       records:[] as Record<string,unknown>[]};
   }
 }
+
+
+const manuscriptUuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// Single-resource reads are restricted separately from the list API.
+export async function staffManifestDetail(id:string):Promise<{
+  authorized:boolean;manifest:Record<string,unknown>|null;
+  specimens:{id:string;status:string;custodyVersion:number}[]
+}>{
+  const denied={authorized:false,manifest:null,specimens:[]};
+  if(!manuscriptUuid.test(id))return denied;
+  const session=await readStaffSession(),cfg=oidcConfig();
+  if(!session||!cfg)return denied;
+  try{
+    const subject=await verifyActiveStaff(session.accessToken,cfg.api);
+    if(subject!==session.subject)return denied;
+    const url=new URL('/api/v1/ops/lab-manifests/'+id.toLowerCase(),cfg.api);
+    const res=await fetch(url,{headers:{authorization:'Bearer '+session.accessToken},
+      cache:'no-store',signal:AbortSignal.timeout(8000)});
+    if(!res.ok)return denied;
+    const raw:unknown=await res.json();
+    if(!raw||typeof raw!=='object'||!('data' in raw)||!raw.data||
+       typeof raw.data!=='object'||Array.isArray(raw.data))return denied;
+    const data=raw.data as Record<string,unknown>;
+    if(data.id!==id.toLowerCase()||typeof data.status!=='string'||
+       !Array.isArray(data.specimens))return denied;
+    const specimens=data.specimens.filter(
+      (entry):entry is Record<string,unknown> =>
+        !!entry&&typeof entry==='object'&&!Array.isArray(entry)
+    ).filter(item=>typeof item.id==='string'&&manuscriptUuid.test(item.id)&&
+      typeof item.status==='string'&&typeof item.custody_version==='number'
+    ).map(item=>({
+      id:item.id as string,status:item.status as string,
+      custodyVersion:item.custody_version as number
+    }));
+    // Exclude unexpected backend properties, including barcodes and patient details.
+    return {authorized:true,manifest:{
+      id:data.id,lab_id:data.lab_id,status:data.status,created_at:data.created_at,
+      received_at:data.received_at
+    },specimens};
+  }catch{return denied;}
+}
