@@ -9,6 +9,10 @@ export default async function LaboratoryStaffAdministration(){
     staffApi('ops/labs/access-requests'),staffApi('ops/labs/access')
   ]);
   const permitted=pending.authorized&&active.authorized;
+  const denial=pending.state!=='authorized'?pending.state:active.state;
+  const heading=denial==='service_unavailable'?'Staff verification unavailable':
+    denial==='reauth_required'||denial==='signed_out'?'Administrator sign-in required':
+    'Administrator permission denied';
   const requests=(permitted?pending.records:[]).flatMap(item=>{
     if(typeof item.id!=='string'||!uuid.test(item.id)||
        typeof item.lab_id!=='string'||!uuid.test(item.lab_id)||
@@ -28,8 +32,10 @@ export default async function LaboratoryStaffAdministration(){
       <p className="fisher-eyebrow">Phase 3 · Dual-control administration</p>
       <h1 className="fisher-section-title">Laboratory staff access</h1>
       {!permitted?
-        <Notice title="Administrator access required" tone="warning">
-          Lab grant administration is restricted to active administrators with staff management access.
+        <Notice title={heading} tone="warning">
+          {denial==='service_unavailable'?
+            'The identity or laboratory access service could not be verified. No administrative actions are available.':
+            'Lab grant administration requires a current MFA-backed session and active staff management permission.'}
           {oidcConfig()&&<p><Link href="/auth/login?next=%2Flab-access">Administrator sign in</Link></p>}
         </Notice>:
         <>
