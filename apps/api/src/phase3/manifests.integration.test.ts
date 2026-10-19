@@ -4,6 +4,7 @@ import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import { AccessService } from '../access.service';
 import { Phase3ManifestService } from './manifests.controller';
 
+const previousPhase3Mode = process.env.FISHER_PHASE3_OPERATION_MODE;
 const suite = process.env.FISHER_DISPOSABLE_DB_ACK === 'disposable-test-only' && process.env.DATABASE_URL
   ? describe : describe.skip;
 suite.sequential('Phase 3 lab manifest receipt (disposable PostgreSQL only)', () => {
@@ -28,6 +29,7 @@ suite.sequential('Phase 3 lab manifest receipt (disposable PostgreSQL only)', ()
   const receiptKey = randomUUID();
 
   beforeAll(async () => {
+    process.env.FISHER_PHASE3_OPERATION_MODE = 'synthetic-only';
     if (process.env.FISHER_DISPOSABLE_DB_ACK !== 'disposable-test-only' || !process.env.DATABASE_URL)
       throw new Error('Disposable test database required');
     pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
@@ -61,6 +63,8 @@ suite.sequential('Phase 3 lab manifest receipt (disposable PostgreSQL only)', ()
   });
 
   afterAll(async () => {
+    if (previousPhase3Mode === undefined) delete process.env.FISHER_PHASE3_OPERATION_MODE;
+    else process.env.FISHER_PHASE3_OPERATION_MODE = previousPhase3Mode;
     await manifests?.onModuleDestroy();
     await access?.onModuleDestroy();
     await pool?.end();

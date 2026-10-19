@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Post, Param, Req, UseGuards, Injectable, OnModuleDestroy, ServiceUnavailableException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { Pool } from 'pg';
+import { requirePhase3SyntheticMode } from './phase3-mode';
 import { IdentityGuard, type AuthenticatedRequest } from '../identity.guard';
 import { requireStaffMfa, type AuthenticatedIdentity } from '../identity';
 import { AccessService } from '../access.service';
@@ -14,6 +15,7 @@ export class Phase3ManifestService implements OnModuleDestroy {
   }
   async onModuleDestroy() { await this.pool?.end(); }
   async prepare(identity: AuthenticatedIdentity, labId: string, specimenIds: string[]) {
+    requirePhase3SyntheticMode();
     requireStaffMfa(identity);
     await this.access.requireStaffCapability(identity.subject, 'dispatch:manage');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
@@ -45,6 +47,7 @@ export class Phase3ManifestService implements OnModuleDestroy {
   }
   async receive(identity: AuthenticatedIdentity, manifestId: string, receiptKey: string,
     acceptedIds: string[], rejectedIds: string[], rejectionCode?: string) {
+    requirePhase3SyntheticMode();
     requireStaffMfa(identity);
     await this.access.requireStaffCapability(identity.subject, 'labs:manage');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');

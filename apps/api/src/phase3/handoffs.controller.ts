@@ -3,6 +3,7 @@ import {
   Injectable, OnModuleDestroy, ServiceUnavailableException, ForbiddenException, ConflictException
 } from '@nestjs/common';
 import { Pool } from 'pg';
+import { requirePhase3SyntheticMode } from './phase3-mode';
 import { IdentityGuard, type AuthenticatedRequest } from '../identity.guard';
 import { requireStaffMfa, type AuthenticatedIdentity } from '../identity';
 import { AccessService } from '../access.service';
@@ -31,6 +32,7 @@ export class Phase3HandoffService implements OnModuleDestroy {
   async onModuleDestroy() { await this.pool?.end(); }
 
   async listForCourier(identity: AuthenticatedIdentity) {
+    requirePhase3SyntheticMode();
     requireStaffMfa(identity);
     await this.access.requireStaffCapability(identity.subject, 'specimens:transport');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
@@ -47,6 +49,7 @@ export class Phase3HandoffService implements OnModuleDestroy {
   }
 
   async offer(identity: AuthenticatedIdentity, assignmentId: string, courierStaffId: string, requestKey: string) {
+    requirePhase3SyntheticMode();
     requireStaffMfa(identity);
     await this.access.requireStaffCapability(identity.subject, 'specimens:collect');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
@@ -113,6 +116,7 @@ export class Phase3HandoffService implements OnModuleDestroy {
   }
 
   async acknowledge(identity: AuthenticatedIdentity, offerId: string, receiptKey: string) {
+    requirePhase3SyntheticMode();
     requireStaffMfa(identity);
     await this.access.requireStaffCapability(identity.subject, 'specimens:transport');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');

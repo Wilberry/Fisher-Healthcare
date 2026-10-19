@@ -1,5 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Param, Post, Req, UseGuards, ForbiddenException, Injectable, OnModuleDestroy, ServiceUnavailableException, ConflictException } from '@nestjs/common';
 import { Pool } from 'pg';
+import { requirePhase3SyntheticMode } from './phase3-mode';
 import { IdentityGuard, type AuthenticatedRequest } from '../identity.guard';
 import { requireStaffMfa, type AuthenticatedIdentity } from '../identity';
 import { AccessService } from '../access.service';
@@ -12,6 +13,7 @@ export class Phase3IncidentsService implements OnModuleDestroy {
   }
   async onModuleDestroy() { await this.pool?.end(); }
   async report(identity: AuthenticatedIdentity, specimenId: string, eventId: string, kind: string) {
+    requirePhase3SyntheticMode();
     requireStaffMfa(identity);
     const capabilities = await this.access.staffCapabilities(identity.subject);
     if (!capabilities.includes('specimens:collect') &&
@@ -63,6 +65,7 @@ export class Phase3IncidentsService implements OnModuleDestroy {
     } finally { client.release(); }
   }
   async list(identity: AuthenticatedIdentity) {
+    requirePhase3SyntheticMode();
     requireStaffMfa(identity);
     await this.access.requireStaffCapability(identity.subject, 'dispatch:manage');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
@@ -72,6 +75,7 @@ export class Phase3IncidentsService implements OnModuleDestroy {
     return { data: result.rows };
   }
   async resolve(identity: AuthenticatedIdentity, incidentId: string, note: string) {
+    requirePhase3SyntheticMode();
     requireStaffMfa(identity);
     await this.access.requireStaffCapability(identity.subject, 'dispatch:manage');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');

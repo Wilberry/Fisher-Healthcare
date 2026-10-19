@@ -1,5 +1,6 @@
 import { ConflictException, ForbiddenException, Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Pool } from 'pg';
+import { requirePhase3SyntheticMode } from './phase3-mode';
 import { requireStaffMfa, type AuthenticatedIdentity } from '../identity';
 import { type CustodyAction, type CustodyRole } from './custody';
 import { recordCustodyEvent } from './custody.repository';
@@ -24,6 +25,7 @@ export class Phase3CustodyService implements OnModuleDestroy {
   }
   async onModuleDestroy(): Promise<void> { await this.pool?.end(); }
   async apply(identity: AuthenticatedIdentity, specimenId: string, input: FieldCustodyInput) {
+    requirePhase3SyntheticMode();
     requireStaffMfa(identity);
     // The field endpoint is intentionally collection-scoped. A client-supplied
     // boolean is not proof of courier or laboratory handoff acknowledgment.

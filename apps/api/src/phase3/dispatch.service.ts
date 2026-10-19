@@ -1,5 +1,6 @@
 import { ConflictException, ForbiddenException, Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Pool } from 'pg';
+import { requirePhase3SyntheticMode } from './phase3-mode';
 import { requireStaffMfa, type AuthenticatedIdentity } from '../identity';
 import { AccessService } from '../access.service';
 @Injectable()
@@ -10,6 +11,7 @@ export class Phase3DispatchService implements OnModuleDestroy {
   }
   async onModuleDestroy() { await this.pool?.end(); }
   async queue(identity: AuthenticatedIdentity) {
+    requirePhase3SyntheticMode();
     requireStaffMfa(identity);
     await this.access.requireStaffCapability(identity.subject, 'dispatch:manage');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
@@ -27,6 +29,7 @@ export class Phase3DispatchService implements OnModuleDestroy {
     return { data: result.rows };
   }
   async list(identity: AuthenticatedIdentity) {
+    requirePhase3SyntheticMode();
     requireStaffMfa(identity);
     await this.access.requireStaffCapability(identity.subject, 'dispatch:manage');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
@@ -38,6 +41,7 @@ export class Phase3DispatchService implements OnModuleDestroy {
   }
 
   async assign(identity: AuthenticatedIdentity, orderId: string, staffId: string, shiftId: string) {
+    requirePhase3SyntheticMode();
     requireStaffMfa(identity);
     await this.access.requireStaffCapability(identity.subject, 'dispatch:manage');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');

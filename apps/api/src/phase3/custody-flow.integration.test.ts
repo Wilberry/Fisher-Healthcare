@@ -9,6 +9,7 @@ import { Phase3HandoffService } from './handoffs.controller';
 import { Phase3IncidentsService } from './incidents.controller';
 import { Phase3ManifestService } from './manifests.controller';
 
+const previousPhase3Mode = process.env.FISHER_PHASE3_OPERATION_MODE;
 const suite = process.env.FISHER_DISPOSABLE_DB_ACK === 'disposable-test-only' && process.env.DATABASE_URL
   ? describe : describe.skip;
 suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', () => {
@@ -40,6 +41,7 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
   const receiptKey = randomUUID();
 
   beforeAll(async () => {
+    process.env.FISHER_PHASE3_OPERATION_MODE = 'synthetic-only';
     if (!process.env.DATABASE_URL || process.env.FISHER_DISPOSABLE_DB_ACK !== 'disposable-test-only') {
       throw new Error('Disposable synthetic PostgreSQL acknowledgment required');
     }
@@ -106,6 +108,8 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
   });
 
   afterAll(async () => {
+    if (previousPhase3Mode === undefined) delete process.env.FISHER_PHASE3_OPERATION_MODE;
+    else process.env.FISHER_PHASE3_OPERATION_MODE = previousPhase3Mode;
     await Promise.all([dispatch?.onModuleDestroy(),custody?.onModuleDestroy(),
       handoffs?.onModuleDestroy(),incidents?.onModuleDestroy(),
       assignmentEvents?.onModuleDestroy(),

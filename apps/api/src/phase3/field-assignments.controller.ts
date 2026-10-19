@@ -1,5 +1,6 @@
 import { Controller, Get, Param, Req, UseGuards, BadRequestException, ForbiddenException, Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Pool } from 'pg';
+import { requirePhase3SyntheticMode } from './phase3-mode';
 import { IdentityGuard, type AuthenticatedRequest } from '../identity.guard';
 import { requireStaffMfa } from '../identity';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -11,6 +12,7 @@ export class Phase3FieldAssignmentsService implements OnModuleDestroy {
   }
   async onModuleDestroy() { await this.pool?.end(); }
   async list(subject: string, id?: string) {
+    requirePhase3SyntheticMode();
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
     const result = await this.pool.query(
       `SELECT a.id,a.order_id,a.status,ord.collection_window_start,ord.collection_window_end
