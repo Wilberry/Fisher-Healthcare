@@ -99,7 +99,14 @@ export function challenge(verifier:string):string{
 }
 export function crossSite(request:Request):boolean{
   const origin=request.headers.get('origin');
-  return !origin||origin!==new URL(request.url).origin;
+  const requested=new URL(request.url).origin;
+  const trusted=process.env.FISHER_STAFF_WEB_ORIGIN;
+  // Never derive the CSRF trust boundary solely from an attacker-controlled Host.
+  if(process.env.NODE_ENV==='production'&&!trusted)return true;
+  return !origin||origin!==requested||(!!trusted&&
+    (!trusted.startsWith('https://')&&
+      !(process.env.NODE_ENV!=='production'&&trusted.startsWith('http://127.0.0.1:'))||
+      origin!==trusted));
 }
 export async function readStaffSession():Promise<StaffSession|null>{
   const cookieStore=await cookies();
@@ -258,14 +265,15 @@ export async function forwardFieldAction(request:Request,path:string):Promise<Re
   if(request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()!=='application/json')
     return reject(415,'JSON required');
   const declared=Number(request.headers.get('content-length')??'0');
-  if(!Number.isFinite(declared)||declared>16384)return reject(413,'Payload too large');
+  if(!Number.isFinite(declared)||declared<0||declared>16384)
+    return reject(413,'Payload too large');
   const session=await readStaffSession(),cfg=oidcConfig();
   if(!session)return reject(401,'Staff sign-in required');
   if(!cfg)return reject(503,'Staff service unavailable');
   let raw:string;
   try{
     raw=await request.text();
-    if(raw.length>16384)return reject(413,'Payload too large');
+    if(Buffer.byteLength(raw,'utf8')>16384)return reject(413,'Payload too large');
     const parsed:unknown=JSON.parse(raw);
     if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
       return reject(400,'Invalid field action');
