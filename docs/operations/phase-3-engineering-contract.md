@@ -31,11 +31,19 @@ Phase 3's originally drafted migration names `0001_phase3_dispatch_custody.sql` 
 
 ## Active engineering handoff
 
-The Phase 3 feature branch includes ordered migrations 0017–0020; scoped dispatch, field, incident, custody, courier-handoff and laboratory-manifest APIs; immutable audit receipts; source policy tests; and disposable PostgreSQL integration scenarios.
+The Phase 3 feature branch includes additive migrations 0017–0023; scoped dispatch, field, incident, custody, courier-handoff and laboratory-manifest APIs; immutable audit receipts; source policy tests; and disposable PostgreSQL integration scenarios.
 
-The Phase 3 branch predates the accepted Phase 2 implementation, so a deliberate integration of the current `main` baseline is required before verification. Dispatch zone checks use Phase 2's `service_zones` and `collection_slots`; preserve all accepted Phase 1/Phase 2 security, payment, migrations and OpenAPI work during integration.
+The accepted Phase 2 `main` baseline was incorporated into the Phase 3 branch in a two-parent integration commit `65c4f1309c874de3ed71ae59c02b751da767e91f`, retaining its booking/payment/API/security/lockfile history and routes. The integration is NOT a merge of Phase 3 back into `main`. Source-level and database tests are still unverified locally. Dispatch zone checks depend on Phase 2's `service_zones` and `collection_slots`.
 
 The `/dispatch` and `/visits` workbenches expose training fixtures **only** when `FISHER_PHASE3_DEMO_MODE=synthetic-only` outside production. They cannot display real records or mutate the API. Actual staff dashboards require signed server-side staff sessions, current scoped authorization, and privacy-approved offline handling.
+
+## Test-mode and laboratory grant boundaries
+
+All Phase 3 database APIs require `FISHER_PHASE3_OPERATION_MODE=synthetic-only`, `FISHER_DISPOSABLE_DB_ACK=disposable-test-only`, an explicit loopback `fisher_test` PostgreSQL URL, and a non-production Node environment. Stage and live operation modes are NOT implemented. Database-backed acceptance also independently checks `current_database()`.
+
+Lab manifest receipt requires a current lab-specific grant in `phase3_lab_staff_access`. Internal grants follow an auditable two-administrator request/approval workflow; requesters cannot approve their own requests and administrators may revoke a grant immediately.
+
+Local acceptance is consolidated into `scripts/verify-phase3-local.sh`, which prepares a generated OpenAPI snapshot in an isolated worktree, runs the complete Phase 2 and Phase 3 migrations/tests/audits/builds and route smokes, and optionally fast-forward pushes the accepted Phase 3 branch. The current phase is NOT verified until that script succeeds at the exact commit.
 
 ## Release controls
 Use synthetic patients and specimens only. No real clinical data, external courier dispatch or live lab acceptance before the security issue, clinical SOPs and operational release controls are closed. GitHub Actions are not a required local verification mechanism. Record exact SHA, environment, commands, counts and failures from the final local verification before marking the phase accepted.
