@@ -9,13 +9,13 @@
 
 - Paid-only dispatch queue and assignments, with active collector/courier shift-and-zone checks, locked overlapping-worker capacity checks, and negative synthetic eligibility tests.
 - Assigned collector access, immutable barcode-label checks required before collection, versioned specimen custody, append-only events and replay-safe receipts.
-- Courier handoff offers with frozen specimen versions, authenticated receiving courier acknowledgement, atomic custody progression, and replay defense.
+- Courier handoff offers with frozen specimen versions, authenticated receiving courier acknowledgement, atomic custody progression, replay defense, and a recipient-scoped page requiring individual physical specimen-ID reconciliation.
 - Collector/courier incident reports, idempotent event IDs, supervisor resolution audit, and unresolved-incident custody blocks.
 - Internal lab manifests, laboratory-specific receiving grants, full specimen reconciliation, rejection reasons, audit and receipt idempotency.
 - Two-person administrator review for internal lab staff access requests, with immediate auditable revocation.
 - Phase 3 API methods fail closed outside explicit synthetic-only execution on a loopback `fisher_test` database and refuse production mode.
 - Offline event reconciliation and `/field/events/sync` API contracts, with a same-origin field gateway. The new visit UI retains only short-lived in-memory retry IDs; durable device sync remains in development and is not presented as implemented.
-- Operations workbenches for eligible paid-order collector shifts, incident resolution, manifest preparation, and lab-scoped receipt reconciliation, with a fixed-route same-origin command gateway and negative request tests.
+- Operations workbenches for eligible paid-order collector shift selection, incident resolution, manifest preparation, and lab-scoped receipt reconciliation. Same-origin, fixed-route command gateways plus negative CSRF/authorization tests prevent browser-supplied bearer authority.
 - Production-gated UI workbenches at `/dispatch` and `/visits`, plus `/visits/[id]` for signed, scoped collection actions. Both staff portals now include encrypted, HTTP-only OIDC/PKCE sessions and server-side API authorization checks; no browser access token is exposed.
 - Phase 3 additive migrations numbered `0017`–`0024`, database-backed full-flow, lab-receipt, and two-admin lab-onboarding tests authored. Not yet locally executed.
 
@@ -23,7 +23,7 @@
 
 1. **Integrated on Phase 3 branch:** the accepted Phase 2 `main` baseline was preserved in integration commit `65c4f1309c874de3ed71ae59c02b751da767e91f` (not merged back into `main`). Phase 3 exact-commit verification and PR review remain required.
 2. Verify the newly authored OIDC/PKCE staff session and field BFF flows against an approved disposable OIDC staging provider. Complete production review, staff account provisioning and MFA expiry/revocation scenarios. No real personal data in client caches.
-3. Complete visit progression, collection checklist and labels, courier staffing/assignment, and recoverable failure handling.
+3. Verify the completed visit progression, label/collection checklist, failed-visit actions, specimen incidents, courier staffing/physical receipt and lab-reconciliation interfaces end to end. Review historical replay safety and user-facing conflict states. Privacy-approved durable offline storage remains unimplemented; do not enable it for real patients.
 4. Run the prepared `scripts/verify-phase3-local.sh` as one consolidated exact-commit local verification: Node 22, pnpm 9.15.9, disposable PostgreSQL 16, migrations and rollback checks, all unit/integration/security tests, lint/typecheck/build, regenerated OpenAPI, production/full dependency audits and API/three-web-app smoke tests. GitHub Actions remains unavailable.
 5. Complete external clinical, privacy, partner and operations release gates separately. No production or real-patient launch is implied by source completion.
 

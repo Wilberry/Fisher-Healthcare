@@ -119,7 +119,7 @@ FISHER_API_BIND_HOST=127.0.0.1 PORT="$API_PORT" \
 API_PID=$!
 await_http "http://127.0.0.1:$API_PORT/api/v1/health" 200
 for route in /api/v1/ops/assignments/queue /api/v1/field/assignments \
- /api/v1/field/handoff-offers /api/v1/ops/exceptions; do
+ /api/v1/field/handoff-offers /api/v1/ops/exceptions /api/v1/ops/lab-manifests; do
   [[ "$(http_status "http://127.0.0.1:$API_PORT$route")" == 401 ]] ||
     fail "Unauthenticated Phase 3 API route not denied: $route"
 done
@@ -135,6 +135,10 @@ for app in operations-web field-pwa; do
   await_http "http://127.0.0.1:$WEB_PORT/$route" 200
   curl -sS --max-time 15 "http://127.0.0.1:$WEB_PORT/$route" > "$LOG/$app-locked.html"
   if [[ "$app" == field-pwa ]]; then
+    [[ "$(http_status "http://127.0.0.1:$WEB_PORT/handoffs")" == 200 ]] ||
+      fail "Couriers must see access-locked handoff queue"
+    [[ "$(http_status "http://127.0.0.1:$WEB_PORT/handoffs/00000000-0000-4000-8000-000000000001")" == 200 ]] ||
+      fail "Unverified courier handoff detail must remain access locked"
     [[ "$(http_status "http://127.0.0.1:$WEB_PORT/visits/00000000-0000-4000-8000-000000000001")" == 200 ]] ||
       fail "Unverified field visit must show an access-locked response"
     code="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
@@ -144,7 +148,7 @@ for app in operations-web field-pwa; do
       fail "Originless field mutation was not blocked by the same-origin BFF"
   fi
   if [[ "$app" == operations-web ]]; then
-    for route in exceptions lab-manifests; do
+    for route in exceptions lab-manifests lab-manifests/00000000-0000-4000-8000-000000000001; do
       [[ "$(http_status "http://127.0.0.1:$WEB_PORT/$route")" == 200 ]] ||
         fail "Unauthorized $route view must stay access-locked"
     done
