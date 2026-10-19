@@ -27,7 +27,7 @@ export class Phase3DispatchService implements OnModuleDestroy {
       'AND ord.collection_window_end IS NOT NULL ' +
       "AND NOT EXISTS(SELECT 1 FROM phase3_assignments a WHERE a.order_id=ord.id " +
       "AND a.status IN ('assigned','arrived','collecting')) " +
-      'ORDER BY ord.collection_window_start,id LIMIT 100', ['confirmed']);
+      'ORDER BY ord.collection_window_start,ord.id LIMIT 100', ['confirmed']);
     return { data: result.rows };
   }
   async eligibleShifts(identity: AuthenticatedIdentity, orderId: string) {
