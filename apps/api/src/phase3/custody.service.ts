@@ -61,6 +61,13 @@ export class Phase3CustodyService implements OnModuleDestroy {
         [specimenId, staff.user_id]
       );
       if (allowed.rowCount !== 1) throw new ForbiddenException('Specimen access denied');
+      if(input.action==='collect'){
+        const label=await client.query(
+          'SELECT 1 FROM phase3_specimen_label_checks ' +
+          'WHERE specimen_id=$1 AND checked_by=$2 AND expected_version=$3',
+          [specimenId,staff.user_id,input.expectedVersion]);
+        if(label.rowCount!==1)throw new ConflictException('LABEL_CHECK_REQUIRED');
+      }
       const receipt = await recordCustodyEvent(client, {
         specimenId, eventId: input.eventId, actorId: staff.user_id, role,
         action: input.action, expectedVersion: input.expectedVersion,

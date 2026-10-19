@@ -114,6 +114,7 @@ function validateDocument(document: OpenAPIObject): void {
     ['/api/v1/field/assignments/{id}','get'],
     ['/api/v1/field/assignments/{id}/events','post'],
     ['/api/v1/field/specimens/{id}/events','post'],
+    ['/api/v1/field/specimens/{id}/label-check','post'],
     ['/api/v1/field/specimens/{id}/incident','post'],
     ['/api/v1/field/events/sync','post'],
     ['/api/v1/field/handoff-offers','get'],

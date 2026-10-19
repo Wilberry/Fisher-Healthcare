@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AccessService } from '../access.service';
 import { Phase3DispatchService } from './dispatch.service';
 import { Phase3CustodyService } from './custody.service';
+import { Phase3LabelService } from './label-check.controller';
 import { Phase3AssignmentEventsService } from './assignment-events.controller';
 import { Phase3HandoffService } from './handoffs.controller';
 import { Phase3IncidentsService } from './incidents.controller';
@@ -15,6 +16,7 @@ const suite = process.env.FISHER_DISPOSABLE_DB_ACK === 'disposable-test-only' &&
 suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', () => {
   let pool: Pool, access: AccessService, dispatch: Phase3DispatchService;
   let custody: Phase3CustodyService, handoffs: Phase3HandoffService;
+  let labels: Phase3LabelService;
   let assignmentEvents: Phase3AssignmentEventsService;
   let incidents: Phase3IncidentsService, manifests: Phase3ManifestService;
   const ids = {
@@ -111,6 +113,7 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
     access = new AccessService();
     dispatch = new Phase3DispatchService(access);
     custody = new Phase3CustodyService(access);
+    labels = new Phase3LabelService(access);
     assignmentEvents = new Phase3AssignmentEventsService(access);
     handoffs = new Phase3HandoffService(access);
     incidents = new Phase3IncidentsService(access);
@@ -125,6 +128,7 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
     if (previousPhase3Mode === undefined) delete process.env.FISHER_PHASE3_OPERATION_MODE;
     else process.env.FISHER_PHASE3_OPERATION_MODE = previousPhase3Mode;
     await Promise.all([dispatch?.onModuleDestroy(),custody?.onModuleDestroy(),
+      labels?.onModuleDestroy(),
       handoffs?.onModuleDestroy(),incidents?.onModuleDestroy(),
       assignmentEvents?.onModuleDestroy(),
       manifests?.onModuleDestroy(),access?.onModuleDestroy()]);
@@ -168,6 +172,22 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
       { eventId: randomUUID(), action: 'dispatch', expectedVersion: 0,
         recipientId:ids.courier,recipientAcknowledged:true })).rejects.toThrow();
     for (const specimenId of [ids.specimenA,ids.specimenB]) {
+      const barcodeQuery=await pool.query<{barcode:string}>(
+        'SELECT barcode FROM specimens WHERE id=$1',[specimenId]);
+      const barcode=barcodeQuery.rows[0]!.barcode;
+      await expect(custody.apply(identity(subs.collector),specimenId,
+        {eventId:randomUUID(),action:'collect',expectedVersion:0}))
+        .rejects.toThrow('LABEL_CHECK_REQUIRED');
+      await expect(labels.verify(identity(subs.collector),specimenId,{
+        eventId:randomUUID(),observedBarcode:'WRONG-LABEL',expectedVersion:0
+      })).rejects.toThrow('LABEL_MISMATCH');
+      const labelKey=randomUUID();
+      expect((await labels.verify(identity(subs.collector),specimenId,{
+        eventId:labelKey,observedBarcode:barcode,expectedVersion:0
+      })).data.replayed).toBe(false);
+      expect((await labels.verify(identity(subs.collector),specimenId,{
+        eventId:labelKey,observedBarcode:barcode,expectedVersion:0
+      })).data.replayed).toBe(true);
       expect((await custody.apply(identity(subs.collector),specimenId,
         { eventId: randomUUID(), action: 'collect', expectedVersion: 0 })).data.state).toBe('collected');
       expect((await custody.apply(identity(subs.collector),specimenId,
