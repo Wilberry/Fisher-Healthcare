@@ -11,7 +11,7 @@ Phase 3's originally drafted migration names `0001_phase3_dispatch_custody.sql` 
 ## Delivery increments
 1. Database migration and domain services: shifts, assignments, specimens, custody events, incidents, manifests, offline receipts and immutable audit trail. Unique client-event IDs, foreign keys, status checks, indexes and atomic transition guards.
 2. Dispatch: staff eligibility, zone/shift availability, capacity checks, atomic claim/reassignment, conflict-safe assignment, queue filtering and audit.
-3. Field workflows: own-assignment read, arrival, checklist, label verification, specimen collection, condition, failure and exception reporting. Minimum-necessary patient data.
+3. Field workflows: own-assignment read, arrival, checklist, immutable barcode verification receipt as a prerequisite for collection, specimen condition, failure and exception reporting. This technical check supplements, but does not replace, approved patient identity and collection SOPs. Minimum-necessary patient data.
 4. Custody: immutable append-only event history, explicit sender/receiver authorization and acknowledgement, monotonic transitions, duplicate rejection, specimen isolation, manifest creation and lab receipt handoff contract (Phase 4 integration boundary).
 5. Offline: per-device event identity, idempotent batched sync, server-side ordering and authorization, conflict responses, replay protection, explicit recovery UX.
 6. Operations and field interfaces: mobile-first field PWA, dispatch queue, assignments, custody timeline, exceptions and manifest monitoring; loading/error/offline/accessibility states.
@@ -31,7 +31,7 @@ Phase 3's originally drafted migration names `0001_phase3_dispatch_custody.sql` 
 
 ## Active engineering handoff
 
-The Phase 3 feature branch includes additive migrations 0017–0023; scoped dispatch, field, incident, custody, courier-handoff and laboratory-manifest APIs; immutable audit receipts; source policy tests; and disposable PostgreSQL integration scenarios.
+The Phase 3 feature branch includes additive migrations 0017–0024; scoped dispatch, field, incident, custody, courier-handoff and laboratory-manifest APIs; immutable audit receipts; source policy tests; and disposable PostgreSQL integration scenarios.
 
 The accepted Phase 2 `main` baseline was incorporated into the Phase 3 branch in a two-parent integration commit `65c4f1309c874de3ed71ae59c02b751da767e91f`, retaining its booking/payment/API/security/lockfile history and routes. The integration is NOT a merge of Phase 3 back into `main`. Source-level and database tests are still unverified locally. Dispatch zone checks depend on Phase 2's `service_zones` and `collection_slots`.
 

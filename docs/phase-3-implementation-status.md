@@ -7,8 +7,8 @@
 
 ## Implemented source increments
 
-- Active shift and zone-scoped dispatch queue and assignment controls, with locked overlapping-worker capacity checks.
-- Assigned collector access, versioned specimen custody, append-only events and replay-safe receipts.
+- Paid-only dispatch queue and assignments, with active collector/courier shift-and-zone checks, locked overlapping-worker capacity checks, and negative synthetic eligibility tests.
+- Assigned collector access, immutable barcode-label checks required before collection, versioned specimen custody, append-only events and replay-safe receipts.
 - Courier handoff offers with frozen specimen versions, authenticated receiving courier acknowledgement, atomic custody progression, and replay defense.
 - Collector/courier incident reports, idempotent event IDs, supervisor resolution audit, and unresolved-incident custody blocks.
 - Internal lab manifests, laboratory-specific receiving grants, full specimen reconciliation, rejection reasons, audit and receipt idempotency.
@@ -16,7 +16,7 @@
 - Phase 3 API methods fail closed outside explicit synthetic-only execution on a loopback `fisher_test` database and refuse production mode.
 - Offline event reconciliation and `/field/events/sync` API contracts; durable device sync remains in development.
 - Production-gated UI workbenches at `/dispatch` and `/visits`, with explicit synthetic-only training previews.
-- Phase 3 additive migrations numbered `0017`–`0023`, database-backed full-flow, lab-receipt, and two-admin lab-onboarding tests authored. Not yet locally executed.
+- Phase 3 additive migrations numbered `0017`–`0024`, database-backed full-flow, lab-receipt, and two-admin lab-onboarding tests authored. Not yet locally executed.
 
 ## Remaining release engineering
 
