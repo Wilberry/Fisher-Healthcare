@@ -183,6 +183,8 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
     const accepted = await handoffs.acknowledge(identity(subs.courier),offerId,receiptKey);
     expect(accepted.data).toMatchObject({ status:'received',specimenCount:2,replayed:false });
     expect((await handoffs.acknowledge(identity(subs.courier),offerId,receiptKey)).data.replayed).toBe(true);
+    expect((await handoffs.offer(identity(subs.collector),assignmentId,ids.courierStaff,key)).data.replayed)
+      .toBe(true);
     await expect(handoffs.acknowledge(identity(subs.courier),offerId,randomUUID()))
       .rejects.toThrow('Handoff already finalized');
     const after = await pool.query<{ status:string; custody_version:number }>(

@@ -37,6 +37,13 @@ export class Phase3CustodyService implements OnModuleDestroy {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      const reference = await client.query<{ order_id: string }>(
+        'SELECT order_id FROM specimens WHERE id=$1', [specimenId]);
+      if (!reference.rows[0]) throw new ForbiddenException('Specimen access denied');
+      const order = await client.query<{ status: string }>(
+        'SELECT status FROM orders WHERE id=$1 FOR UPDATE', [reference.rows[0].order_id]);
+      if (order.rows[0]?.status !== 'collection_in_progress')
+        throw new ForbiddenException('Field collection is not currently authorized');
       const actor = await client.query<{ user_id: string; role: string }>(
         'SELECT st.user_id, st.role FROM staff st JOIN users usr ON usr.id=st.user_id WHERE usr.identity_subject=$1 AND st.active=TRUE LIMIT 1',
         [identity.subject]

@@ -57,14 +57,23 @@ export class Phase3HandoffService implements OnModuleDestroy {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      const reference = await client.query<{ order_id: string }>(
+        'SELECT order_id FROM phase3_assignments WHERE id=$1', [assignmentId]);
+      if (!reference.rows[0]) throw new ForbiddenException('Assignment access denied');
+      const orderLock = await client.query<{ status: string }>(
+        'SELECT status FROM orders WHERE id=$1 FOR UPDATE', [reference.rows[0].order_id]);
+      if (!orderLock.rows[0]) throw new ConflictException('Order unavailable');
       const assigned = await client.query<{ order_id: string; staff_id: string }>(
         'SELECT a.order_id,a.staff_id FROM phase3_assignments a ' +
         'JOIN staff st ON st.id=a.staff_id JOIN users usr ON usr.id=st.user_id ' +
         "WHERE a.id=$1 AND usr.identity_subject=$2 AND st.active AND st.role='phlebotomist' " +
-        "AND a.status='collecting' FOR UPDATE OF a",
+        "FOR UPDATE OF a",
         [assignmentId, identity.subject]);
       const current = assigned.rows[0];
       if (!current) throw new ForbiddenException('Assignment access denied');
+      // The locked order identity must still match the owned assignment.
+      if (current.order_id !== reference.rows[0].order_id)
+        throw new ConflictException('Assignment order changed');
       const courier = await client.query(
         "SELECT id FROM staff WHERE id=$1 AND active AND role='courier' FOR UPDATE",
         [courierStaffId]);
@@ -83,6 +92,14 @@ export class Phase3HandoffService implements OnModuleDestroy {
           return { data: { id: prior.id, status: prior.status, replayed: true } };
         }
         throw new ConflictException('Another handoff already exists');
+      }
+      // The same request key replays its prior outcome even after completion.
+      // New offers are permitted only during active field collection.
+      const stage = await client.query<{ status: string }>(
+        'SELECT status FROM phase3_assignments WHERE id=$1', [assignmentId]);
+      if (stage.rows[0]?.status !== 'collecting' ||
+          orderLock.rows[0]?.status !== 'collection_in_progress') {
+        throw new ConflictException('Field visit no longer accepts handoff offers');
       }
       const members = await client.query<{
         id: string; status: string; custody_version: number
@@ -124,6 +141,15 @@ export class Phase3HandoffService implements OnModuleDestroy {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      const reference = await client.query<{ order_id: string; assignment_id: string }>(
+        'SELECT a.order_id,h.assignment_id FROM phase3_handoff_offers h ' +
+        'JOIN phase3_assignments a ON a.id=h.assignment_id WHERE h.id=$1', [offerId]);
+      if (!reference.rows[0]) throw new ForbiddenException('Handoff unavailable');
+      const order = await client.query<{ status: string }>(
+        'SELECT status FROM orders WHERE id=$1 FOR UPDATE', [reference.rows[0].order_id]);
+      const assignment = await client.query<{ status: string }>(
+        'SELECT status FROM phase3_assignments WHERE id=$1 FOR UPDATE',
+        [reference.rows[0].assignment_id]);
       const result = await client.query<Handoff>(
         'SELECT h.id,h.assignment_id,h.courier_staff_id,h.sender_staff_id,h.status,h.receipt_key,' +
         'h.request_key,a.order_id,sender.user_id AS sender_user_id,courier.user_id AS courier_user_id ' +
@@ -142,9 +168,12 @@ export class Phase3HandoffService implements OnModuleDestroy {
         return { data: { id: offerId, status: 'received', replayed: true } };
       }
       if (offer.status !== 'offered') throw new ConflictException('Handoff already finalized');
-      const order = await client.query<{ status: string }>(
-        'SELECT status FROM orders WHERE id=$1 FOR UPDATE', [offer.order_id]);
-      if (!['assigned', 'collection_in_progress'].includes(order.rows[0]?.status ?? '')) {
+      if (offer.order_id !== reference.rows[0].order_id ||
+          offer.assignment_id !== reference.rows[0].assignment_id ||
+          assignment.rows[0]?.status !== 'collecting') {
+        throw new ConflictException('Field assignment is no longer collecting');
+      }
+      if (order.rows[0]?.status !== 'collection_in_progress') {
         throw new ConflictException('Order is no longer eligible for courier handoff');
       }
       const members = await client.query<HandoffSpecimen>(
