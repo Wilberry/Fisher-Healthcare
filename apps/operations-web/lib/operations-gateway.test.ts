@@ -11,6 +11,7 @@ vi.mock('./staff-auth',()=>({
     return !origin||origin!==new URL(request.url).origin;
   }
 }));
+import {StaffSessionError} from './staff-auth';
 import {forwardOperationsAction} from './operations-gateway';
 
 const base='https://operations.example.test/api/phase3/ops/assignments';
@@ -53,6 +54,15 @@ describe('Phase 3 operations BFF denies untrusted browser authority',()=>{
     mocks.verifyActiveStaff.mockResolvedValueOnce('different-user');
     expect((await forwardOperationsAction(cmd(),'ops/assignments')).status).toBe(401);
     expect(upstream).toHaveBeenCalledTimes(1);
+  });
+  it('returns signed staff expiry and revocation failures without upstream calls',async()=>{
+    const upstream=vi.fn();
+    vi.stubGlobal('fetch',upstream);
+    mocks.verifyActiveStaff.mockRejectedValueOnce(new StaffSessionError('reauth_required'));
+    expect((await forwardOperationsAction(cmd(),'ops/assignments')).status).toBe(401);
+    mocks.verifyActiveStaff.mockRejectedValueOnce(new StaffSessionError('access_denied'));
+    expect((await forwardOperationsAction(cmd(),'ops/assignments')).status).toBe(403);
+    expect(upstream).not.toHaveBeenCalled();
   });
   it('suppresses upstream error bodies and gives conflicts a review status',async()=>{
     const upstream=vi.fn().mockResolvedValue(

@@ -1,4 +1,4 @@
-import {crossSite,oidcConfig,readStaffSession,verifyActiveStaff} from './staff-auth';
+import {crossSite,oidcConfig,readStaffSession,verifyActiveStaff,StaffSessionError} from './staff-auth';
 
 // Deliberately narrow mutation set. Never accept a browser-selected upstream host.
 const allow = [
@@ -50,5 +50,11 @@ export async function forwardOperationsAction(request:Request,path:string):Promi
     }
     const result:unknown=await upstream.json();
     return Response.json(result,{headers:{'cache-control':'no-store'}});
-  }catch{return response(503,'Operations service unavailable');}
+  }catch(error){
+    if(error instanceof StaffSessionError){
+      if(error.reason==='reauth_required')return response(401,'Staff session expired; sign in again');
+      if(error.reason==='access_denied')return response(403,'Staff permission denied');
+    }
+    return response(503,'Operations service unavailable');
+  }
 }

@@ -287,7 +287,13 @@ export async function forwardFieldAction(request:Request,path:string):Promise<Re
     }
     const content:unknown=await result.json();
     return Response.json(content,{status:200,headers:{'cache-control':'no-store'}});
-  }catch{return reject(503,'Field service unavailable');}
+  }catch(error){
+    if(error instanceof StaffSessionError){
+      if(error.reason==='reauth_required')return reject(401,'Staff session expired; sign in again');
+      if(error.reason==='access_denied')return reject(403,'Field staff permission denied');
+    }
+    return reject(503,'Field service unavailable');
+  }
 }
 
 
