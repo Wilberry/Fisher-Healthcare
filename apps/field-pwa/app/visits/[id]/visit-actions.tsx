@@ -38,6 +38,7 @@ export function FieldVisitActions({assignment}:{assignment:FieldAssignment}){
         headers:{'content-type':'application/json'},body:JSON.stringify(payload),
         cache:'no-store'});
       if(!response.ok){
+        if(response.status===409)pending.current.delete(operation);
         setMessage(response.status===409 ?
           'Conflict: the visit or specimen changed. Review the latest server status before retrying.' :
           'Operation not accepted. Verify your assignment and staff session before retrying.');

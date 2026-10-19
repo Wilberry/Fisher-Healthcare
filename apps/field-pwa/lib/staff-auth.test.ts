@@ -52,6 +52,15 @@ describe('field staff session and PKCE policy',()=>{
     expect(crossSite(bad)).toBe(true);
     expect(crossSite(new Request('https://staff.example.test/auth/logout'))).toBe(true);
   });
+  it('rejects originless field POSTs before reading credentials or contacting an API',async()=>{
+    const {forwardFieldAction}=await import('./staff-auth');
+    const request=new Request('https://staff.example.test/api/phase3/field/events/sync',{
+      method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({events:[]})
+    });
+    const response=await forwardFieldAction(request,'field/events/sync');
+    expect(response.status).toBe(403);
+  });
   it('requires a complete, origin-matched OIDC configuration',()=>{
     expect(oidcConfig()).toBeNull();
     process.env.OIDC_ISSUER='https://idp.example.test';

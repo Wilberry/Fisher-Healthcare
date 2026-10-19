@@ -41,7 +41,8 @@ export default async function FieldVisits() {
               const status=typeof item.status==='string'?item.status:'';
               const windowStart=typeof item.collection_window_start==='string'?item.collection_window_start:'';
               return <li key={id||index}>
-                <strong>Assignment {id.slice(0,8)}</strong> · {status} · {windowStart}
+                <strong>{id?<Link href={'/visits/'+id}>Assignment {id.slice(0,8)}</Link>:
+                  'Assignment unavailable'}</strong> · {status} · {windowStart}
               </li>;
             })}
           </ul> : <p role="status">No assigned visits are available for this account.</p>}

@@ -134,6 +134,15 @@ for app in operations-web field-pwa; do
   WEB_PID=$!
   await_http "http://127.0.0.1:$WEB_PORT/$route" 200
   curl -sS --max-time 15 "http://127.0.0.1:$WEB_PORT/$route" > "$LOG/$app-locked.html"
+  if [[ "$app" == field-pwa ]]; then
+    [[ "$(http_status "http://127.0.0.1:$WEB_PORT/visits/00000000-0000-4000-8000-000000000001")" == 200 ]] ||
+      fail "Unverified field visit must show an access-locked response"
+    code="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
+      -X POST "http://127.0.0.1:$WEB_PORT/api/phase3/field/events/sync" \
+      -H 'Content-Type: application/json' --data '{"events":[]}')"
+    [[ "$code" == 403 ]] ||
+      fail "Originless field mutation was not blocked by the same-origin BFF"
+  fi
   if [[ "$app" == operations-web ]]; then
     grep -q "Staff identity verification required" "$LOG/$app-locked.html" ||
       fail "Dispatch authentication boundary missing"
