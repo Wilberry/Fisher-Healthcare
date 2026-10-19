@@ -2,6 +2,7 @@
 import { useEffect,useRef,useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { FieldAssignment } from '../../../lib/staff-auth';
+import { Notice } from '@fisher/ui';
 import {useSyntheticRecovery} from '../../../lib/use-synthetic-recovery';
 import {validOfflineEvent,type OfflineAction} from '../../../lib/offline-policy';
 
@@ -152,7 +153,7 @@ export function FieldVisitActions({assignment,couriers}:{
       Physical collection requires approved patient identity verification, consent and clinical SOPs.
       A successful barcode check alone does not establish patient identity.
     </Notice>
-    {!online&&<p role="alert">Offline: actions are disabled. No persistent patient or specimen information is stored.</p>}
+    {!online&&<p role="alert">Offline: only synthetic collection and packaging events can be encrypted locally. Label checks and handoffs require connectivity.</p>}
     <div style={{display:'flex',gap:12,flexWrap:'wrap',marginBottom:20}}>
       {assignment.status==='assigned'&&
         <button type="button" disabled={busy||!online} onClick={()=>void assignmentEvent('arrive')}>
@@ -193,14 +194,14 @@ export function FieldVisitActions({assignment,couriers}:{
           <div style={{display:'flex',gap:8,marginTop:12,flexWrap:'wrap'}}>
             <button type="button" disabled={busy||!online}
               onClick={()=>void labelCheck(specimen.id,specimen.custodyVersion)}>Verify label</button>
-            <button type="button" disabled={busy||!online}
+            <button type="button" disabled={busy}
               onClick={()=>void specimenEvent(specimen.id,'collect',specimen.custodyVersion)}>
               Record collection
             </button>
           </div>
         </>}
         {canCollect(assignment.status)&&specimen.status==='collected'&&
-          <button type="button" disabled={busy||!online}
+          <button type="button" disabled={busy}
             onClick={()=>void specimenEvent(specimen.id,'package',specimen.custodyVersion)}>
             Record packaging
           </button>}
@@ -242,7 +243,6 @@ export function FieldVisitActions({assignment,couriers}:{
         </button>
       </section>}
     <p role="status" aria-live="polite">{message}</p>
-    <p>No offline event queue is persisted. Keep the app open during a temporary
-      connection interruption; reloads can discard unsent actions.</p>
+    <p>Only minimal synthetic custody events may be encrypted for manual recovery. A queued event never establishes completed custody without an accepted API receipt.</p>
   </section>;
 }
