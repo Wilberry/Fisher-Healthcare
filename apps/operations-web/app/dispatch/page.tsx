@@ -18,6 +18,7 @@ export default async function DispatchConsole() {
       <p className="fisher-eyebrow">Phase 3 · Dispatch operations</p>
       <h1 className="fisher-section-title">Collection dispatch workbench</h1>
       <p className="fisher-lead">Plan assignments by zone, shift and capacity, then monitor exception-sensitive handoffs.</p>
+      <p><Link href="/exceptions">Review open custody incidents</Link> · <Link href="/lab-manifests">Laboratory handoffs</Link></p>
       <Notice title={queue.authorized ? 'Authorized synthetic dispatch queue' :
         demo ? 'Synthetic training mode only' : 'Staff identity verification required'} tone="warning">
         {queue.authorized ? 'Only server-authorized work items are shown. Phase 3 remains in restricted synthetic mode.'
@@ -49,7 +50,7 @@ export default async function DispatchConsole() {
                 const zone=typeof item.zone_code==='string'?item.zone_code:'';
                 const tier=typeof item.tier==='string'?item.tier:'';
                 const when=typeof item.collection_window_start==='string'?item.collection_window_start:'';
-                return <tr key={id||index}><td>{id.slice(0,8)}</td>
+                return <tr key={id||index}><td>{id?<Link href={'/dispatch/'+id}>View {id.slice(0,8)}</Link>:'—'}</td>
                   <td>{zone}</td><td>{tier}</td><td>{when}</td></tr>;
               })}</tbody>
             </table></div> : <p>No eligible paid collection orders are queued for dispatch.</p>}
