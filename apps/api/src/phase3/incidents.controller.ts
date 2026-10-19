@@ -46,6 +46,10 @@ export class Phase3IncidentsService implements OnModuleDestroy {
         'VALUES($1,$2,$3,$4) ON CONFLICT(client_event_id) DO NOTHING RETURNING id',
         [specimenId,actorId,eventId,kind]);
       if (inserted.rows[0]) {
+        await client.query(
+          'INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata) ' +
+          "VALUES($1,'phase3.incident.reported','incident',$2,$3::jsonb)",
+          [actorId, inserted.rows[0].id, JSON.stringify({ kind })]);
         await client.query('COMMIT');
         return { data: { id: inserted.rows[0].id, status: 'open', replayed: false } };
       }

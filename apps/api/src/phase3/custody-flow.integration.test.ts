@@ -176,6 +176,10 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
     expect(first.data.replayed).toBe(false);
     const second = await incidents.report(identity(subs.collector),ids.specimenA,key,'broken_seal');
     expect(second.data).toEqual({ ...first.data,replayed:true });
+    const audit = await pool.query(
+      "SELECT id FROM audit_events WHERE resource_type='incident' " +
+      "AND resource_id=$1 AND action='phase3.incident.reported'",[first.data.id]);
+    expect(audit.rowCount).toBe(1);
     await expect(incidents.report(identity(subs.collector),ids.specimenB,key,'broken_seal'))
       .rejects.toThrow('Incident event identity reused');
     await expect(handoffs.offer(identity(subs.collector),assignmentId,ids.courierStaff,randomUUID()))
