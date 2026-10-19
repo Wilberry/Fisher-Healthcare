@@ -1,4 +1,4 @@
-import { createCipheriv,createDecipheriv,createHash,randomBytes } from 'node:crypto';
+import { createCipheriv,createDecipheriv,createHash,createHmac,randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 export type StaffSession={type:'session';accessToken:string;subject:string;expires:number};
 type Pending={type:'pending';state:string;verifier:string;next:string;expires:number};
@@ -327,4 +327,32 @@ export async function staffCourierHandoff(id:string):Promise<{
     }));
     return {authorized:true,id:id.toLowerCase(),status:value.status,specimens};
   }catch{return denied;}
+}
+
+
+/**
+ * Synthetic-only browser queue ownership. No role, name, token or subject is
+ * exposed in the response. The HMAC is stable across same-user reauthentication.
+ */
+export async function offlineStaffContext():Promise<{
+  status:200|401|503;scope?:string
+}>{
+  if(process.env.NODE_ENV==='production'||
+     process.env.FISHER_PHASE3_OFFLINE_DEMO_MODE!=='synthetic-only')
+    return {status:503};
+  const session=await readStaffSession(),cfg=oidcConfig();
+  if(!session)return {status:401};
+  if(!cfg)return {status:503};
+  try{
+    const subject=await verifyActiveStaff(session.accessToken,cfg.api);
+    if(subject!==session.subject)return {status:401};
+    const scope=createHmac('sha256',tokenKey())
+      .update('fisher:phase3:synthetic:field:owner:v1:'+subject).digest('hex');
+    return {status:200,scope};
+  }catch(error){
+    if(error instanceof StaffSessionError&&
+       ['reauth_required','access_denied'].includes(error.reason))
+      return {status:401};
+    return {status:503};
+  }
 }
