@@ -1,10 +1,15 @@
 import { defineConfig } from 'vitest/config';
 
-// Only execute authored TypeScript tests. Compiled CommonJS copies under dist/
-// are production build artifacts, not additional Vitest test suites.
+// Test authored source files only. Turbo builds dist/ before running Vitest;
+// compiled CommonJS test artifacts are not valid Vitest ESM suites.
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
-    exclude: ['dist/**', 'node_modules/**']
+    exclude: ['dist/**', 'node_modules/**'],
+    include: [
+      'src/**/*.test.ts',
+      'src/**/*.test.tsx',
+      'src/**/*.spec.ts',
+      'src/**/*.spec.tsx'
+    ]
   }
 });

@@ -1,6 +1,6 @@
 # Planned API and endpoint specification
 
-**Status:** Design contract, not implemented routes. All paths below are proposed under `/api/v1`. OpenAPI and runtime schemas must be generated and reviewed during implementation.
+**Status:** Programme target contract. Some Phase 1 and Phase 2 routes are implemented in source; others remain planned. See [Phase 2 engineering status](phase-2-implementation-status.md) for the exact subset. All paths below are under `/api/v1`. The generated OpenAPI is the machine-readable description of what is actually implemented.
 
 ## 1. Conventions
 

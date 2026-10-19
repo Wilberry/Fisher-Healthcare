@@ -72,3 +72,5 @@ The documentation in this repository defines the company's intended product capa
 ## Project status
 
 **Current development phase: Phase 2 — Patient Booking and Customer Experience** · [Development Roadmap](docs/06-development-roadmap.md)
+
+Phase 2 engineering status: [Phase 2 Implementation Status](docs/phase-2-implementation-status.md).

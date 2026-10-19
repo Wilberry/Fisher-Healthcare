@@ -7,3 +7,5 @@ export type QuoteRequest=z.infer<typeof quoteRequestSchema>;
 export type BookingStatus=z.infer<typeof bookingStatusSchema>;
 
 export * from './foundation';
+
+export * from './booking';

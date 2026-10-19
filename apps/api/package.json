@@ -22,7 +22,8 @@
     "@fisher/contracts": "workspace:*",
     "pg": "^8.13.1",
     "@nestjs/swagger": "^7.4.2",
-    "@fisher/observability": "workspace:*"
+    "@fisher/observability": "workspace:*",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

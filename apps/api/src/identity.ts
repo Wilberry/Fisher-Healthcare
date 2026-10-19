@@ -5,6 +5,7 @@ export interface AuthenticatedIdentity {
   subject: string;
   issuer: string;
   authenticationMethods: readonly string[];
+  verifiedEmail?: string;
 }
 
 function bearerToken(authorization: string | undefined): string {
@@ -65,7 +66,11 @@ export class IdentityVerifier {
       const authenticationMethods = Array.isArray(methods)
         ? methods.filter((method): method is string => typeof method === 'string')
         : [];
-      return { subject: payload.sub, issuer: this.issuer, authenticationMethods };
+      const verifiedEmail = payload.email_verified === true && typeof payload.email === 'string' &&
+        payload.email.length <= 320 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(payload.email)
+        ? payload.email : undefined;
+      return { subject: payload.sub, issuer: this.issuer, authenticationMethods,
+        ...(verifiedEmail ? { verifiedEmail } : {}) };
     } catch {
       throw new UnauthorizedException('Invalid or expired identity token');
     }

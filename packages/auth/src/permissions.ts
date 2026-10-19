@@ -3,11 +3,11 @@ export type Capability =
   | 'orders:read' | 'orders:manage' | 'dispatch:manage'
   | 'specimens:collect' | 'specimens:transport' | 'labs:manage'
   | 'results:release' | 'finance:read' | 'finance:manage'
-  | 'staff:manage' | 'audit:read';
+  | 'staff:manage' | 'audit:read' | 'support:manage';
 const permissions: Record<StaffRole, readonly Capability[]> = {
- administrator:['orders:read','orders:manage','dispatch:manage','labs:manage','staff:manage','audit:read'],
+ administrator:['orders:read','orders:manage','dispatch:manage','labs:manage','staff:manage','audit:read','support:manage'],
  dispatcher:['orders:read','dispatch:manage'],
- support:['orders:read'],
+ support:['orders:read','support:manage'],
  phlebotomist:['specimens:collect'],
  courier:['specimens:transport'],
  lab_coordinator:['orders:read','labs:manage'],
