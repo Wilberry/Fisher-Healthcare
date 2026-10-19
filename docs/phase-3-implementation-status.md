@@ -19,6 +19,37 @@
 - Production-gated UI workbenches at `/dispatch` and `/visits`, plus `/visits/[id]` for signed, scoped collection actions. Both staff portals use encrypted, HTTP-only OIDC/PKCE sessions with server-side MFA and capability checks, and now distinguish expired/revoked sessions from API outages. No browser bearer token is exposed.
 - Phase 3 additive migrations numbered `0017`–`0025`, database-backed full-flow, lab-receipt, and two-admin lab-onboarding tests authored. Not yet locally executed.
 
+## Step 1 source-hardening continuation
+
+The current Phase 3 branch also includes the following **source-level** corrections.
+They have not been accepted by an integrated build or the consolidated verifier:
+
+- Encrypted IndexedDB queue upgraded with authenticated owner/event metadata,
+  an owner-scoped unique event fingerprint index, atomic capacity and collision
+  enforcement, safe legacy-record migration, and transactional review/removal.
+  The store remains strictly synthetic-only; no patient data, diagnostic
+  information, credentials, or barcode scans may enter the persisted envelope.
+- Manual recovery now excludes concurrent tabs using Web Locks, checks live
+  server-side staff authorization, retains original IDs after uncertain
+  network results, and distinguishes conflicts from successful receipts.
+  Minimal synthetic field events can be durably staged before network submission.
+- Staff sign-out now requests browser storage clearance and broadcasts
+  cross-tab session invalidation. Both staff layouts redirect stale open tabs,
+  and same-origin mutations are bound to the configured staff web origin.
+- Laboratory grant approvals are fenced against prior revocations; revoke
+  takes serialized laboratory/coordinator locks, and disposable database tests
+  cover stale-request refusal plus independently approved fresh requests.
+- Fixed field UI imports and offline messages, removed constant-incompatible
+  TypeScript role branches, improved administrative error states, enabled
+  previously undiscovered library security tests, and expanded the
+  dependency-free source-guard specification.
+
+Connector-backed source inspections checked the changed imports and referenced
+paths, but **the local source-guard script, full TypeScript/lint/build gates,
+PostgreSQL migrations and test suite have not been run**. Browser Web Locks,
+IndexedDB privacy guarantees, OIDC/MFA provider outage handling, sign-out
+behavior and reauthentication still require disposable integration acceptance.
+
 ## Remaining release engineering
 
 1. **Integrated on Phase 3 branch:** the accepted Phase 2 `main` baseline was preserved in integration commit `65c4f1309c874de3ed71ae59c02b751da767e91f` (not merged back into `main`). Phase 3 exact-commit verification and PR review remain required.
