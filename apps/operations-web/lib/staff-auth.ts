@@ -99,7 +99,14 @@ export function challenge(verifier:string):string{
 }
 export function crossSite(request:Request):boolean{
   const origin=request.headers.get('origin');
-  return !origin||origin!==new URL(request.url).origin;
+  const requested=new URL(request.url).origin;
+  const trusted=process.env.FISHER_STAFF_WEB_ORIGIN;
+  // Never derive the CSRF trust boundary solely from an attacker-controlled Host.
+  if(process.env.NODE_ENV==='production'&&!trusted)return true;
+  return !origin||origin!==requested||(!!trusted&&
+    (!trusted.startsWith('https://')&&
+      !(process.env.NODE_ENV!=='production'&&trusted.startsWith('http://127.0.0.1:'))||
+      origin!==trusted));
 }
 export async function readStaffSession():Promise<StaffSession|null>{
   const cookieStore=await cookies();
