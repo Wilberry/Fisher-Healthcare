@@ -20,7 +20,14 @@ CREATE TABLE phase3_manifest_receipts (
  received_by uuid NOT NULL REFERENCES users(id),
  accepted_specimen_ids jsonb NOT NULL,
  rejected_specimen_ids jsonb NOT NULL,
- created_at timestamptz NOT NULL DEFAULT now()
+ rejection_reason_code varchar(32),
+ created_at timestamptz NOT NULL DEFAULT now(),
+ CONSTRAINT manifest_receipt_rejection_reason CHECK (
+    (jsonb_array_length(rejected_specimen_ids) = 0 AND rejection_reason_code IS NULL)
+    OR
+    (jsonb_array_length(rejected_specimen_ids) > 0 AND rejection_reason_code IN
+      ('label_mismatch','leakage','temperature_excursion','damaged_container','quantity_mismatch','other'))
+ )
 );
 ALTER TABLE phase3_incidents ADD COLUMN resolution_status varchar(24) NOT NULL DEFAULT 'open'
  CHECK (resolution_status IN ('open','resolved'));
