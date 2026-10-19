@@ -5,5 +5,8 @@ export async function POST(request:NextRequest){
   const response=NextResponse.redirect(new URL('/signed-out',request.url),303);
   response.cookies.delete(cookieNames().pending);
   response.cookies.delete(cookieNames().session);
+  // Browser-level cleanup supplements the signed-out page fallback, including
+  // navigation without client JavaScript. No other origin is affected.
+  response.headers.set('Clear-Site-Data','"storage"');
   return response;
 }
