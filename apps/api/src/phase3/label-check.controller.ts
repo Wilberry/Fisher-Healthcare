@@ -35,19 +35,19 @@ export class Phase3LabelService implements OnModuleDestroy {
       if(!reference.rows[0])throw new ForbiddenException('Specimen access denied');
       const order=await client.query<{status:string}>(
         'SELECT status FROM orders WHERE id=$1 FOR UPDATE',[reference.rows[0].order_id]);
-      if(order.rows[0]?.status!=='collection_in_progress')
-        throw new ForbiddenException('Collection is not active');
+
       const specimen=await client.query<{
         id:string;barcode:string;status:string;custody_version:number
       }>(
         'SELECT id,barcode,status,custody_version FROM specimens WHERE id=$1 FOR UPDATE',
         [specimenId]);
       if(!specimen.rows[0])throw new ForbiddenException('Specimen access denied');
-      const authorized=await client.query<{id:string}>(
-        'SELECT usr.id FROM users usr JOIN staff st ON st.user_id=usr.id ' +
+      const authorized=await client.query<{id:string;status:string}>(
+        'SELECT usr.id,a.status FROM users usr JOIN staff st ON st.user_id=usr.id ' +
         'JOIN phase3_assignments a ON a.staff_id=st.id ' +
         'WHERE usr.identity_subject=$1 AND a.order_id=$2 AND st.active ' +
-        "AND st.role='phlebotomist' AND a.status='collecting' LIMIT 1",
+        "AND st.role='phlebotomist' AND a.status IN ('collecting','completed') " +
+        "ORDER BY CASE WHEN a.status='collecting' THEN 0 ELSE 1 END LIMIT 1",
         [identity.subject,reference.rows[0].order_id]);
       if(authorized.rowCount!==1)throw new ForbiddenException('Specimen access denied');
       const actorId=authorized.rows[0]!.id;
@@ -67,6 +67,9 @@ export class Phase3LabelService implements OnModuleDestroy {
         }
         throw new ConflictException('LABEL_ALREADY_CHECKED');
       }
+      if(order.rows[0]?.status!=='collection_in_progress' ||
+         authorized.rows[0]?.status!=='collecting')
+        throw new ForbiddenException('Collection is not active');
       if(specimen.rows[0].status!=='planned' ||
          specimen.rows[0].custody_version!==input.expectedVersion)
         throw new ConflictException('STALE_SPECIMEN_LABEL_CHECK');

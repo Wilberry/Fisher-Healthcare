@@ -41,6 +41,7 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
   });
   let assignmentId: string, offerId: string, manifestId: string;
   const receiptKey = randomUUID();
+  const collectionReceipts = new Map<string,{labelKey:string;barcode:string;collectionEvent:string}>();
 
   beforeAll(async () => {
     process.env.FISHER_PHASE3_OPERATION_MODE = 'synthetic-only';
@@ -188,8 +189,10 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
       expect((await labels.verify(identity(subs.collector),specimenId,{
         eventId:labelKey,observedBarcode:barcode,expectedVersion:0
       })).data.replayed).toBe(true);
+      const collectionEvent=randomUUID();
+      collectionReceipts.set(specimenId,{labelKey,barcode,collectionEvent});
       expect((await custody.apply(identity(subs.collector),specimenId,
-        { eventId: randomUUID(), action: 'collect', expectedVersion: 0 })).data.state).toBe('collected');
+        { eventId: collectionEvent, action: 'collect', expectedVersion: 0 })).data.state).toBe('collected');
       expect((await custody.apply(identity(subs.collector),specimenId,
         { eventId: randomUUID(), action: 'package', expectedVersion: 1 })).data.state).toBe('packaged');
     }
@@ -234,6 +237,16 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
       'SELECT status,custody_version FROM specimens WHERE order_id=$1', [ids.order]);
     expect(after.rows).toHaveLength(2);
     expect(after.rows.every(x => x.status === 'in_transit' && x.custody_version === 3)).toBe(true);
+    const previous = collectionReceipts.get(ids.specimenA)!;
+    expect((await labels.verify(identity(subs.collector),ids.specimenA,{
+      eventId:previous.labelKey,observedBarcode:previous.barcode,expectedVersion:0
+    })).data.replayed).toBe(true);
+    expect((await custody.apply(identity(subs.collector),ids.specimenA,{
+      eventId:previous.collectionEvent,action:'collect',expectedVersion:0
+    })).data).toMatchObject({state:'collected',version:1});
+    await expect(custody.apply(identity(subs.collector),ids.specimenA,{
+      eventId:randomUUID(),action:'collect',expectedVersion:0
+    })).rejects.toThrow('Collection is no longer active');
   });
 
   it('allows scoped courier incidents, then reconciles lab receipt after resolution', async () => {

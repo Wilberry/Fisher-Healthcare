@@ -42,8 +42,7 @@ export class Phase3CustodyService implements OnModuleDestroy {
       if (!reference.rows[0]) throw new ForbiddenException('Specimen access denied');
       const order = await client.query<{ status: string }>(
         'SELECT status FROM orders WHERE id=$1 FOR UPDATE', [reference.rows[0].order_id]);
-      if (order.rows[0]?.status !== 'collection_in_progress')
-        throw new ForbiddenException('Field collection is not currently authorized');
+
       const actor = await client.query<{ user_id: string; role: string }>(
         'SELECT st.user_id, st.role FROM staff st JOIN users usr ON usr.id=st.user_id WHERE usr.identity_subject=$1 AND st.active=TRUE LIMIT 1',
         [identity.subject]
@@ -51,16 +50,35 @@ export class Phase3CustodyService implements OnModuleDestroy {
       const staff = actor.rows[0];
       const role = staff && roles[staff.role];
       if (!staff || !role || role !== 'collector') throw new ForbiddenException('Field collector access denied');
-      const allowed = await client.query(
-        `SELECT 1 FROM specimens sp JOIN orders ord ON ord.id=sp.order_id
-         WHERE sp.id=$1 AND EXISTS (
-           SELECT 1 FROM phase3_assignments a JOIN staff st ON st.id=a.staff_id
-           WHERE a.order_id=ord.id AND st.user_id=$2
-             AND a.status='collecting'
-         ) LIMIT 1`,
+      const allowed = await client.query<{ status: string }>(
+        `SELECT a.status FROM specimens sp
+         JOIN phase3_assignments a ON a.order_id=sp.order_id
+         JOIN staff st ON st.id=a.staff_id
+         WHERE sp.id=$1 AND st.user_id=$2
+           AND a.status IN ('collecting','completed')
+         ORDER BY CASE WHEN a.status='collecting' THEN 0 ELSE 1 END LIMIT 1`,
         [specimenId, staff.user_id]
       );
       if (allowed.rowCount !== 1) throw new ForbiddenException('Specimen access denied');
+      const command = {
+        specimenId, eventId: input.eventId, actorId: staff.user_id, role,
+        action: input.action, expectedVersion: input.expectedVersion,
+        ...(input.recipientId !== undefined ? { recipientId: input.recipientId } : {}),
+        ...(input.recipientAcknowledged !== undefined ?
+          { recipientAcknowledged: input.recipientAcknowledged } : {})
+      };
+      if (allowed.rows[0]?.status !== 'collecting' ||
+          order.rows[0]?.status !== 'collection_in_progress') {
+        // Completed assignments may retrieve an exact prior receipt, but never
+        // authorize a new collection event or silently advance custody.
+        const prior = await client.query(
+          'SELECT 1 FROM phase3_custody_receipts WHERE event_id=$1', [input.eventId]);
+        if (prior.rowCount !== 1)
+          throw new ForbiddenException('Collection is no longer active');
+        const receipt = await recordCustodyEvent(client, command);
+        await client.query('COMMIT');
+        return { data: receipt };
+      }
       if(input.action==='collect'){
         const label=await client.query(
           'SELECT 1 FROM phase3_specimen_label_checks ' +
@@ -68,13 +86,7 @@ export class Phase3CustodyService implements OnModuleDestroy {
           [specimenId,staff.user_id,input.expectedVersion]);
         if(label.rowCount!==1)throw new ConflictException('LABEL_CHECK_REQUIRED');
       }
-      const receipt = await recordCustodyEvent(client, {
-        specimenId, eventId: input.eventId, actorId: staff.user_id, role,
-        action: input.action, expectedVersion: input.expectedVersion,
-        ...(input.recipientId !== undefined ? { recipientId: input.recipientId } : {}),
-        ...(input.recipientAcknowledged !== undefined ?
-          { recipientAcknowledged: input.recipientAcknowledged } : {})
-      });
+      const receipt = await recordCustodyEvent(client, command);
       await client.query('COMMIT');
       return { data: receipt };
     } catch (error) {
