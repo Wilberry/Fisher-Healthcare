@@ -56,6 +56,8 @@ for version in 0017 0018 0019 0020 0021 0022 0023 0024; do
     fail "Missing Phase 3 migration $version"
 done
 mkdir -p "$LOG"
+node scripts/phase3-source-guards.mjs > "$LOG/00-source-guards.log" 2>&1 ||
+  fail "Phase 3 source safety preflight failed; inspect 00-source-guards.log"
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 export NEXT_TELEMETRY_DISABLED=1
 
