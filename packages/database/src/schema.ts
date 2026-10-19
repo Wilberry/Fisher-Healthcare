@@ -7,14 +7,163 @@ export const patients = pgTable('patients',{id:uuid('id').primaryKey().defaultRa
 export const patientRelationships = pgTable('patient_relationships',{id:uuid('id').primaryKey().defaultRandom(),userId:uuid('user_id').notNull().references(()=>users.id),patientId:uuid('patient_id').notNull().references(()=>patients.id),relationship:varchar('relationship',{length:40}).notNull(),canBook:boolean('can_book').notNull().default(false),canViewResults:boolean('can_view_results').notNull().default(false),verifiedAt:timestamp('verified_at',{withTimezone:true}),revokedAt:timestamp('revoked_at',{withTimezone:true}),...timestamps},t=>[index('relationship_patient_idx').on(t.patientId)]);
 export const staff = pgTable('staff',{id:uuid('id').primaryKey().defaultRandom(),userId:uuid('user_id').notNull().references(()=>users.id).unique(),role:varchar('role',{length:40}).notNull(),active:boolean('active').notNull().default(false),...timestamps});
 export const laboratories = pgTable('laboratories',{id:uuid('id').primaryKey().defaultRandom(),name:varchar('name',{length:200}).notNull(),active:boolean('active').notNull().default(false),...timestamps});
-export const tests = pgTable('tests',{id:uuid('id').primaryKey().defaultRandom(),code:varchar('code',{length:64}).notNull().unique(),name:varchar('name',{length:200}).notNull(),specimenType:varchar('specimen_type',{length:80}).notNull(),active:boolean('active').notNull().default(false),...timestamps});
+export const tests = pgTable('tests',{id:uuid('id').primaryKey().defaultRandom(),code:varchar('code',{length:64}).notNull().unique(),name:varchar('name',{length:200}).notNull(),specimenType:varchar('specimen_type',{length:80}).notNull(),preparationText:text('preparation_text'),active:boolean('active').notNull().default(false),...timestamps});
 export const labOfferings = pgTable('lab_offerings',{id:uuid('id').primaryKey().defaultRandom(),labId:uuid('lab_id').notNull().references(()=>laboratories.id),testId:uuid('test_id').notNull().references(()=>tests.id),priceKobo:integer('price_kobo').notNull(),turnaroundHours:integer('turnaround_hours').notNull(),active:boolean('active').notNull().default(false)},t=>[uniqueIndex('lab_test_unique').on(t.labId,t.testId)]);
-export const orders = pgTable('orders',{id:uuid('id').primaryKey().defaultRandom(),patientId:uuid('patient_id').notNull().references(()=>patients.id),bookedBy:uuid('booked_by').notNull().references(()=>users.id),labId:uuid('lab_id').notNull().references(()=>laboratories.id),status:orderStatus('status').notNull().default('draft'),tier:varchar('tier',{length:20}).notNull(),currency:varchar('currency',{length:3}).notNull().default('NGN'),totalKobo:integer('total_kobo').notNull(),collectionWindowStart:timestamp('collection_window_start',{withTimezone:true}),collectionWindowEnd:timestamp('collection_window_end',{withTimezone:true}),...timestamps});
+export const orders = pgTable('orders',{id:uuid('id').primaryKey().defaultRandom(),patientId:uuid('patient_id').notNull().references(()=>patients.id),bookedBy:uuid('booked_by').notNull().references(()=>users.id),labId:uuid('lab_id').notNull().references(()=>laboratories.id),status:orderStatus('status').notNull().default('draft'),collectionAddressId:uuid('collection_address_id').references(()=>patientAddresses.id),collectionAddressSnapshot:jsonb('collection_address_snapshot'),bookingConsentVersion:varchar('booking_consent_version',{length:60}),tier:varchar('tier',{length:20}).notNull(),currency:varchar('currency',{length:3}).notNull().default('NGN'),totalKobo:integer('total_kobo').notNull(),collectionWindowStart:timestamp('collection_window_start',{withTimezone:true}),collectionWindowEnd:timestamp('collection_window_end',{withTimezone:true}),...timestamps});
 export const orderItems = pgTable('order_items',{id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),testId:uuid('test_id').notNull().references(()=>tests.id),priceKobo:integer('price_kobo').notNull()});
 export const specimens = pgTable('specimens',{id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),barcode:varchar('barcode',{length:100}).notNull().unique(),status:specimenStatus('status').notNull().default('planned'),...timestamps});
 export const custodyEvents = pgTable('custody_events',{id:uuid('id').primaryKey().defaultRandom(),specimenId:uuid('specimen_id').notNull().references(()=>specimens.id),actorId:uuid('actor_id').notNull().references(()=>users.id),eventType:varchar('event_type',{length:64}).notNull(),payload:jsonb('payload').notNull().default({}),occurredAt:timestamp('occurred_at',{withTimezone:true}).notNull(),recordedAt:timestamp('recorded_at',{withTimezone:true}).notNull().defaultNow()},t=>[index('custody_specimen_idx').on(t.specimenId)]);
 export const results = pgTable('results',{id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),patientId:uuid('patient_id').notNull().references(()=>patients.id),objectKey:text('object_key').notNull(),releasedAt:timestamp('released_at',{withTimezone:true}),releasedBy:uuid('released_by').references(()=>users.id),...timestamps});
-export const payments = pgTable('payments',{id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),providerReference:varchar('provider_reference',{length:200}).notNull().unique(),amountKobo:integer('amount_kobo').notNull(),status:varchar('status',{length:32}).notNull(),...timestamps});
+export const payments = pgTable('payments',{id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),providerReference:varchar('provider_reference',{length:200}).notNull().unique(),amountKobo:integer('amount_kobo').notNull(),status:varchar('status',{length:32}).notNull(),clientKey:varchar('client_key',{length:128}),checkoutUrl:text('checkout_url'),...timestamps});
 export const ledgerEntries = pgTable('ledger_entries',{id:uuid('id').primaryKey().defaultRandom(),transactionId:uuid('transaction_id').notNull(),account:varchar('account',{length:80}).notNull(),amountKobo:integer('amount_kobo').notNull(),...timestamps},t=>[index('ledger_transaction_idx').on(t.transactionId)]);
 export const outbox = pgTable('outbox',{id:uuid('id').primaryKey().defaultRandom(),eventType:varchar('event_type',{length:120}).notNull(),payload:jsonb('payload').notNull(),attempts:integer('attempts').notNull().default(0),processedAt:timestamp('processed_at',{withTimezone:true}),availableAt:timestamp('available_at',{withTimezone:true}).notNull().defaultNow(),leaseToken:uuid('lease_token'),leaseExpiresAt:timestamp('lease_expires_at',{withTimezone:true}),lastError:text('last_error'),deadLetteredAt:timestamp('dead_lettered_at',{withTimezone:true}),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()});
 export const auditEvents = pgTable('audit_events',{id:uuid('id').primaryKey().defaultRandom(),actorId:uuid('actor_id').references(()=>users.id),action:varchar('action',{length:120}).notNull(),resourceType:varchar('resource_type',{length:80}).notNull(),resourceId:uuid('resource_id'),occurredAt:timestamp('occurred_at',{withTimezone:true}).notNull().defaultNow(),metadata:jsonb('metadata').notNull().default({})});
+
+
+// Phase 2 uses the corresponding checksummed 0004 migration. Defaults deny unapproved zones/slots.
+export const serviceZones = pgTable('service_zones', {
+  id: uuid('id').primaryKey().defaultRandom(), code: varchar('code',{length:64}).notNull().unique(),
+  name: varchar('name',{length:160}).notNull(), active: boolean('active').notNull().default(false),
+  regularFeeKobo: integer('regular_fee_kobo').notNull(), premiumFeeKobo: integer('premium_fee_kobo').notNull(),
+  createdAt: timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+});
+export const collectionSlots = pgTable('collection_slots', {
+  id: uuid('id').primaryKey().defaultRandom(), zoneId: uuid('zone_id').notNull().references(()=>serviceZones.id),
+  labId: uuid('lab_id').notNull().references(()=>laboratories.id),
+  tier: varchar('tier',{length:20}).notNull(), startsAt: timestamp('starts_at',{withTimezone:true}).notNull(),
+  endsAt: timestamp('ends_at',{withTimezone:true}).notNull(), cutoffAt: timestamp('cutoff_at',{withTimezone:true}).notNull(),
+  capacity: integer('capacity').notNull(), active: boolean('active').notNull().default(false)
+});
+export const bookingQuotes = pgTable('booking_quotes', {
+  id: uuid('id').primaryKey().defaultRandom(), zoneId: uuid('zone_id').notNull().references(()=>serviceZones.id),
+  slotId: uuid('slot_id').notNull().references(()=>collectionSlots.id),
+  labId: uuid('lab_id').notNull().references(()=>laboratories.id), tier: varchar('tier',{length:20}).notNull(),
+  currency: varchar('currency',{length:3}).notNull().default('NGN'),
+  items: jsonb('items').notNull(), testsTotalKobo: integer('tests_total_kobo').notNull(),
+  logisticsFeeKobo: integer('logistics_fee_kobo').notNull(), totalKobo: integer('total_kobo').notNull(),
+  expiresAt: timestamp('expires_at',{withTimezone:true}).notNull(),
+  createdAt: timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+});
+export const bookingDrafts = pgTable('booking_drafts', {
+  id: uuid('id').primaryKey().defaultRandom(), userId: uuid('user_id').notNull().references(()=>users.id),
+  patientId: uuid('patient_id').notNull().references(()=>patients.id),
+  quoteId: uuid('quote_id').notNull().references(()=>bookingQuotes.id),
+  status: varchar('status',{length:24}).notNull().default('open'),
+  addressId: uuid('address_id').references(()=>patientAddresses.id),
+  commitKey: varchar('commit_key',{length:128}),
+  consentVersion:varchar('consent_version',{length:60}),
+  consentedAt:timestamp('consented_at',{withTimezone:true}),
+  orderId: uuid('order_id').references(()=>orders.id),
+  ...timestamps
+});
+export const slotHolds = pgTable('slot_holds', {
+  id: uuid('id').primaryKey().defaultRandom(), draftId: uuid('draft_id').notNull().references(()=>bookingDrafts.id).unique(),
+  slotId: uuid('slot_id').notNull().references(()=>collectionSlots.id),
+  expiresAt: timestamp('expires_at',{withTimezone:true}).notNull(),
+  createdAt: timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+});
+export const paymentWebhookEvents = pgTable('payment_webhook_events', {
+  id: uuid('id').primaryKey().defaultRandom(), eventHash: varchar('event_hash',{length:64}).notNull().unique(),
+  providerReference: varchar('provider_reference',{length:200}),
+  receivedAt: timestamp('received_at',{withTimezone:true}).notNull().defaultNow()
+});
+
+export const bookingScheduleChanges=pgTable('booking_schedule_changes',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ orderId:uuid('order_id').notNull().references(()=>orders.id),
+ fromSlotId:uuid('from_slot_id').notNull().references(()=>collectionSlots.id),
+ toSlotId:uuid('to_slot_id').notNull().references(()=>collectionSlots.id),
+ idempotencyKey:varchar('idempotency_key',{length:128}).notNull(),
+ actorId:uuid('actor_id').notNull().references(()=>users.id),
+ recordedAt:timestamp('recorded_at',{withTimezone:true}).notNull().defaultNow()
+}, t=>[uniqueIndex('booking_schedule_order_key').on(t.orderId,t.idempotencyKey)]);
+
+export const notificationIntents=pgTable('notification_intents',{
+ id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),
+ channel:varchar('channel',{length:20}).notNull(),template:varchar('template',{length:60}).notNull(),
+ status:varchar('status',{length:20}).notNull().default('pending'),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+ sentAt:timestamp('sent_at',{withTimezone:true}),providerReceipt:text('provider_receipt'),
+ attempts:integer('attempts').notNull().default(0),
+ leaseToken:uuid('lease_token'),leaseExpiresAt:timestamp('lease_expires_at',{withTimezone:true}),
+ firstAttemptAt:timestamp('first_attempt_at',{withTimezone:true}),
+ lastAttemptAt:timestamp('last_attempt_at',{withTimezone:true}),
+ nextAttemptAt:timestamp('next_attempt_at',{withTimezone:true}).notNull().defaultNow(),
+ recipientEmail:varchar('recipient_email',{length:320})
+},t=>[uniqueIndex('notification_order_channel_template').on(t.orderId,t.channel,t.template)]);
+export const paymentReviewAlerts=pgTable('payment_review_alerts',{
+ id:uuid('id').primaryKey().defaultRandom(),orderId:uuid('order_id').notNull().references(()=>orders.id),
+ paymentId:uuid('payment_id').notNull().references(()=>payments.id).unique(),
+ reason:varchar('reason',{length:100}).notNull(),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),
+ resolvedAt:timestamp('resolved_at',{withTimezone:true})
+});
+
+export const patientAddresses=pgTable('patient_addresses',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ patientId:uuid('patient_id').notNull().references(()=>patients.id),
+ ownerUserId:uuid('owner_user_id').notNull().references(()=>users.id),
+ zoneId:uuid('zone_id').notNull().references(()=>serviceZones.id),
+ label:varchar('label',{length:50}).notNull(),
+ addressLine:varchar('address_line',{length:250}).notNull(),
+ locality:varchar('locality',{length:100}).notNull(),
+ verifiedAt:timestamp('verified_at',{withTimezone:true}),
+ revokedAt:timestamp('revoked_at',{withTimezone:true}),
+ ...timestamps
+},t=>[index('patient_addresses_owner_patient').on(t.ownerUserId,t.patientId)]);
+
+export const supportCases=pgTable('support_cases',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ userId:uuid('user_id').notNull().references(()=>users.id),
+ bookingId:uuid('booking_id').references(()=>orders.id),
+ category:varchar('category',{length:24}).notNull(),
+ preferredContact:varchar('preferred_contact',{length:24}).notNull(),
+ status:varchar('status',{length:24}).notNull().default('open'),
+ idempotencyKey:varchar('idempotency_key',{length:128}).notNull(),
+ ...timestamps
+},t=>[uniqueIndex('support_case_actor_request').on(t.userId,t.idempotencyKey)]);
+export const supportWorkItems=pgTable('support_work_items',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ caseId:uuid('case_id').notNull().references(()=>supportCases.id).unique(),
+ status:varchar('status',{length:24}).notNull().default('pending'),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+});
+
+export const catalogReviewRequests=pgTable('catalog_review_requests',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ resourceType:varchar('resource_type',{length:24}).notNull(),
+ resourceId:uuid('resource_id').notNull(),
+ creatorId:uuid('creator_id').notNull().references(()=>users.id),
+ approverId:uuid('approver_id').references(()=>users.id),
+ evidenceReference:varchar('evidence_reference',{length:128}),
+ approvedAt:timestamp('approved_at',{withTimezone:true}),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+},t=>[uniqueIndex('catalog_review_resource_unique').on(t.resourceType,t.resourceId)]);
+
+export const guestBookingRequests=pgTable('guest_booking_requests',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ email:varchar('email',{length:320}).notNull(),
+ quoteId:uuid('quote_id').notNull().references(()=>bookingQuotes.id),
+ codeHash:varchar('code_hash',{length:64}).notNull(),
+ expiresAt:timestamp('expires_at',{withTimezone:true}).notNull(),
+ attempts:integer('attempts').notNull().default(0),
+ verifiedAt:timestamp('verified_at',{withTimezone:true}),
+ status:varchar('status',{length:24}).notNull().default('awaiting_email'),
+ ...timestamps
+},t=>[index('guest_booking_throttle').on(t.email,t.createdAt)]);
+export const guestBookingWorkItems=pgTable('guest_booking_work_items',{
+ id:uuid('id').primaryKey().defaultRandom(),
+ requestId:uuid('request_id').notNull().references(()=>guestBookingRequests.id).unique(),
+ status:varchar('status',{length:24}).notNull().default('pending'),
+ createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow()
+});
+
+export const publicRateLimits=pgTable('public_rate_limits',{
+ networkHash:varchar('network_hash',{length:64}).notNull(),
+ route:varchar('route',{length:40}).notNull(),
+ windowStartedAt:timestamp('window_started_at',{withTimezone:true}).notNull(),
+ requests:integer('requests').notNull().default(1)
+},t=>[
+ uniqueIndex('public_rate_limits_primary').on(t.networkHash,t.route,t.windowStartedAt),
+ index('public_rate_limit_retention').on(t.windowStartedAt)
+]);

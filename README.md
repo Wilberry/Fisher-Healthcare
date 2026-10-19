@@ -65,10 +65,8 @@ Development milestones are governed by the [Development Roadmap](docs/06-develop
 | [Design and User Experience](docs/09-design-and-ux.md) | Patient, operations, and field interface design standards |
 | [Decisions and Open Items](docs/10-decisions-and-open-items.md) | Approved product decisions and pending commercial or operational determinations |
 
-## Delivery governance
-
-The documentation in this repository defines the company's intended product capabilities, architecture, and delivery programme. Product and technical decisions will be reflected in the relevant specifications as the platform develops. Engineering milestones will be accepted only after the corresponding security, functional, and operational criteria have been verified.
-
 ## Project status
 
-**Current development phase: Phase 2 — Patient Booking and Customer Experience** · [Development Roadmap](docs/06-development-roadmap.md)
+**Current development phase: Phase 3 — Dispatch, Collection and Custody.** Engineering is under development on `feat/phase3-dispatch-collection-custody`; Phase 3 acceptance and merge are not yet complete.
+
+[Development Roadmap](docs/06-development-roadmap.md) · [Phase 2 Engineering Acceptance](docs/phase-2-implementation-status.md)

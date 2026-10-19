@@ -43,3 +43,7 @@ Generated specifications require review before they are committed and accepted.
 A successful generator run is not proof that OAuth/OIDC production onboarding,
 clinical storage, payments, field dispatch or laboratory release workflows
 are production ready.
+
+
+## Phase 2 supplementary routes
+The Phase 2 branch adds patient catalogue, quote, booking and staging payment routes. These routes are isolated behind explicit synthetic and payment-staging configuration; they are **not** live booking or clinical delivery endpoints. See [Phase 2 implementation status](../phase-2-implementation-status.md). Generated OpenAPI is reviewed alongside both security annotations and runtime authorization tests.
