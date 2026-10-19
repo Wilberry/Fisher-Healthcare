@@ -79,6 +79,24 @@ describe('field staff session and PKCE policy',()=>{
     await expect(verifyActiveStaff('synthetic','https://api.example.test'))
       .rejects.toBeInstanceOf(StaffSessionError);
   });
+  it('rejects forged Host/Origin pairs against the configured staff origin',()=>{
+    process.env.FISHER_STAFF_WEB_ORIGIN='https://staff.example.test';
+    const attacker=new Request('https://evil.example.test/auth/logout',{
+      method:'POST',headers:{origin:'https://evil.example.test'}});
+    const valid=new Request('https://staff.example.test/auth/logout',{
+      method:'POST',headers:{origin:'https://staff.example.test'}});
+    expect(crossSite(attacker)).toBe(true);
+    expect(crossSite(valid)).toBe(false);
+  });
+  it('rejects missing staff capabilities even with an authenticated principal',async()=>{
+    const mocked=vi.fn()
+      .mockResolvedValueOnce(Response.json({subject:'synthetic',authenticated:true}))
+      .mockResolvedValueOnce(Response.json({capabilities:[]}));
+    vi.stubGlobal('fetch',mocked);
+    await expect(verifyActiveStaff('token','https://api.example.test'))
+      .rejects.toMatchObject({reason:'access_denied'});
+    expect(mocked).toHaveBeenCalledTimes(2);
+  });
   it('requires a complete, origin-matched OIDC configuration',()=>{
     expect(oidcConfig()).toBeNull();
     process.env.OIDC_ISSUER='https://idp.example.test';
