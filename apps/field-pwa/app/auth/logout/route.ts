@@ -8,5 +8,6 @@ export async function POST(request:NextRequest){
   // Browser-level cleanup supplements the signed-out page fallback, including
   // navigation without client JavaScript. No other origin is affected.
   response.headers.set('Clear-Site-Data','"storage"');
+  response.headers.set('Cache-Control','no-store');
   return response;
 }
