@@ -75,6 +75,26 @@ suite.sequential('Phase 3 lab manifest receipt (disposable PostgreSQL only)', ()
     // Fixture rows deliberately remain inside the disposable synthetic DB.
   });
 
+  it('enforces lab-specific manifest visibility and avoids patient data', async () => {
+    const dispatcherManifests = await manifests.list(authenticatedDispatcher);
+    expect(dispatcherManifests.data.some(x => x.id === manifestId)).toBe(true);
+    const ownManifests = await manifests.list(authenticatedLab);
+    expect(ownManifests.data.some(x => x.id === manifestId)).toBe(true);
+    const detail = await manifests.detail(authenticatedLab, manifestId);
+    expect(detail.data.specimens).toHaveLength(2);
+    expect(detail.data).not.toHaveProperty('patient_id');
+    expect(detail.data.specimens.every(x => !('patient_id' in x))).toBe(true);
+    await pool.query(
+      'UPDATE phase3_lab_staff_access SET active=false,revoked_at=now() ' +
+      'WHERE lab_id=$1 AND staff_id=$2',[lab,coordinatorStaff]);
+    expect((await manifests.list(authenticatedLab)).data.some(x=>x.id===manifestId)).toBe(false);
+    await expect(manifests.detail(authenticatedLab,manifestId))
+      .rejects.toThrow('Manifest view denied');
+    await pool.query(
+      'UPDATE phase3_lab_staff_access SET active=true,revoked_at=NULL ' +
+      'WHERE lab_id=$1 AND staff_id=$2',[lab,coordinatorStaff]);
+  });
+
   it('denies coordinators whose current lab scope is missing or revoked', async () => {
     await pool.query('UPDATE phase3_lab_staff_access SET active=false,revoked_at=now() ' +
       'WHERE lab_id=$1 AND staff_id=$2',[lab,coordinatorStaff]);

@@ -1,5 +1,5 @@
 import { ApiBearerAuth } from '@nestjs/swagger';
-import { BadRequestException, Body, Controller, Post, Param, Req, UseGuards, Injectable, OnModuleDestroy, ServiceUnavailableException, ConflictException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, Param, Req, UseGuards, Injectable, OnModuleDestroy, ServiceUnavailableException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { Pool } from 'pg';
 import { requirePhase3SyntheticMode } from './phase3-mode';
 import { IdentityGuard, type AuthenticatedRequest } from '../identity.guard';
@@ -15,6 +15,66 @@ export class Phase3ManifestService implements OnModuleDestroy {
     if (process.env.DATABASE_URL) this.pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
   }
   async onModuleDestroy() { await this.pool?.end(); }
+  // Read-only views expose specimen custody metadata, never patient identities.
+  // Each query enforces the receiving laboratory scope in SQL.
+  async list(identity: AuthenticatedIdentity) {
+    requirePhase3SyntheticMode();
+    requireStaffMfa(identity);
+    const capabilities = await this.access.staffCapabilities(identity.subject);
+    const dispatcher = capabilities.includes('dispatch:manage');
+    if (!dispatcher && !capabilities.includes('labs:manage'))
+      throw new ForbiddenException('Manifest view denied');
+    if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
+    const sql =
+      'SELECT m.id,m.lab_id,m.status,m.created_at,m.received_at, ' +
+      'count(ms.specimen_id)::integer AS specimen_count ' +
+      'FROM phase3_lab_manifests m ' +
+      'JOIN phase3_manifest_specimens ms ON ms.manifest_id=m.id ' +
+      (dispatcher ? '' :
+        'JOIN phase3_lab_staff_access scope ON scope.lab_id=m.lab_id AND scope.active ' +
+        'AND scope.revoked_at IS NULL JOIN staff st ON st.id=scope.staff_id ' +
+        "AND st.active AND st.role='lab_coordinator' " +
+        'JOIN users usr ON usr.id=st.user_id WHERE usr.identity_subject=$1 ') +
+      'GROUP BY m.id,m.lab_id,m.status,m.created_at,m.received_at ' +
+      'ORDER BY m.created_at DESC,m.id DESC LIMIT 100';
+    const result = await this.pool.query(sql, dispatcher ? [] : [identity.subject]);
+    return { data: result.rows };
+  }
+  async detail(identity: AuthenticatedIdentity, id: string) {
+    requirePhase3SyntheticMode();
+    requireStaffMfa(identity);
+    const capabilities = await this.access.staffCapabilities(identity.subject);
+    const dispatcher = capabilities.includes('dispatch:manage');
+    if (!dispatcher && !capabilities.includes('labs:manage'))
+      throw new ForbiddenException('Manifest view denied');
+    if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const sql =
+        'SELECT m.id,m.lab_id,m.status,m.created_at,m.received_at ' +
+        'FROM phase3_lab_manifests m WHERE m.id=$1 ' +
+        (dispatcher ? '' :
+          'AND EXISTS (SELECT 1 FROM phase3_lab_staff_access scope ' +
+          'JOIN staff st ON st.id=scope.staff_id ' +
+          'JOIN users usr ON usr.id=st.user_id ' +
+          'WHERE scope.lab_id=m.lab_id AND scope.active AND scope.revoked_at IS NULL ' +
+          "AND st.active AND st.role='lab_coordinator' AND usr.identity_subject=$2) ") +
+        'FOR SHARE OF m';
+      const row = await client.query(sql, dispatcher ? [id] : [id,identity.subject]);
+      if (!row.rows[0]) throw new ForbiddenException('Manifest view denied');
+      const members = await client.query(
+        'SELECT sp.id,sp.barcode,sp.status,sp.custody_version ' +
+        'FROM phase3_manifest_specimens ms JOIN specimens sp ON sp.id=ms.specimen_id ' +
+        'WHERE ms.manifest_id=$1 ORDER BY sp.id LIMIT 100', [id]);
+      await client.query('COMMIT');
+      return { data: { ...row.rows[0], specimens: members.rows } };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally { client.release(); }
+  }
+
   async prepare(identity: AuthenticatedIdentity, labId: string, specimenIds: string[]) {
     requirePhase3SyntheticMode();
     requireStaffMfa(identity);
@@ -171,6 +231,16 @@ export class Phase3ManifestService implements OnModuleDestroy {
 @UseGuards(IdentityGuard)
 export class Phase3ManifestController {
   constructor(private readonly service: Phase3ManifestService) {}
+  @Get()
+  list(@Req() req: AuthenticatedRequest) {
+    if (!req.identity) throw new ForbiddenException();
+    return this.service.list(req.identity);
+  }
+  @Get(':id')
+  detail(@Req() req: AuthenticatedRequest, @Param('id') id: string) {
+    if (!req.identity || !uuid.test(id)) throw new BadRequestException('Invalid manifest');
+    return this.service.detail(req.identity, id.toLowerCase());
+  }
   @Post()
   prepare(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
     if (!req.identity || !body || typeof body !== 'object' || Array.isArray(body))
