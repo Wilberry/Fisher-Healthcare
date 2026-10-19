@@ -106,7 +106,7 @@ function validateDocument(document: OpenAPIObject): void {
   }
   // Phase 3 clinical field routes must remain documented and authenticated
   // even when their service methods are disabled by default in production.
-  const phase3Operations: ReadonlyArray<readonly [string,string]> = [
+  const phase3Operations = [
     ['/api/v1/ops/assignments/queue','get'],
     ['/api/v1/ops/assignments','get'],
     ['/api/v1/ops/assignments','post'],
@@ -123,7 +123,7 @@ function validateDocument(document: OpenAPIObject): void {
     ['/api/v1/ops/exceptions/{id}/resolve','post'],
     ['/api/v1/ops/lab-manifests','post'],
     ['/api/v1/ops/lab-manifests/{id}/receipt','post']
-  ];
+  ] as const;
   for (const [path, method] of phase3Operations) {
     const operation = document.paths[path]?.[method];
     if (!operation) {
