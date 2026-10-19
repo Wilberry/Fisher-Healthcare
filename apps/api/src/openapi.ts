@@ -122,7 +122,10 @@ function validateDocument(document: OpenAPIObject): void {
     ['/api/v1/ops/exceptions','get'],
     ['/api/v1/ops/exceptions/{id}/resolve','post'],
     ['/api/v1/ops/lab-manifests','post'],
-    ['/api/v1/ops/lab-manifests/{id}/receipt','post']
+    ['/api/v1/ops/lab-manifests/{id}/receipt','post'],
+    ['/api/v1/ops/labs/access-requests','post'],
+    ['/api/v1/ops/labs/access-requests/{id}/approve','post'],
+    ['/api/v1/ops/labs/access/{labId}/staff/{staffId}/revoke','post']
   ] as const;
   for (const [path, method] of phase3Operations) {
     const operation = document.paths[path]?.[method];

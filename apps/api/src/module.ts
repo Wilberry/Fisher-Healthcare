@@ -35,6 +35,7 @@ import { Phase3IncidentsController, Phase3IncidentsService } from './phase3/inci
 import { Phase3ManifestController, Phase3ManifestService } from './phase3/manifests.controller';
 import { Phase3HandoffController, Phase3HandoffService } from './phase3/handoffs.controller';
 import { Phase3AssignmentEventsController, Phase3AssignmentEventsService } from './phase3/assignment-events.controller';
+import { Phase3LabAccessController, Phase3LabAccessService } from './phase3/lab-access.controller';
 
 @Controller('health')
 class HealthController {
@@ -45,7 +46,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController, CatalogAdminController, GuestBookingPublicController, GuestBookingStaffController, WorkQueueController, Phase3CustodyController, Phase3DispatchController, Phase3FieldAssignmentsController, Phase3OfflineSyncController, Phase3IncidentsController, Phase3ManifestController, Phase3HandoffController, Phase3AssignmentEventsController],
-  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PublicRateLimitService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService, PaymentReviewService, Phase3CustodyService, Phase3DispatchService, Phase3FieldAssignmentsService, Phase3IncidentsService, Phase3ManifestService, Phase3HandoffService, Phase3AssignmentEventsService]
+  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController, CatalogAdminController, GuestBookingPublicController, GuestBookingStaffController, WorkQueueController, Phase3CustodyController, Phase3DispatchController, Phase3FieldAssignmentsController, Phase3OfflineSyncController, Phase3IncidentsController, Phase3ManifestController, Phase3HandoffController, Phase3AssignmentEventsController, Phase3LabAccessController],
+  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PublicRateLimitService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService, PaymentReviewService, Phase3CustodyService, Phase3DispatchService, Phase3FieldAssignmentsService, Phase3IncidentsService, Phase3ManifestService, Phase3HandoffService, Phase3AssignmentEventsService, Phase3LabAccessService]
 })
 export class AppModule {}
