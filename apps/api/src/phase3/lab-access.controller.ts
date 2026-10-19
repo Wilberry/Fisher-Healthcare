@@ -40,7 +40,7 @@ export class Phase3LabAccessService implements OnModuleDestroy {
   async requests(identity: AuthenticatedIdentity) {
     const client = await this.authorize(identity);
     try {
-      await client.query('BEGIN READ ONLY');
+      await client.query('BEGIN');
       await this.administrator(identity.subject,client);
       const rows = await client.query(
         'SELECT req.id,req.lab_id,req.staff_id,req.reason,req.status,req.created_at, ' +
@@ -54,7 +54,7 @@ export class Phase3LabAccessService implements OnModuleDestroy {
   async grants(identity: AuthenticatedIdentity) {
     const client = await this.authorize(identity);
     try {
-      await client.query('BEGIN READ ONLY');
+      await client.query('BEGIN');
       await this.administrator(identity.subject,client);
       const rows = await client.query(
         'SELECT scoped.lab_id,scoped.staff_id,scoped.granted_at ' +
