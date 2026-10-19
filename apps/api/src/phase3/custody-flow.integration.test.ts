@@ -198,4 +198,39 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
       'SELECT status,custody_version FROM specimens WHERE order_id=$1', [ids.order]);
     expect(after.rows.every(x => x.status === 'lab_received' && x.custody_version === 4)).toBe(true);
   });
+
+  it('allows exactly one overlapping assignment across competing requests', async () => {
+    const workerUser = randomUUID();
+    const workerStaff = randomUUID();
+    const workerShift = randomUUID();
+    const firstOrder = randomUUID();
+    const secondOrder = randomUUID();
+    const now = Date.now();
+    await pool.query('INSERT INTO users(id,identity_subject) VALUES($1,$2)',
+      [workerUser,'synthetic-concurrent-collector-' + randomUUID()]);
+    await pool.query("INSERT INTO staff(id,user_id,role,active) VALUES($1,$2,'phlebotomist',true)",
+      [workerStaff,workerUser]);
+    await pool.query(
+      'INSERT INTO phase3_staff_shifts(id,staff_id,zone_code,starts_at,ends_at) ' +
+      'VALUES($1,$2,$3,$4,$5)',
+      [workerShift,workerStaff,'synthetic-lagos-zone',
+        new Date(now - 60 * 60_000),new Date(now + 24 * 60 * 60_000)]);
+    // Both orders use the same valid Phase 2 slot and overlap.
+    await pool.query(
+      'INSERT INTO orders(id,patient_id,booked_by,lab_id,status,tier,total_kobo,' +
+      'slot_id,collection_window_start,collection_window_end) ' +
+      "SELECT x.id,$3,$4,$5,'confirmed','regular',0,$6,s.starts_at,s.ends_at " +
+      'FROM unnest($1::uuid[]) AS x(id) CROSS JOIN collection_slots s WHERE s.id=$6',
+      [[firstOrder,secondOrder],workerUser,ids.patient,ids.owner,ids.lab,ids.slot]);
+    const outcomes = await Promise.allSettled([
+      dispatch.assign(identity(subs.dispatcher),firstOrder,workerStaff,workerShift),
+      dispatch.assign(identity(subs.dispatcher),secondOrder,workerStaff,workerShift)
+    ]);
+    expect(outcomes.filter(outcome => outcome.status === 'fulfilled')).toHaveLength(1);
+    expect(outcomes.filter(outcome => outcome.status === 'rejected')).toHaveLength(1);
+    const saved = await pool.query<{ id: string }>(
+      'SELECT id FROM phase3_assignments WHERE order_id=ANY($1::uuid[])',
+      [[firstOrder,secondOrder]]);
+    expect(saved.rowCount).toBe(1);
+  });
 });
