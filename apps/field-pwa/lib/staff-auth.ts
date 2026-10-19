@@ -108,7 +108,8 @@ export function crossSite(request:Request):boolean{
       const loopback=process.env.NODE_ENV!=='production'&&
         process.env.FISHER_STAFF_AUTH_ALLOW_LOOPBACK_HTTP==='synthetic-only'&&
         trusted.protocol==='http:'&&['127.0.0.1','localhost'].includes(trusted.hostname);
-      if(trusted.origin!==configured||(!loopback&&trusted.protocol!=='https:'))
+      if(trusted.pathname!=='/'||trusted.search||trusted.hash||trusted.username||
+         trusted.password||(!loopback&&trusted.protocol!=='https:'))
         return true;
       return !origin||origin!==trusted.origin||requested!==trusted.origin;
     }catch{return true;}
