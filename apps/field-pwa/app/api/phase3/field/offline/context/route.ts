@@ -1,4 +1,4 @@
-import {offlineStaffContext} from '../../../../../lib/staff-auth';
+import {offlineStaffContext} from '../../../../../../lib/staff-auth';
 export const dynamic='force-dynamic';
 export async function GET(){
   const context=await offlineStaffContext();
