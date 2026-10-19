@@ -14,6 +14,9 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 export function validOfflineEvent(event:unknown,now=Date.now()):event is QueuedCustodyEvent{
   if(!event||typeof event!=='object'||Array.isArray(event))return false;
   const item=event as Record<string,unknown>;
+  const permitted=['specimenId','eventId','action','expectedVersion','createdAt'];
+  if(Object.keys(item).length!==permitted.length||
+     !Object.keys(item).every(field=>permitted.includes(field)))return false;
   return typeof item.specimenId==='string'&&uuid.test(item.specimenId)&&
     typeof item.eventId==='string'&&uuid.test(item.eventId)&&
     offlineActions.some(action=>action===item.action)&&
