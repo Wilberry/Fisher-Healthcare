@@ -101,7 +101,7 @@ export function FieldVisitActions({assignment,couriers}:{
           router.refresh();
           return;
         }
-        if(response.status===409){
+        if([400,404,409,422].includes(response.status)){
           pending.current.delete(operation);
           if(durable&&candidate&&recovery.capability){
             try{
@@ -110,6 +110,7 @@ export function FieldVisitActions({assignment,couriers}:{
             }catch{/* Leave encrypted event for later manual reconciliation. */}
           }
         }
+        if(operation.startsWith('label:'))setBarcodes({});
         setMessage(response.status===409 ?
           'Conflict: the visit or specimen changed. Review the latest server status before retrying.' :
           'Operation not accepted. Verify your assignment and staff session before retrying.');
