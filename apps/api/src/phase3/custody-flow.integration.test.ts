@@ -47,7 +47,11 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
       throw new Error('Refusing Phase 3 integration test outside fisher_test');
     const registry = await pool.query<{ table: string | null }>(
       "SELECT to_regclass('public.phase3_handoff_specimens')::text AS table");
-    if (!registry.rows[0]?.table) throw new Error('Phase 3 0017-0019 migrations must be applied');
+    if (!registry.rows[0]?.table) throw new Error('Phase 3 0017-0020 migrations must be applied');
+    const phase2 = await pool.query<{ name: string | null }>(
+      "SELECT to_regclass('public.collection_slots')::text AS name");
+    if (!phase2.rows[0]?.name)
+      throw new Error('Merged Phase 2 migrations through 0016 are required before Phase 3 tests');
     const { owner,collector,courier,outsider,dispatcher,labWorker,patient,lab,order,
       shift,specimenA,specimenB,collectorStaff,courierStaff,outsiderStaff,dispatcherStaff,labStaff } = ids;
     await pool.query(

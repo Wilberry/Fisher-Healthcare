@@ -29,5 +29,13 @@ Phase 3's originally drafted migration names `0001_phase3_dispatch_custody.sql` 
 - Logs, errors, analytics and field caches must not expose clinical results or unnecessary patient details.
 - A completed visit does not imply that every specimen has been accepted by a lab.
 
+## Active engineering handoff
+
+The Phase 3 feature branch includes ordered migrations 0017–0020; scoped dispatch, field, incident, custody, courier-handoff and laboratory-manifest APIs; immutable audit receipts; source policy tests; and disposable PostgreSQL integration scenarios.
+
+The Phase 3 branch predates the accepted Phase 2 implementation, so a deliberate integration of the current `main` baseline is required before verification. Dispatch zone checks use Phase 2's `service_zones` and `collection_slots`; preserve all accepted Phase 1/Phase 2 security, payment, migrations and OpenAPI work during integration.
+
+The `/dispatch` and `/visits` workbenches expose training fixtures **only** when `FISHER_PHASE3_DEMO_MODE=synthetic-only` outside production. They cannot display real records or mutate the API. Actual staff dashboards require signed server-side staff sessions, current scoped authorization, and privacy-approved offline handling.
+
 ## Release controls
 Use synthetic patients and specimens only. No real clinical data, external courier dispatch or live lab acceptance before the security issue, clinical SOPs and operational release controls are closed. GitHub Actions are not a required local verification mechanism. Record exact SHA, environment, commands, counts and failures from the final local verification before marking the phase accepted.
