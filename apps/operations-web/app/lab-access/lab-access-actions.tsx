@@ -8,6 +8,7 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]
 export function LabAccessActions({pending,active}:{pending:Pending[];active:Active[]}){
   const [labId,setLabId]=useState(''),[staffId,setStaffId]=useState('');
   const [reason,setReason]=useState('');
+  const [rejections,setRejections]=useState<Record<string,string>>({});
   const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
   const router=useRouter();
   async function action(path:string,body:Record<string,unknown>,label:string){
@@ -63,6 +64,17 @@ export function LabAccessActions({pending,active}:{pending:Pending[];active:Acti
         <button type="button" disabled={busy}
           onClick={()=>void action('access-requests/'+req.id+'/approve',{},
             'Second-administrator approval')}>Approve after independent review</button>
+        <label htmlFor={'rejection-'+req.id}>Rejection reason (10–240 characters)
+          <textarea id={'rejection-'+req.id} rows={2} maxLength={240}
+            value={rejections[req.id]??''}
+            onChange={event=>setRejections(values=>({...values,[req.id]:event.target.value}))}
+            style={{display:'block',width:'100%',maxWidth:540,padding:10}}/>
+        </label>
+        <button type="button" disabled={busy||(rejections[req.id]??'').trim().length<10}
+          onClick={()=>void action('access-requests/'+req.id+'/reject',
+            {reason:(rejections[req.id]??'').trim()},'Second-administrator rejection')}>
+          Reject after independent review
+        </button>
       </li>)}</ul>}
     <h2>Active laboratory grants</h2>
     {!active.length?<p>No active laboratory grants.</p>:
