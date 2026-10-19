@@ -14,8 +14,12 @@ export class Phase3DispatchService implements OnModuleDestroy {
     await this.access.requireStaffCapability(identity.subject, 'dispatch:manage');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
     const result = await this.pool.query(
-      'SELECT ord.id,ord.lab_id,ord.tier,ord.collection_window_start,ord.collection_window_end ' +
-      'FROM orders ord WHERE ord.status=$1 AND ord.collection_window_start IS NOT NULL ' +
+      'SELECT ord.id,ord.lab_id,ord.tier,ord.collection_window_start,ord.collection_window_end, ' +
+      'zone.code AS zone_code ' +
+      'FROM orders ord JOIN collection_slots slot ON slot.id=ord.slot_id ' +
+      'JOIN service_zones zone ON zone.id=slot.zone_id ' +
+      'WHERE ord.status=$1 AND slot.active AND zone.active ' +
+      'AND ord.collection_window_start IS NOT NULL ' +
       'AND ord.collection_window_end IS NOT NULL ' +
       "AND NOT EXISTS(SELECT 1 FROM phase3_assignments a WHERE a.order_id=ord.id " +
       "AND a.status IN ('assigned','arrived','collecting')) " +
@@ -43,13 +47,27 @@ export class Phase3DispatchService implements OnModuleDestroy {
       const order = await client.query<{ status: string }>(
         'SELECT status FROM orders WHERE id=$1 FOR UPDATE', [orderId]);
       if (order.rows[0]?.status !== 'confirmed') throw new ConflictException('Order not eligible for dispatch');
+      // Lock the shift before examining other assignments. Concurrent dispatchers
+      // assigning different orders to one worker must serialize on this row.
       const eligible = await client.query(
-        `SELECT 1 FROM phase3_staff_shifts sh JOIN staff st ON st.id=sh.staff_id
-         JOIN orders ord ON ord.id=$2
-         WHERE sh.id=$1 AND sh.staff_id=$3 AND sh.active AND st.active
-         AND st.role='phlebotomist'
-         AND ord.collection_window_start >= sh.starts_at
-         AND ord.collection_window_end <= sh.ends_at LIMIT 1`,
+        "SELECT 1 FROM phase3_staff_shifts sh " +
+        "JOIN staff st ON st.id=sh.staff_id " +
+        "JOIN orders ord ON ord.id=$2 " +
+        "JOIN collection_slots slot ON slot.id=ord.slot_id " +
+        "JOIN service_zones zone ON zone.id=slot.zone_id " +
+        "WHERE sh.id=$1 AND sh.staff_id=$3 AND sh.active AND st.active " +
+        "AND st.role='phlebotomist' AND zone.active AND slot.active " +
+        "AND sh.zone_code=zone.code " +
+        "AND ord.collection_window_start >= sh.starts_at " +
+        "AND ord.collection_window_end <= sh.ends_at " +
+        "AND NOT EXISTS (" +
+        " SELECT 1 FROM phase3_assignments a2 " +
+        " JOIN orders o2 ON o2.id=a2.order_id " +
+        " WHERE a2.staff_id=sh.staff_id " +
+        " AND a2.status IN ('assigned','arrived','collecting') " +
+        " AND tstzrange(o2.collection_window_start,o2.collection_window_end,'[)') " +
+        " && tstzrange(ord.collection_window_start,ord.collection_window_end,'[)')" +
+        ") FOR UPDATE OF sh",
         [shiftId, orderId, staffId]);
       if (eligible.rowCount !== 1) throw new ForbiddenException('Staff shift not eligible');
       const inserted = await client.query<{ id: string }>(
