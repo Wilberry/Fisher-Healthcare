@@ -51,6 +51,10 @@ export function FieldVisitActions({assignment,couriers}:{
         return;
       }
       pending.current.delete(operation);
+      if(operation.startsWith('label:')){
+        const specimenId=operation.slice('label:'.length);
+        setBarcodes(values=>({...values,[specimenId]:''}));
+      }
       setMessage('Event accepted and recorded. Updating the assigned visit.');
       router.refresh();
     }catch{
@@ -78,7 +82,7 @@ export function FieldVisitActions({assignment,couriers}:{
     // Barcode is sent to the server for comparison and never kept in storage.
     return send(operation,'/api/phase3/field/specimens/'+id+'/label-check',{
       eventId:keyFor(operation),observedBarcode:barcode,expectedVersion:version
-    }).finally(()=>setBarcodes(values=>({...values,[id]:''})));
+    });
   }
   function failVisit(){
     if(!failureCode){setMessage('Select a failure reason before ending this visit.');return;}

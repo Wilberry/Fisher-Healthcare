@@ -271,3 +271,42 @@ export async function forwardFieldAction(request:Request,path:string):Promise<Re
     return Response.json(content,{status:200,headers:{'cache-control':'no-store'}});
   }catch{return reject(503,'Field service unavailable');}
 }
+
+
+/**
+ * Handoff IDs and the frozen specimen set are verified by the assigned courier
+ * API. No expected barcode, patient contact or lab result is returned.
+ */
+export async function staffCourierHandoff(id:string):Promise<{
+  authorized:boolean;id:string;status:string;
+  specimens:{id:string;status:string}[]
+}>{
+  const denied={authorized:false,id:'',status:'',specimens:[]};
+  const re=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if(!re.test(id))return denied;
+  const session=await readStaffSession(),cfg=oidcConfig();
+  if(!session||!cfg)return denied;
+  try{
+    const principal=await verifyActiveStaff(session.accessToken,cfg.api);
+    if(principal!==session.subject)return denied;
+    const response=await fetch(new URL('/api/v1/field/handoff-offers/'+id.toLowerCase(),cfg.api),{
+      headers:{authorization:'Bearer '+session.accessToken},
+      cache:'no-store',signal:AbortSignal.timeout(8000)
+    });
+    if(!response.ok)return denied;
+    const raw:unknown=await response.json();
+    if(!raw||typeof raw!=='object'||!('data' in raw)||!raw.data||
+       typeof raw.data!=='object'||Array.isArray(raw.data))return denied;
+    const value=raw.data as Record<string,unknown>;
+    if(value.id!==id.toLowerCase()||typeof value.status!=='string'||
+       !Array.isArray(value.specimens))return denied;
+    const specimens=value.specimens.filter(
+      (item):item is Record<string,unknown> =>
+        !!item&&typeof item==='object'&&!Array.isArray(item)
+    ).filter(item=>typeof item.specimen_id==='string'&&re.test(item.specimen_id)&&
+      typeof item.status==='string').map(item=>({
+      id:item.specimen_id as string,status:item.status as string
+    }));
+    return {authorized:true,id:id.toLowerCase(),status:value.status,specimens};
+  }catch{return denied;}
+}

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import {SiteShell,Notice} from '@fisher/ui';
 import {staffApi,oidcConfig} from '../../lib/staff-auth';
-import {CourierAcknowledge} from './courier-acknowledge';
+
 export const dynamic='force-dynamic';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export default async function CourierHandoffs(){
@@ -26,7 +26,7 @@ export default async function CourierHandoffs(){
               return <li key={id} style={{marginBottom:24}}>
                 <h2>Handoff {id.slice(0,8)}</h2>
                 <p>Frozen specimen count: {count}. Reconcile against the physical package.</p>
-                <CourierAcknowledge id={id}/>
+                <Link href={'/handoffs/'+id}>Review specimen identifiers and acknowledge</Link>
               </li>;
             })}</ul>}
         </>}
