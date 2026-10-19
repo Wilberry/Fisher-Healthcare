@@ -55,7 +55,9 @@ export class Phase3CustodyService implements OnModuleDestroy {
       const receipt = await recordCustodyEvent(client, {
         specimenId, eventId: input.eventId, actorId: staff.user_id, role,
         action: input.action, expectedVersion: input.expectedVersion,
-        recipientId: input.recipientId, recipientAcknowledged: input.recipientAcknowledged
+        ...(input.recipientId !== undefined ? { recipientId: input.recipientId } : {}),
+        ...(input.recipientAcknowledged !== undefined ?
+          { recipientAcknowledged: input.recipientAcknowledged } : {})
       });
       await client.query('COMMIT');
       return { data: receipt };

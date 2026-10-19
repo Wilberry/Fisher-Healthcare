@@ -37,6 +37,7 @@ CREATE TABLE phase3_incidents (
   assignment_id uuid REFERENCES phase3_assignments(id),
   reporter_id uuid NOT NULL REFERENCES users(id),
   kind varchar(64) NOT NULL,
+  client_event_id uuid NOT NULL UNIQUE,
   details jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
   CHECK (specimen_id IS NOT NULL OR assignment_id IS NOT NULL)

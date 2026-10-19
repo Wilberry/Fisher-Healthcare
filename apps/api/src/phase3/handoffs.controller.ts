@@ -72,6 +72,10 @@ export class Phase3HandoffService implements OnModuleDestroy {
           members.rows.some(member => member.status !== 'packaged')) {
         throw new ConflictException('All specimens must be packaged before handoff');
       }
+      const unresolved = await client.query(
+        "SELECT 1 FROM phase3_incidents WHERE specimen_id=ANY($1::uuid[]) " +
+        "AND resolution_status='open' LIMIT 1", [members.rows.map(member => member.id)]);
+      if (unresolved.rowCount) throw new ConflictException('Open specimen incident blocks handoff');
       const created = await client.query<{ id: string }>(
         'INSERT INTO phase3_handoff_offers(assignment_id,request_key,sender_staff_id,courier_staff_id) ' +
         'VALUES($1,$2,$3,$4) RETURNING id',
@@ -133,6 +137,10 @@ export class Phase3HandoffService implements OnModuleDestroy {
             member.custody_version !== member.expected_version)) {
         throw new ConflictException('Custody changed after handoff offer');
       }
+      const unresolved = await client.query(
+        "SELECT 1 FROM phase3_incidents WHERE specimen_id=ANY($1::uuid[]) " +
+        "AND resolution_status='open' LIMIT 1", [members.rows.map(member => member.specimen_id)]);
+      if (unresolved.rowCount) throw new ConflictException('Open specimen incident blocks acknowledgment');
       for (const member of members.rows) {
         await recordCustodyEvent(client, {
           specimenId: member.specimen_id,

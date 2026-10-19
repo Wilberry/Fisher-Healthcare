@@ -11,22 +11,56 @@ export class Phase3IncidentsService implements OnModuleDestroy {
     if (process.env.DATABASE_URL) this.pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
   }
   async onModuleDestroy() { await this.pool?.end(); }
-  async report(identity: AuthenticatedIdentity, specimenId: string, kind: string) {
+  async report(identity: AuthenticatedIdentity, specimenId: string, eventId: string, kind: string) {
     requireStaffMfa(identity);
-    await this.access.requireStaffCapability(identity.subject, 'specimens:collect');
+    const capabilities = await this.access.staffCapabilities(identity.subject);
+    if (!capabilities.includes('specimens:collect') &&
+        !capabilities.includes('specimens:transport')) {
+      throw new ForbiddenException('Incident reporting not permitted');
+    }
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
-    const result = await this.pool.query<{ id: string }>(
-      `INSERT INTO phase3_incidents(specimen_id,reporter_id,kind)
-       SELECT sp.id, usr.id, $3 FROM specimens sp
-       JOIN orders ord ON ord.id=sp.order_id
-       JOIN phase3_assignments a ON a.order_id=ord.id
-       JOIN staff st ON st.id=a.staff_id
-       JOIN users usr ON usr.id=st.user_id
-       WHERE sp.id=$1 AND usr.identity_subject=$2 AND st.active
-         AND a.status IN ('assigned','arrived','collecting')
-       RETURNING id`, [specimenId, identity.subject, kind]);
-    if (result.rowCount !== 1) throw new ForbiddenException('Specimen access denied');
-    return { data: { id: result.rows[0]!.id, status: 'open' } };
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const reporter = await client.query<{ id: string }>(
+        'SELECT usr.id FROM users usr JOIN staff st ON st.user_id=usr.id ' +
+        'JOIN specimens sp ON sp.id=$2 ' +
+        'WHERE usr.identity_subject=$1 AND st.active AND (' +
+        " (st.role='phlebotomist' AND EXISTS (" +
+        '   SELECT 1 FROM phase3_assignments a WHERE a.order_id=sp.order_id ' +
+        "   AND a.staff_id=st.id AND a.status IN ('assigned','arrived','collecting')" +
+        ' )) OR ' +
+        " (st.role='courier' AND EXISTS (" +
+        '   SELECT 1 FROM phase3_handoff_offers h ' +
+        '   JOIN phase3_handoff_specimens hs ON hs.offer_id=h.id ' +
+        "   WHERE hs.specimen_id=sp.id AND h.courier_staff_id=st.id AND h.status='received'" +
+        ' ))) FOR UPDATE OF st',
+        [identity.subject, specimenId]);
+      if (reporter.rowCount !== 1) throw new ForbiddenException('Specimen incident access denied');
+      const actorId = reporter.rows[0]!.id;
+      const inserted = await client.query<{ id: string }>(
+        'INSERT INTO phase3_incidents(specimen_id,reporter_id,client_event_id,kind) ' +
+        'VALUES($1,$2,$3,$4) ON CONFLICT(client_event_id) DO NOTHING RETURNING id',
+        [specimenId,actorId,eventId,kind]);
+      if (inserted.rows[0]) {
+        await client.query('COMMIT');
+        return { data: { id: inserted.rows[0].id, status: 'open', replayed: false } };
+      }
+      const prior = await client.query<{
+        id: string; specimen_id: string; reporter_id: string;
+        kind: string; resolution_status: string
+      }>('SELECT id,specimen_id,reporter_id,kind,resolution_status ' +
+         'FROM phase3_incidents WHERE client_event_id=$1', [eventId]);
+      const old = prior.rows[0];
+      if (!old || old.specimen_id !== specimenId || old.reporter_id !== actorId || old.kind !== kind) {
+        throw new ConflictException('Incident event identity reused for different content');
+      }
+      await client.query('COMMIT');
+      return { data: { id: old.id, status: old.resolution_status, replayed: true } };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally { client.release(); }
   }
   async list(identity: AuthenticatedIdentity) {
     requireStaffMfa(identity);
@@ -59,9 +93,11 @@ export class Phase3IncidentsController {
   report(@Req() req: AuthenticatedRequest, @Param('id') id: string, @Body() body: unknown) {
     if (!req.identity || !uuid.test(id) || !body || typeof body !== 'object' || Array.isArray(body))
       throw new BadRequestException('Invalid incident');
-    const kind = (body as Record<string, unknown>).kind;
-    if (typeof kind !== 'string' || !/^[a-z_]{3,64}$/.test(kind)) throw new BadRequestException('Invalid incident');
-    return this.service.report(req.identity, id, kind);
+    const b = body as Record<string, unknown>;
+    if (typeof b.kind !== 'string' || !/^[a-z_]{3,64}$/.test(b.kind) ||
+        typeof b.eventId !== 'string' || !uuid.test(b.eventId))
+      throw new BadRequestException('Invalid incident');
+    return this.service.report(req.identity, id.toLowerCase(), b.eventId.toLowerCase(), b.kind);
   }
   @Get('ops/exceptions')
   list(@Req() req: AuthenticatedRequest) {
