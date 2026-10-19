@@ -30,6 +30,37 @@ export class Phase3DispatchService implements OnModuleDestroy {
       'ORDER BY ord.collection_window_start,id LIMIT 100', ['confirmed']);
     return { data: result.rows };
   }
+  async eligibleShifts(identity: AuthenticatedIdentity, orderId: string) {
+    requirePhase3SyntheticMode();
+    requireStaffMfa(identity);
+    await this.access.requireStaffCapability(identity.subject, 'dispatch:manage');
+    if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
+    // Suggestions are not reservations. Assignment rechecks worker/shift capacity
+    // after a current staff lock and order payment verification inside a transaction.
+    const shifts = await this.pool.query(
+      'SELECT sh.id,sh.staff_id,sh.zone_code,sh.starts_at,sh.ends_at ' +
+      'FROM orders ord ' +
+      'JOIN collection_slots slot ON slot.id=ord.slot_id ' +
+      'JOIN service_zones zone ON zone.id=slot.zone_id ' +
+      'JOIN phase3_staff_shifts sh ON sh.zone_code=zone.code ' +
+      'JOIN staff st ON st.id=sh.staff_id ' +
+      "WHERE ord.id=$1 AND ord.status='confirmed' AND slot.active AND zone.active " +
+      "AND st.active AND st.role='phlebotomist' AND sh.active " +
+      "AND sh.starts_at<=ord.collection_window_start " +
+      "AND sh.ends_at>=ord.collection_window_end " +
+      "AND EXISTS (SELECT 1 FROM payments pay WHERE pay.order_id=ord.id " +
+      "AND pay.status='paid' AND pay.amount_kobo=ord.total_kobo) " +
+      "AND NOT EXISTS (SELECT 1 FROM phase3_assignments a " +
+      "WHERE a.order_id=ord.id AND a.status IN ('assigned','arrived','collecting')) " +
+      "AND NOT EXISTS (SELECT 1 FROM phase3_assignments other " +
+      'JOIN orders ord2 ON ord2.id=other.order_id ' +
+      "WHERE other.staff_id=st.id AND other.status IN ('assigned','arrived','collecting') " +
+      "AND tstzrange(ord2.collection_window_start,ord2.collection_window_end,'[)') " +
+      "&& tstzrange(ord.collection_window_start,ord.collection_window_end,'[)')) " +
+      'ORDER BY sh.starts_at,sh.id LIMIT 100', [orderId]);
+    return { data: shifts.rows };
+  }
+
   async list(identity: AuthenticatedIdentity) {
     requirePhase3SyntheticMode();
     requireStaffMfa(identity);

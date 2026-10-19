@@ -108,6 +108,7 @@ function validateDocument(document: OpenAPIObject): void {
   // even when their service methods are disabled by default in production.
   const phase3Operations = [
     ['/api/v1/ops/assignments/queue','get'],
+    ['/api/v1/ops/assignments/eligible-shifts/{orderId}','get'],
     ['/api/v1/ops/assignments','get'],
     ['/api/v1/ops/assignments','post'],
     ['/api/v1/field/assignments','get'],
