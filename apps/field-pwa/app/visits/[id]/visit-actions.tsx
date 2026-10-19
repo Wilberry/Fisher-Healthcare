@@ -2,6 +2,8 @@
 import { useEffect,useRef,useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { FieldAssignment } from '../../../lib/staff-auth';
+import {useSyntheticRecovery} from '../../../lib/use-synthetic-recovery';
+import {validOfflineEvent,type OfflineAction} from '../../../lib/offline-policy';
 
 const canCollect=(status:string)=>status==='collecting';
 const isUid=(v:string)=>/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(v);
@@ -9,6 +11,7 @@ export function FieldVisitActions({assignment,couriers}:{
   assignment:FieldAssignment;couriers:{staffId:string;zone:string}[]
 }){
   const router=useRouter();
+  const recovery=useSyntheticRecovery();
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState('');
   const [barcodes,setBarcodes]=useState<Record<string,string>>({});
@@ -33,7 +36,28 @@ export function FieldVisitActions({assignment,couriers}:{
   async function send(operation:string,path:string,payload:Record<string,unknown>){
     if(busy)return;
     if(!online){
-      setMessage('Offline. Nothing was submitted; no specimen data is stored on this device.');
+      // Only minimal custody events may be stored, only after recent signed
+      // synthetic authorization. Barcodes and patient/clinical fields NEVER queue.
+      const match=/^\/api\/phase3\/field\/specimens\/([0-9a-f-]{36})\/events$/.exec(path);
+      const candidate=match&&payload.action&&payload.eventId&&
+        (payload.action==='collect'||payload.action==='package'||
+          payload.action==='report_damaged')?{
+          specimenId:match[1]!,eventId:payload.eventId as string,
+          action:payload.action as OfflineAction,
+          expectedVersion:payload.expectedVersion as number,createdAt:Date.now()
+        }:null;
+      if(!candidate||!validOfflineEvent(candidate)){
+        setMessage('Offline: only synthetic custody event IDs and versions may be queued. Label checks, handoffs and clinical data require connectivity.');
+        return;
+      }
+      setBusy(true);
+      try{
+        await recovery.save(candidate);
+        pending.current.delete(operation);
+        setMessage('Encrypted synthetic event saved locally. This is NOT a completed custody event. Reconnect and manually reconcile it.');
+      }catch{
+        setMessage('Secure offline recovery unavailable or expired. Reconnect and verify staff identity before recording work.');
+      }finally{setBusy(false);}
       return;
     }
     if(!isUid(assignment.id))return;

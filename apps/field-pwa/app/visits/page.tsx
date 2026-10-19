@@ -1,5 +1,6 @@
 import { Card, Notice, SiteShell, StatusPill } from '@fisher/ui';
 import FieldTrainingWorkbench from './workbench';
+import {OfflineRecoveryPanel} from '../../components/offline-recovery-panel';
 import Link from 'next/link';
 import {staffApi,oidcConfig} from '../../lib/staff-auth';
 export const dynamic = 'force-dynamic';
@@ -9,6 +10,8 @@ export default async function FieldVisits() {
   const demo = !assignments.authorized && process.env.NODE_ENV !== 'production' &&
     process.env.FISHER_PHASE3_DEMO_MODE === 'synthetic-only';
   const sessionEnabled=Boolean(oidcConfig());
+  const offlineEnabled=process.env.NODE_ENV!=='production' &&
+    process.env.FISHER_PHASE3_OFFLINE_DEMO_MODE==='synthetic-only';
   return <SiteShell subtitle="Field · Visits" navigation={[{ href: '/', label: 'Overview' }]}>
     <section className="fisher-section"><div className="fisher-container">
       <p className="fisher-eyebrow">Phase 3 · Collection and custody</p>
@@ -17,7 +20,8 @@ export default async function FieldVisits() {
       <p><Link href="/handoffs">Courier handoffs requiring my acknowledgment</Link></p>
       <Notice title={assignments.authorized ? 'Authorized synthetic field assignments' :
         demo ? 'Synthetic training only' : 'Assigned staff sign-in required'} tone="warning">
-        {assignments.authorized ? 'Assigned work is verified by the API at request time, and operations remain synthetic-only.'
+        {assignments.authorized&&offlineEnabled&&<OfflineRecoveryPanel/>}
+      {assignments.authorized ? 'Assigned work is verified by the API at request time, and operations remain synthetic-only.'
           : demo ? 'All steps are visual training interactions. No specimen, location or identity data is persisted or sent to the API.'
           : 'Assignments and patient data are not available without an authenticated staff session and current field permissions.'}
       </Notice>
