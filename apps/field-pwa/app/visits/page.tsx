@@ -14,6 +14,7 @@ export default async function FieldVisits() {
       <p className="fisher-eyebrow">Phase 3 · Collection and custody</p>
       <h1 className="fisher-section-title">Field visit workbench</h1>
       <p className="fisher-lead">An assignment-scoped workflow for specimen collection, label checks, exceptions and courier handoffs.</p>
+      <p><Link href="/handoffs">Courier handoffs requiring my acknowledgment</Link></p>
       <Notice title={assignments.authorized ? 'Authorized synthetic field assignments' :
         demo ? 'Synthetic training only' : 'Assigned staff sign-in required'} tone="warning">
         {assignments.authorized ? 'Assigned work is verified by the API at request time, and operations remain synthetic-only.'

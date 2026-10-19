@@ -228,6 +228,8 @@ export async function forwardFieldAction(request:Request,path:string):Promise<Re
     /^field\/assignments\/[0-9a-f-]{36}\/events$/,
     /^field\/specimens\/[0-9a-f-]{36}\/label-check$/,
     /^field\/specimens\/[0-9a-f-]{36}\/events$/,
+    /^field\/assignments\/[0-9a-f-]{36}\/handoff-offers$/,
+    /^field\/handoff-offers\/[0-9a-f-]{36}\/ack$/,
     /^field\/events\/sync$/
   ];
   const reject=(status:number,error:string)=>Response.json({error},{status,
