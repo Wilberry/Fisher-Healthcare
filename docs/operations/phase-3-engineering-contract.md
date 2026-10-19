@@ -3,7 +3,10 @@
 Status: IN DEVELOPMENT. This contract defines implementation and local acceptance; it does not assert that runtime features have passed verification.
 
 ## Integration boundary
-Phase 3 is developed on `feat/phase3-dispatch-collection-custody` independently of the Phase 2 verification branch. Only confirmed, paid, eligible orders may enter dispatch. All incoming order references must be validated against the authoritative order store. No field request can create or mark a paid order. Phase 1 security exception remains a release blocker.
+Phase 3 is developed on `feat/phase3-dispatch-collection-custody` independently of the Phase 2 verification branch. Only confirmed, paid, eligible orders may enter dispatch. All incoming order references must be validated against the authoritative order store. No field request can create or mark a paid order. Phase 1 and Phase 2 engineering have merged into main; current Phase 1 security remediation must be preserved when Phase 3 integrates. External clinical and provider release gates remain separate.
+
+## Migration integration
+Phase 3's originally drafted migration names `0001_phase3_dispatch_custody.sql` and `0002_phase3_manifests_incidents.sql` must not be applied to a database that has already applied the Phase 2 migration series through `0016`. Since Phase 3 has not undergone local acceptance or production deployment, they are renumbered as `0017_phase3_dispatch_custody.sql` and `0018_phase3_manifests_incidents.sql` before its first accepted integration. Never silently rewrite checksums in an existing database: use a fresh disposable integration database and abort on any pre-existing Phase 3 migration fingerprint under the old filenames.
 
 ## Delivery increments
 1. Database migration and domain services: shifts, assignments, specimens, custody events, incidents, manifests, offline receipts and immutable audit trail. Unique client-event IDs, foreign keys, status checks, indexes and atomic transition guards.
