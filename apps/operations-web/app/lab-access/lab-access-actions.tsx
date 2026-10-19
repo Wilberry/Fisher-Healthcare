@@ -21,8 +21,10 @@ export function LabAccessActions({pending,active}:{pending:Pending[];active:Acti
       });
       if(!result.ok){
         setMessage(result.status===409?'Access request changed; refresh before retrying.':
-          result.status===403?'This action requires a different authorized administrator.':
-          'Operation not confirmed. Verify your current administrative permissions.');
+          result.status===401?'Your staff session expired. Sign in again before making changes.':
+          result.status===403?'An active administrator or independent reviewer is required.':
+          result.status===503?'The identity or laboratory service is unavailable; no result is confirmed.':
+          'Operation not confirmed. Verify the current request and your permissions.');
         router.refresh();return;
       }
       setMessage(label+' recorded and audited. Refreshing the grant list.');
