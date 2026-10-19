@@ -54,7 +54,7 @@ export function ReceiveManifest({id,status,specimens}:{
             key.current=null;
             setRejected(current=>event.target.checked?[...current,s.id]:current.filter(x=>x!==s.id));
           }}/>
-        Reject specimen {s.id.slice(0,8)} (currently {s.status})
+        Reject specimen {s.id} (currently {s.status})
       </label>
     </li>)}</ul>
     {rejected.length>0&&<label htmlFor="rejection-reason">Reason for physical rejection

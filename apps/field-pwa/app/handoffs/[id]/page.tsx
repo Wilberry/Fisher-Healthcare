@@ -22,10 +22,10 @@ export default async function HandoffDetails({params}:{
           <p>Reconcile every printed specimen identifier against the physical package.
             Acknowledging attests that you have received the full frozen set.</p>
           <ul>{handoff.specimens.map(s=><li key={s.id}>
-            Specimen {s.id.slice(0,8)} · {s.status}
+            Specimen {s.id} · {s.status}
           </li>)}</ul>
           {handoff.status==='offered'&&handoff.specimens.length?
-            <CourierAcknowledge id={handoff.id}/>:
+            <CourierAcknowledge id={handoff.id} specimenIds={handoff.specimens.map(s=>s.id)}/>:
             <p role="status">This handoff is not pending acknowledgment.</p>}
           <p>The expected specimen barcode and patient identity are not provided by this view.</p>
         </>}

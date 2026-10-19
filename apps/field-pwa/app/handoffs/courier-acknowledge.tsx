@@ -1,14 +1,16 @@
 'use client';
 import {useRef,useState} from 'react';
 import {useRouter} from 'next/navigation';
-export function CourierAcknowledge({id}:{id:string}){
-  const [confirmed,setConfirmed]=useState(false);
+export function CourierAcknowledge({id,specimenIds}:{
+  id:string;specimenIds:string[]
+}){
+  const [confirmed,setConfirmed]=useState<string[]>([]);
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState('');
   const key=useRef<string|null>(null);
   const router=useRouter();
   async function send(){
-    if(!confirmed||busy)return;
+    if(specimenIds.length===0||specimenIds.some(id=>!confirmed.includes(id))||busy)return;
     if(!key.current)key.current=crypto.randomUUID();
     setBusy(true);setMessage('');
     try{
@@ -23,7 +25,7 @@ export function CourierAcknowledge({id}:{id:string}){
           'Acknowledgment denied. Confirm your assigned courier identity and MFA.');
         router.refresh();return;
       }
-      key.current=null;setConfirmed(false);
+      key.current=null;setConfirmed([]);
       setMessage('Courier receipt accepted; custody updated atomically.');
       router.refresh();
     }catch{
@@ -31,13 +33,18 @@ export function CourierAcknowledge({id}:{id:string}){
     }finally{setBusy(false);}
   }
   return <section>
-    <label>
-      <input type="checkbox" checked={confirmed} disabled={busy}
-        onChange={event=>setConfirmed(event.target.checked)}/>
-      {' '}I have physically received and reconciled the package for this handoff
-    </label>
+    <p>Check each specimen identifier against the label on the physically received package.</p>
+    <ul>{specimenIds.map(specimenId=><li key={specimenId} style={{marginBottom:10}}>
+      <label>
+        <input type="checkbox" checked={confirmed.includes(specimenId)} disabled={busy}
+          onChange={event=>setConfirmed(current=>event.target.checked ?
+            [...current,specimenId] : current.filter(item=>item!==specimenId))}/>
+        {' '}Physically received specimen {specimenId}
+      </label>
+    </li>)}</ul>
     <div style={{marginTop:10}}>
-      <button type="button" disabled={!confirmed||busy} onClick={()=>void send()}>
+      <button type="button"
+        disabled={!specimenIds.length||specimenIds.some(id=>!confirmed.includes(id))||busy} onClick={()=>void send()}>
         {busy?'Recording acknowledgment…':'Acknowledge as receiving courier'}
       </button>
     </div>
