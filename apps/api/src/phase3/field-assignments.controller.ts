@@ -1,3 +1,4 @@
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { Controller, Get, Param, Req, UseGuards, BadRequestException, ForbiddenException, Injectable, OnModuleDestroy, ServiceUnavailableException } from '@nestjs/common';
 import { Pool } from 'pg';
 import { requirePhase3SyntheticMode } from './phase3-mode';
@@ -37,6 +38,7 @@ export class Phase3FieldAssignmentsService implements OnModuleDestroy {
   }
 }
 @Controller('field/assignments')
+@ApiBearerAuth()
 @UseGuards(IdentityGuard)
 export class Phase3FieldAssignmentsController {
   constructor(private readonly service: Phase3FieldAssignmentsService) {}

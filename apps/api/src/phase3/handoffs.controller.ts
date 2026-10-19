@@ -1,3 +1,4 @@
+import { ApiBearerAuth } from '@nestjs/swagger';
 import {
   BadRequestException, Body, Controller, Get, Param, Post, Req, UseGuards,
   Injectable, OnModuleDestroy, ServiceUnavailableException, ForbiddenException, ConflictException
@@ -197,6 +198,7 @@ export class Phase3HandoffService implements OnModuleDestroy {
 }
 
 @Controller('field')
+@ApiBearerAuth()
 @UseGuards(IdentityGuard)
 export class Phase3HandoffController {
   constructor(private readonly service: Phase3HandoffService) {}

@@ -104,6 +104,36 @@ function validateDocument(document: OpenAPIObject): void {
     if(!auth?.some(s=>Object.hasOwn(s,'bearer')))
       throw new OpenApiContractError('Missing Phase 2 bearer metadata: '+path);
   }
+  // Phase 3 clinical field routes must remain documented and authenticated
+  // even when their service methods are disabled by default in production.
+  const phase3Operations: ReadonlyArray<readonly [string,string]> = [
+    ['/api/v1/ops/assignments/queue','get'],
+    ['/api/v1/ops/assignments','get'],
+    ['/api/v1/ops/assignments','post'],
+    ['/api/v1/field/assignments','get'],
+    ['/api/v1/field/assignments/{id}','get'],
+    ['/api/v1/field/assignments/{id}/events','post'],
+    ['/api/v1/field/specimens/{id}/events','post'],
+    ['/api/v1/field/specimens/{id}/incident','post'],
+    ['/api/v1/field/events/sync','post'],
+    ['/api/v1/field/handoff-offers','get'],
+    ['/api/v1/field/assignments/{id}/handoff-offers','post'],
+    ['/api/v1/field/handoff-offers/{id}/ack','post'],
+    ['/api/v1/ops/exceptions','get'],
+    ['/api/v1/ops/exceptions/{id}/resolve','post'],
+    ['/api/v1/ops/lab-manifests','post'],
+    ['/api/v1/ops/lab-manifests/{id}/receipt','post']
+  ];
+  for (const [path, method] of phase3Operations) {
+    const operation = document.paths[path]?.[method];
+    if (!operation) {
+      throw new OpenApiContractError('Phase 3 operation missing: ' + method.toUpperCase() + ' ' + path);
+    }
+    if (!operation.security?.some(scheme => Object.hasOwn(scheme, 'bearer'))) {
+      throw new OpenApiContractError('Phase 3 bearer security missing: ' + method.toUpperCase() + ' ' + path);
+    }
+  }
+
   if (!document.components?.securitySchemes?.bearer) {
     throw new OpenApiContractError('Required bearer authentication scheme is not documented');
   }
@@ -123,7 +153,7 @@ async function generate(): Promise<void> {
       app,
       new DocumentBuilder()
         .setTitle('Fisher Healthcare API')
-        .setDescription('Phase 1 identity and Phase 2 booking contracts. Customer bookings and checkout require explicit synthetic/staging activation.')
+        .setDescription('Phase 1 identity, Phase 2 booking/payment, and Phase 3 dispatch/custody contracts. Phase 3 operations are disabled outside explicit synthetic test mode.')
         .setVersion('0.1.0')
         .addBearerAuth()
         .build()

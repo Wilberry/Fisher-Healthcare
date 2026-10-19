@@ -1,8 +1,10 @@
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { BadRequestException, Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { IdentityGuard, type AuthenticatedRequest } from '../identity.guard';
 import { Phase3DispatchService } from './dispatch.service';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 @Controller('ops/assignments')
+@ApiBearerAuth()
 @UseGuards(IdentityGuard)
 export class Phase3DispatchController {
   constructor(private readonly service: Phase3DispatchService) {}

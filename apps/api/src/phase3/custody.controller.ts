@@ -1,3 +1,4 @@
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { Body, Controller, Param, Post, Req, UseGuards, BadRequestException, ConflictException } from '@nestjs/common';
 import { IdentityGuard, type AuthenticatedRequest } from '../identity.guard';
 import { Phase3CustodyService, type FieldCustodyInput } from './custody.service';
@@ -5,6 +6,7 @@ import { CustodyConflict, type CustodyAction } from './custody';
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const actions: readonly string[] = ['collect','package','report_damaged'];
 @Controller('field/specimens')
+@ApiBearerAuth()
 @UseGuards(IdentityGuard)
 export class Phase3CustodyController {
   constructor(private readonly service: Phase3CustodyService) {}

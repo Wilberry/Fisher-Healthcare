@@ -1,3 +1,4 @@
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { createHash } from 'node:crypto';
 import {
   BadRequestException, Body, Controller, Param, Post, Req, UseGuards,
@@ -111,6 +112,7 @@ export class Phase3AssignmentEventsService implements OnModuleDestroy {
 }
 
 @Controller('field/assignments')
+@ApiBearerAuth()
 @UseGuards(IdentityGuard)
 export class Phase3AssignmentEventsController {
   constructor(private readonly service: Phase3AssignmentEventsService) {}
