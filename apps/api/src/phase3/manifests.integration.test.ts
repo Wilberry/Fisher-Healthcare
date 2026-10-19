@@ -84,6 +84,7 @@ suite.sequential('Phase 3 lab manifest receipt (disposable PostgreSQL only)', ()
     expect(detail.data.specimens).toHaveLength(2);
     expect(detail.data).not.toHaveProperty('patient_id');
     expect(detail.data.specimens.every(x => !('patient_id' in x))).toBe(true);
+    expect(detail.data.specimens.every(x => !('barcode' in x))).toBe(true);
     await pool.query(
       'UPDATE phase3_lab_staff_access SET active=false,revoked_at=now() ' +
       'WHERE lab_id=$1 AND staff_id=$2',[lab,coordinatorStaff]);

@@ -32,7 +32,7 @@ export class Phase3FieldAssignmentsService implements OnModuleDestroy {
     // The assignment identity/role check above precedes this minimal specimen read.
     // Never include patient contact information, lab results or other assignments.
     const specimens = await this.pool.query(
-      'SELECT id,barcode,status,custody_version FROM specimens ' +
+      'SELECT id,status,custody_version FROM specimens ' +
       'WHERE order_id=$1 ORDER BY id LIMIT 100', [assigned.order_id]);
     return { data: { ...assigned, specimens: specimens.rows } };
   }

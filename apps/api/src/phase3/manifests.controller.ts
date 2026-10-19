@@ -64,7 +64,7 @@ export class Phase3ManifestService implements OnModuleDestroy {
       const row = await client.query(sql, dispatcher ? [id] : [id,identity.subject]);
       if (!row.rows[0]) throw new ForbiddenException('Manifest view denied');
       const members = await client.query(
-        'SELECT sp.id,sp.barcode,sp.status,sp.custody_version ' +
+        'SELECT sp.id,sp.status,sp.custody_version ' +
         'FROM phase3_manifest_specimens ms JOIN specimens sp ON sp.id=ms.specimen_id ' +
         'WHERE ms.manifest_id=$1 ORDER BY sp.id LIMIT 100', [id]);
       await client.query('COMMIT');

@@ -5,6 +5,7 @@ import { AccessService } from '../access.service';
 import { Phase3DispatchService } from './dispatch.service';
 import { Phase3CustodyService } from './custody.service';
 import { Phase3LabelService } from './label-check.controller';
+import { Phase3FieldAssignmentsService } from './field-assignments.controller';
 import { Phase3AssignmentEventsService } from './assignment-events.controller';
 import { Phase3HandoffService } from './handoffs.controller';
 import { Phase3IncidentsService } from './incidents.controller';
@@ -160,6 +161,14 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
     const collecting = await assignmentEvents.apply(identity(subs.collector),assignmentId,
       randomUUID(),{action:'start_collection',expectedVersion:1});
     expect(collecting.data).toMatchObject({status:'collecting',version:2});
+    // Physical barcode must not be returned by assignment detail APIs.
+    const assignments = new Phase3FieldAssignmentsService();
+    try {
+      const info = await assignments.list(subs.collector, assignmentId);
+      expect(info.data.specimens).toHaveLength(2);
+      expect(info.data.specimens.every((item: Record<string,unknown>) =>
+        !Object.hasOwn(item,'barcode'))).toBe(true);
+    } finally { await assignments.onModuleDestroy(); }
     await expect(dispatch.assign(identity(subs.dispatcher),ids.competingOrder,ids.collectorStaff,ids.shift))
       .rejects.toThrow('Staff shift not eligible');
   });
