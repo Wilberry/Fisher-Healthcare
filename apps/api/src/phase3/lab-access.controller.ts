@@ -101,9 +101,9 @@ export class Phase3LabAccessService implements OnModuleDestroy {
       await client.query('BEGIN');
       const reviewer = await this.administrator(identity.subject,client);
       const pending = await client.query<{
-        lab_id:string; staff_id:string; requested_by:string; status:string
+        lab_id:string; staff_id:string; requested_by:string; status:string; created_at:Date
       }>(
-        'SELECT lab_id,staff_id,requested_by,status FROM phase3_lab_access_requests ' +
+        'SELECT lab_id,staff_id,requested_by,status,created_at FROM phase3_lab_access_requests ' +
         'WHERE id=$1 FOR UPDATE', [requestId]);
       const request = pending.rows[0];
       if (!request || request.status !== 'pending') throw new ConflictException('Grant request unavailable');
@@ -114,6 +114,17 @@ export class Phase3LabAccessService implements OnModuleDestroy {
         "WHERE lab.id=$1 AND lab.active AND st.id=$2 AND st.active AND st.role='lab_coordinator' " +
         'FOR UPDATE OF lab,st', [request.lab_id,request.staff_id]);
       if (current.rowCount !== 1) throw new ConflictException('Lab or coordinator no longer eligible');
+      // A pending request cannot resurrect a grant revoked after that request
+      // was opened, or overwrite an already active independently approved grant.
+      const previous = await client.query<{active:boolean;revoked_after_request:boolean}>(
+        'SELECT active,(revoked_at IS NOT NULL AND revoked_at >= $3::timestamptz) ' +
+        'AS revoked_after_request FROM phase3_lab_staff_access ' +
+        'WHERE lab_id=$1 AND staff_id=$2 FOR UPDATE',
+        [request.lab_id,request.staff_id,request.created_at]);
+      if (previous.rows[0]?.active)
+        throw new ConflictException('Coordinator already has active access');
+      if (previous.rows[0]?.revoked_after_request)
+        throw new ConflictException('Grant request predates revocation; open a fresh request');
       await client.query(
         'INSERT INTO phase3_lab_staff_access(lab_id,staff_id,active,granted_by,granted_at,revoked_at) ' +
         'VALUES($1,$2,true,$3,now(),NULL) ' +
@@ -165,6 +176,10 @@ export class Phase3LabAccessService implements OnModuleDestroy {
     try {
       await client.query('BEGIN');
       const actor = await this.administrator(identity.subject,client);
+      // Serialize revocation with approvals on the same laboratory/coordinator.
+      await client.query(
+        'SELECT 1 FROM laboratories lab CROSS JOIN staff st ' +
+        'WHERE lab.id=$1 AND st.id=$2 FOR UPDATE OF lab,st', [labId,staffId]);
       const grant = await client.query(
         'UPDATE phase3_lab_staff_access SET active=false,revoked_at=now() ' +
         'WHERE lab_id=$1 AND staff_id=$2 AND active AND revoked_at IS NULL',
