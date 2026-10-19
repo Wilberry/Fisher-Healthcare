@@ -63,6 +63,36 @@ export class Phase3HandoffService implements OnModuleDestroy {
     return {data:result.rows};
   }
 
+  async detailForCourier(identity:AuthenticatedIdentity,offerId:string){
+    requirePhase3SyntheticMode();
+    requireStaffMfa(identity);
+    await this.access.requireStaffCapability(identity.subject,'specimens:transport');
+    if(!this.pool)throw new ServiceUnavailableException('Data service unavailable');
+    const client=await this.pool.connect();
+    try{
+      await client.query('BEGIN');
+      const offer=await client.query(
+        'SELECT h.id,h.assignment_id,h.status,h.created_at ' +
+        'FROM phase3_handoff_offers h ' +
+        'JOIN staff courier ON courier.id=h.courier_staff_id ' +
+        'JOIN users usr ON usr.id=courier.user_id ' +
+        "WHERE h.id=$1 AND usr.identity_subject=$2 AND courier.active " +
+        "AND courier.role='courier' FOR SHARE OF h",
+        [offerId,identity.subject]);
+      if(offer.rowCount!==1)throw new ForbiddenException('Courier handoff access denied');
+      const members=await client.query(
+        'SELECT hs.specimen_id,sp.status,hs.expected_version ' +
+        'FROM phase3_handoff_specimens hs ' +
+        'JOIN specimens sp ON sp.id=hs.specimen_id ' +
+        'WHERE hs.offer_id=$1 ORDER BY hs.specimen_id LIMIT 100',[offerId]);
+      await client.query('COMMIT');
+      return {data:{...offer.rows[0],specimens:members.rows}};
+    }catch(error){
+      await client.query('ROLLBACK');
+      throw error;
+    }finally{client.release();}
+  }
+
   async listForCourier(identity: AuthenticatedIdentity) {
     requirePhase3SyntheticMode();
     requireStaffMfa(identity);
@@ -282,6 +312,11 @@ export class Phase3HandoffController {
   eligible(@Req() req:AuthenticatedRequest,@Param('id') id:string){
     if(!req.identity||!uuid.test(id))throw new BadRequestException('Invalid assignment');
     return this.service.eligibleCouriers(req.identity,id.toLowerCase());
+  }
+  @Get('handoff-offers/:id')
+  detail(@Req() req:AuthenticatedRequest,@Param('id') id:string){
+    if(!req.identity||!uuid.test(id))throw new BadRequestException('Invalid handoff');
+    return this.service.detailForCourier(req.identity,id.toLowerCase());
   }
   @Get('handoff-offers')
   list(@Req() req: AuthenticatedRequest) {

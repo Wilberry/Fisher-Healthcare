@@ -233,6 +233,12 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
     expect(first.data.specimenCount).toBe(2);
     const replay = await handoffs.offer(identity(subs.collector),assignmentId,ids.courierStaff,key);
     expect(replay.data.replayed).toBe(true);
+    const courierDetail=await handoffs.detailForCourier(identity(subs.courier),offerId);
+    expect(courierDetail.data.specimens).toHaveLength(2);
+    expect(courierDetail.data.specimens.every((entry:Record<string,unknown>)=>
+      !Object.hasOwn(entry,'barcode')&&!Object.hasOwn(entry,'patient_id'))).toBe(true);
+    await expect(handoffs.detailForCourier(identity(subs.outsider),offerId))
+      .rejects.toThrow('Courier handoff access denied');
     await expect(handoffs.acknowledge(identity(subs.outsider),offerId,receiptKey)).rejects.toThrow();
     await expect(handoffs.acknowledge(identity(subs.courier,false),offerId,receiptKey)).rejects.toThrow();
     const accepted = await handoffs.acknowledge(identity(subs.courier),offerId,receiptKey);
