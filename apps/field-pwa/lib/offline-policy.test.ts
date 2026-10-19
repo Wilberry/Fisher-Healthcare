@@ -8,6 +8,8 @@ describe('restricted synthetic custody recovery envelopes',()=>{
   const fixture={specimenId:id,eventId:key,action:'collect',expectedVersion:0,createdAt:now};
   it('permits only bounded, versioned custody identifiers with event IDs',()=>{
     expect(validOfflineEvent(fixture,now)).toBe(true);
+    expect(validOfflineEvent({...fixture,observedBarcode:'FORBIDDEN'},now)).toBe(false);
+    expect(validOfflineEvent({...fixture,accessToken:'FORBIDDEN'},now)).toBe(false);
     expect(validOfflineEvent({...fixture,action:'dispatch'},now)).toBe(false);
     expect(validOfflineEvent({...fixture,action:'receive_at_lab'},now)).toBe(false);
     expect(validOfflineEvent({...fixture,expectedVersion:-1},now)).toBe(false);
