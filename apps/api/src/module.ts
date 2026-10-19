@@ -14,6 +14,7 @@ import { Phase3OfflineSyncController } from './phase3/offline-sync.controller';
 import { Phase3IncidentsController, Phase3IncidentsService } from './phase3/incidents.controller';
 import { Phase3ManifestController, Phase3ManifestService } from './phase3/manifests.controller';
 import { Phase3HandoffController, Phase3HandoffService } from './phase3/handoffs.controller';
+import { Phase3AssignmentEventsController, Phase3AssignmentEventsService } from './phase3/assignment-events.controller';
 
 @Controller('health')
 class HealthController {
@@ -24,7 +25,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, IdentityController, AccessController, FoundationController, Phase3CustodyController, Phase3DispatchController, Phase3FieldAssignmentsController, Phase3OfflineSyncController, Phase3IncidentsController, Phase3ManifestController, Phase3HandoffController],
-  providers: [IdentityVerifier, IdentityGuard, AccessService, Phase3CustodyService, Phase3DispatchService, Phase3FieldAssignmentsService, Phase3IncidentsService, Phase3ManifestService, Phase3HandoffService]
+  controllers: [HealthController, IdentityController, AccessController, FoundationController, Phase3CustodyController, Phase3DispatchController, Phase3FieldAssignmentsController, Phase3OfflineSyncController, Phase3IncidentsController, Phase3ManifestController, Phase3HandoffController, Phase3AssignmentEventsController],
+  providers: [IdentityVerifier, IdentityGuard, AccessService, Phase3CustodyService, Phase3DispatchService, Phase3FieldAssignmentsService, Phase3IncidentsService, Phase3ManifestService, Phase3HandoffService, Phase3AssignmentEventsService]
 })
 export class AppModule {}

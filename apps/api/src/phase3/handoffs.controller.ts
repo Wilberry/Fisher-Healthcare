@@ -57,7 +57,7 @@ export class Phase3HandoffService implements OnModuleDestroy {
         'SELECT a.order_id,a.staff_id FROM phase3_assignments a ' +
         'JOIN staff st ON st.id=a.staff_id JOIN users usr ON usr.id=st.user_id ' +
         "WHERE a.id=$1 AND usr.identity_subject=$2 AND st.active AND st.role='phlebotomist' " +
-        "AND a.status IN ('assigned','arrived','collecting') FOR UPDATE OF a",
+        "AND a.status='collecting' FOR UPDATE OF a",
         [assignmentId, identity.subject]);
       const current = assigned.rows[0];
       if (!current) throw new ForbiddenException('Assignment access denied');

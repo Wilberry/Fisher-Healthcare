@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { AccessService } from '../access.service';
 import { Phase3DispatchService } from './dispatch.service';
 import { Phase3CustodyService } from './custody.service';
+import { Phase3AssignmentEventsService } from './assignment-events.controller';
 import { Phase3HandoffService } from './handoffs.controller';
 import { Phase3IncidentsService } from './incidents.controller';
 import { Phase3ManifestService } from './manifests.controller';
@@ -13,6 +14,7 @@ const suite = process.env.FISHER_DISPOSABLE_DB_ACK === 'disposable-test-only' &&
 suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', () => {
   let pool: Pool, access: AccessService, dispatch: Phase3DispatchService;
   let custody: Phase3CustodyService, handoffs: Phase3HandoffService;
+  let assignmentEvents: Phase3AssignmentEventsService;
   let incidents: Phase3IncidentsService, manifests: Phase3ManifestService;
   const ids = {
     owner: randomUUID(), collector: randomUUID(), courier: randomUUID(),
@@ -97,6 +99,7 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
     access = new AccessService();
     dispatch = new Phase3DispatchService(access);
     custody = new Phase3CustodyService(access);
+    assignmentEvents = new Phase3AssignmentEventsService(access);
     handoffs = new Phase3HandoffService(access);
     incidents = new Phase3IncidentsService(access);
     manifests = new Phase3ManifestService(access);
@@ -105,6 +108,7 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
   afterAll(async () => {
     await Promise.all([dispatch?.onModuleDestroy(),custody?.onModuleDestroy(),
       handoffs?.onModuleDestroy(),incidents?.onModuleDestroy(),
+      assignmentEvents?.onModuleDestroy(),
       manifests?.onModuleDestroy(),access?.onModuleDestroy()]);
     await pool?.end();
     // All synthetic fixture data intentionally remains in the disposable DB.
@@ -117,6 +121,15 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
       identity(subs.dispatcher),ids.order,ids.collectorStaff,ids.shift);
     assignmentId = assigned.data.id;
     expect(assigned.data.status).toBe('assigned');
+    const arrivedKey = randomUUID();
+    const arrived = await assignmentEvents.apply(identity(subs.collector),assignmentId,
+      arrivedKey,{action:'arrive',expectedVersion:0});
+    expect(arrived.data).toMatchObject({status:'arrived',version:1,replayed:false});
+    expect((await assignmentEvents.apply(identity(subs.collector),assignmentId,
+      arrivedKey,{action:'arrive',expectedVersion:0})).data.replayed).toBe(true);
+    const collecting = await assignmentEvents.apply(identity(subs.collector),assignmentId,
+      randomUUID(),{action:'start_collection',expectedVersion:1});
+    expect(collecting.data).toMatchObject({status:'collecting',version:2});
     await expect(dispatch.assign(identity(subs.dispatcher),ids.competingOrder,ids.collectorStaff,ids.shift))
       .rejects.toThrow('Staff shift not eligible');
   });

@@ -47,7 +47,7 @@ export class Phase3CustodyService implements OnModuleDestroy {
          WHERE sp.id=$1 AND EXISTS (
            SELECT 1 FROM phase3_assignments a JOIN staff st ON st.id=a.staff_id
            WHERE a.order_id=ord.id AND st.user_id=$2
-             AND a.status IN ('assigned','arrived','collecting')
+             AND a.status='collecting'
          ) LIMIT 1`,
         [specimenId, staff.user_id]
       );
