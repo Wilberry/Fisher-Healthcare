@@ -5,11 +5,20 @@ import {
 
 const NAME='fisher_phase3_synthetic_custody_v1';
 const aad=(owner:string,id:string)=>new TextEncoder().encode(owner+':'+id);
+async function fingerprint(owner:string,event:QueuedCustodyEvent):Promise<string>{
+  // Opaque duplicate key; never persist cleartext action/specimen identifiers
+  // outside of the encrypted envelope.
+  const bytes=new TextEncoder().encode(JSON.stringify([
+    owner,event.specimenId,event.action,event.expectedVersion
+  ]));
+  const digest=new Uint8Array(await crypto.subtle.digest('SHA-256',bytes));
+  return Array.from(digest,b=>b.toString(16).padStart(2,'0')).join('');
+}
 const STORE='events';
 const KEY_STORE='keys';
 type SealedRecord={
   id:string;owner:string;createdAt:number;iv:Uint8Array;
-  ciphertext:ArrayBuffer;review:boolean;aadVersion?:1
+  ciphertext:ArrayBuffer;review:boolean;aadVersion?:1;fingerprint?:string
 };
 export type RecoveryEntry={event:QueuedCustodyEvent;review:boolean};
 function supported(){
@@ -33,11 +42,13 @@ function completed(tx:IDBTransaction):Promise<void>{
 async function open():Promise<IDBDatabase>{
   if(!supported())throw Error('Protected local storage is unavailable');
   return new Promise((resolve,reject)=>{
-    const r=indexedDB.open(NAME,1);
+    const r=indexedDB.open(NAME,2);
     r.onupgradeneeded=()=>{
       const db=r.result;
-      if(!db.objectStoreNames.contains(STORE))
-        db.createObjectStore(STORE,{keyPath:'id'});
+      const events=db.objectStoreNames.contains(STORE)?
+        r.transaction!.objectStore(STORE):db.createObjectStore(STORE,{keyPath:'id'});
+      if(!events.indexNames.contains('owner_fingerprint'))
+        events.createIndex('owner_fingerprint',['owner','fingerprint'],{unique:true});
       if(!db.objectStoreNames.contains(KEY_STORE))
         db.createObjectStore(KEY_STORE);
     };
@@ -108,6 +119,19 @@ async function mutate(db:IDBDatabase,owner:string,eventId:string,review:boolean)
   };
   await done;
 }
+async function ensureFingerprint(
+  db:IDBDatabase,owner:string,id:string,value:string
+):Promise<void>{
+  const tx=db.transaction(STORE,'readwrite'),store=tx.objectStore(STORE);
+  const done=completed(tx),pending=store.get(id);
+  pending.onsuccess=()=>{
+    const record=pending.result as SealedRecord|undefined;
+    if(!record||record.owner!==owner){tx.abort();return;}
+    if(!record.fingerprint)store.put({...record,fingerprint:value});
+    else if(record.fingerprint!==value)tx.abort();
+  };
+  await done;
+}
 async function readAll(db:IDBDatabase,owner:string):Promise<RecoveryEntry[]>{
   const secret=await key(db);
   const all=await rows(db);
@@ -123,6 +147,13 @@ async function readAll(db:IDBDatabase,owner:string):Promise<RecoveryEntry[]>{
       if(!validOfflineEvent(raw)||record.id!==(raw as QueuedCustodyEvent).eventId){
         await erase(db,record.id);continue;
       }
+      const digest=await fingerprint(owner,raw);
+      if(record.fingerprint&&record.fingerprint!==digest){
+        await erase(db,record.id);continue;
+      }
+      // Upgrade legacy encrypted records without losing valid pending events.
+      // A unique index discards duplicate semantic work during migration.
+      if(!record.fingerprint)await ensureFingerprint(db,owner,record.id,digest);
       result.push({event:raw,review:record.review===true});
     }catch{
       // Discard corrupt/unreadable records rather than expose or submit them.
@@ -158,7 +189,7 @@ export async function saveOfflineEvent(owner:string,event:QueuedCustodyEvent):Pr
     const ciphertext=await crypto.subtle.encrypt(
       {name:'AES-GCM',iv,additionalData:aad(owner,event.eventId)},secret,plaintext);
     await writeNew(db,{id:event.eventId,owner,createdAt:event.createdAt,
-      iv,ciphertext,review:false,aadVersion:1});
+      iv,ciphertext,review:false,aadVersion:1,fingerprint:await fingerprint(owner,event)});
   }finally{db.close();}
 }
 export async function markOfflineConflict(owner:string,eventId:string):Promise<void>{
