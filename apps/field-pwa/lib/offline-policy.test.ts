@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {OFFLINE_MAX_AGE_MS,OFFLINE_MAX_EVENTS,toOfflineBatch,
+import {OFFLINE_MAX_AGE_MS,OFFLINE_MAX_EVENTS,toOfflineBatch,reconcileOfflineAcknowledgments,
   validOfflineEvent,validOfflineScope} from './offline-policy';
 const id='00000000-0000-4000-8000-000000000001';
 const key='00000000-0000-4000-8000-000000000002';
@@ -22,6 +22,17 @@ describe('restricted synthetic custody recovery envelopes',()=>{
     expect(serialized).not.toContain('observedBarcode');
     expect(serialized).not.toContain('accessToken');
     expect(serialized).toContain(key);
+  });
+  it('fails closed for incomplete, duplicated or unexpected server outcomes',()=>{
+    const second={...fixture,eventId:'00000000-0000-4000-8000-000000000003'};
+    const pending=[fixture,second] as never;
+    const outcomes=[{eventId:key,accepted:true},{eventId:second.eventId,accepted:false}];
+    expect(reconcileOfflineAcknowledgments(pending,outcomes))
+      .toEqual({accepted:[key],conflicted:[second.eventId]});
+    expect(()=>reconcileOfflineAcknowledgments(pending,outcomes.slice(0,1))).toThrow();
+    expect(()=>reconcileOfflineAcknowledgments(pending,[outcomes[0],outcomes[0]])).toThrow();
+    expect(()=>reconcileOfflineAcknowledgments(pending,[outcomes[0],
+      {eventId:'00000000-0000-4000-8000-000000000004',accepted:true}])).toThrow();
   });
   it('accepts only opaque staff-scoped 256-bit digests',()=>{
     expect(validOfflineScope('a'.repeat(64))).toBe(true);

@@ -29,3 +29,27 @@ export function toOfflineBatch(events:readonly QueuedCustodyEvent[]){
   return {events:events.map(({specimenId,eventId,action,expectedVersion})=>
     ({specimenId,eventId,action,expectedVersion}))};
 }
+
+
+export function reconcileOfflineAcknowledgments(
+  events:readonly QueuedCustodyEvent[],raw:unknown
+):{accepted:string[];conflicted:string[]} {
+  if(!Array.isArray(raw)||raw.length!==events.length)
+    throw Error('Incomplete custody reconciliation');
+  const expected=new Set(events.map(event=>event.eventId));
+  if(expected.size!==events.length)throw Error('Duplicate submitted custody event');
+  const seen=new Set<string>(),accepted:string[]=[],conflicted:string[]=[];
+  for(const item of raw){
+    if(!item||typeof item!=='object'||Array.isArray(item))
+      throw Error('Malformed custody acknowledgment');
+    const outcome=item as Record<string,unknown>;
+    if(typeof outcome.eventId!=='string'||!expected.has(outcome.eventId)||
+       seen.has(outcome.eventId)||typeof outcome.accepted!=='boolean')
+      throw Error('Unrecognized or duplicate custody acknowledgment');
+    seen.add(outcome.eventId);
+    if(outcome.accepted)accepted.push(outcome.eventId);
+    else conflicted.push(outcome.eventId);
+  }
+  if(seen.size!==expected.size)throw Error('Missing custody acknowledgment');
+  return {accepted,conflicted};
+}

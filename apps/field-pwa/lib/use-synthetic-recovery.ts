@@ -4,7 +4,7 @@ import {
   readOfflineQueue,saveOfflineEvent,markOfflineConflict,
   removeOfflineEvent,type RecoveryEntry
 } from './offline-store';
-import {toOfflineBatch,type QueuedCustodyEvent,validOfflineScope} from './offline-policy';
+import {toOfflineBatch,reconcileOfflineAcknowledgments,type QueuedCustodyEvent,validOfflineScope} from './offline-policy';
 
 export type OfflineCapability={scope:string;checkedAt:number};
 export async function fetchOfflineCapability():Promise<OfflineCapability|null>{
@@ -76,17 +76,10 @@ export function useSyntheticRecovery(){
          !payload.data||typeof payload.data!=='object'||!('outcomes' in payload.data)||
          !Array.isArray(payload.data.outcomes))
         throw Error('Invalid recovery response');
-      const byEvent=new Map<string,{accepted:boolean}>();
-      for(const outcome of payload.data.outcomes){
-        if(outcome&&typeof outcome==='object'&&
-           typeof outcome.eventId==='string'&&typeof outcome.accepted==='boolean')
-          byEvent.set(outcome.eventId,{accepted:outcome.accepted});
-      }
-      for(const item of ready){
-        const outcome=byEvent.get(item.event.eventId);
-        if(outcome?.accepted)await removeOfflineEvent(current.scope,item.event.eventId);
-        else if(outcome)await markOfflineConflict(current.scope,item.event.eventId);
-      }
+      const plan=reconcileOfflineAcknowledgments(
+        ready.map(item=>item.event),payload.data.outcomes);
+      for(const id of plan.accepted)await removeOfflineEvent(current.scope,id);
+      for(const id of plan.conflicted)await markOfflineConflict(current.scope,id);
       const updated=await readOfflineQueue(current.scope);
       setEntries(updated);
       setMessage(updated.some(x=>x.review)?
