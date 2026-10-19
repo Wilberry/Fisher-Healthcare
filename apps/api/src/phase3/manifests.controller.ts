@@ -23,7 +23,7 @@ export class Phase3ManifestService implements OnModuleDestroy {
       const valid = await client.query(
         `SELECT sp.id FROM specimens sp JOIN orders ord ON ord.id=sp.order_id
          JOIN laboratories lab ON lab.id=ord.lab_id
-         WHERE sp.id=ANY($1::uuid[]) AND ord.lab_id=$2 AND lab.active
+         WHERE sp.id=ANY($1::uuid[]) AND ord.lab_id=$2 AND ord.status='collected' AND lab.active
          AND sp.status='in_transit' AND NOT EXISTS (SELECT 1 FROM phase3_manifest_specimens ms WHERE ms.specimen_id=sp.id)
          AND NOT EXISTS (SELECT 1 FROM phase3_incidents inc WHERE inc.specimen_id=sp.id AND inc.resolution_status='open') ORDER BY sp.id FOR UPDATE OF sp`, [specimenIds, labId]);
       if (valid.rowCount !== specimenIds.length) throw new ConflictException('Manifest specimens not eligible');

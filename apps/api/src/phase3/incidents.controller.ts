@@ -30,11 +30,11 @@ export class Phase3IncidentsService implements OnModuleDestroy {
         '   SELECT 1 FROM phase3_assignments a WHERE a.order_id=sp.order_id ' +
         "   AND a.staff_id=st.id AND a.status IN ('assigned','arrived','collecting')" +
         ' )) OR ' +
-        " (st.role='courier' AND EXISTS (" +
+        " (st.role='courier' AND sp.status='in_transit' AND EXISTS (" +
         '   SELECT 1 FROM phase3_handoff_offers h ' +
         '   JOIN phase3_handoff_specimens hs ON hs.offer_id=h.id ' +
         "   WHERE hs.specimen_id=sp.id AND h.courier_staff_id=st.id AND h.status='received'" +
-        ' ))) FOR UPDATE OF st',
+        ' ))) FOR UPDATE OF st,sp',
         [identity.subject, specimenId]);
       if (reporter.rowCount !== 1) throw new ForbiddenException('Specimen incident access denied');
       const actorId = reporter.rows[0]!.id;

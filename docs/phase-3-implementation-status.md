@@ -14,7 +14,7 @@
 - Internal lab manifests, staff-authenticated receipt, full specimen reconciliation, reason-coded rejection, audit and receipt idempotency.
 - Offline event reconciliation and `/field/events/sync` API contracts; durable device sync remains in development.
 - Production-gated UI workbenches at `/dispatch` and `/visits`, with explicit synthetic-only training previews.
-- Phase 3 migrations numbered 0017–0020 and authored database-backed multi-specimen flow tests.
+- Phase 3 migrations numbered 0017–0021 and authored database-backed multi-specimen flow tests.
 
 ## Remaining release engineering
 
