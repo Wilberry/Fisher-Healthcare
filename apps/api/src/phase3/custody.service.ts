@@ -3,6 +3,7 @@ import { Pool } from 'pg';
 import { requireStaffMfa, type AuthenticatedIdentity } from '../identity';
 import { type CustodyAction, type CustodyRole } from './custody';
 import { recordCustodyEvent } from './custody.repository';
+import { AccessService } from '../access.service';
 
 const roles: Record<string, CustodyRole> = {
   phlebotomist: 'collector', courier: 'courier',
@@ -18,12 +19,18 @@ export interface FieldCustodyInput {
 @Injectable()
 export class Phase3CustodyService implements OnModuleDestroy {
   private readonly pool?: Pool;
-  constructor() {
+  constructor(private readonly access: AccessService) {
     if (process.env.DATABASE_URL) this.pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 5 });
   }
   async onModuleDestroy(): Promise<void> { await this.pool?.end(); }
   async apply(identity: AuthenticatedIdentity, specimenId: string, input: FieldCustodyInput) {
     requireStaffMfa(identity);
+    // The field endpoint is intentionally collection-scoped. A client-supplied
+    // boolean is not proof of courier or laboratory handoff acknowledgment.
+    if (!['collect', 'package', 'report_damaged'].includes(input.action)) {
+      throw new ForbiddenException('Use a verified handoff workflow');
+    }
+    await this.access.requireStaffCapability(identity.subject, 'specimens:collect');
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
     const client = await this.pool.connect();
     try {
@@ -34,7 +41,7 @@ export class Phase3CustodyService implements OnModuleDestroy {
       );
       const staff = actor.rows[0];
       const role = staff && roles[staff.role];
-      if (!staff || !role) throw new ForbiddenException('Staff action denied');
+      if (!staff || !role || role !== 'collector') throw new ForbiddenException('Field collector access denied');
       const allowed = await client.query(
         `SELECT 1 FROM specimens sp JOIN orders ord ON ord.id=sp.order_id
          WHERE sp.id=$1 AND EXISTS (
