@@ -74,6 +74,8 @@ export class Phase3HandoffService implements OnModuleDestroy {
       // The locked order identity must still match the owned assignment.
       if (current.order_id !== reference.rows[0].order_id)
         throw new ConflictException('Assignment order changed');
+      // Serialize offers to this courier on the staff row; the separate capacity
+      // query below receives a fresh READ COMMITTED view after any waiting lock.
       const courier = await client.query(
         "SELECT id FROM staff WHERE id=$1 AND active AND role='courier' FOR UPDATE",
         [courierStaffId]);
@@ -93,6 +95,20 @@ export class Phase3HandoffService implements OnModuleDestroy {
         }
         throw new ConflictException('Another handoff already exists');
       }
+      const eligibleCourier = await client.query(
+        "SELECT 1 FROM orders ord " +
+        "JOIN collection_slots slot ON slot.id=ord.slot_id " +
+        "JOIN service_zones zone ON zone.id=slot.zone_id " +
+        "JOIN phase3_staff_shifts sh ON sh.staff_id=$2 AND sh.zone_code=zone.code " +
+        "WHERE ord.id=$1 AND zone.active AND slot.active AND sh.active " +
+        "AND sh.starts_at<=ord.collection_window_start " +
+        "AND sh.ends_at>=ord.collection_window_end " +
+        "AND NOT EXISTS (SELECT 1 FROM phase3_handoff_offers h " +
+        "WHERE h.courier_staff_id=$2 AND h.status='offered') LIMIT 1",
+        [current.order_id,courierStaffId]);
+      if (eligibleCourier.rowCount !== 1)
+        throw new ForbiddenException('Courier not available for this service zone or window');
+
       // The same request key replays its prior outcome even after completion.
       // New offers are permitted only during active field collection.
       const stage = await client.query<{ status: string }>(

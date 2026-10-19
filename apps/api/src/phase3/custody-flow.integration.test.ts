@@ -22,7 +22,7 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
     outsider: randomUUID(), dispatcher: randomUUID(), labWorker: randomUUID(),
     patient: randomUUID(), lab: randomUUID(), order: randomUUID(), competingOrder: randomUUID(),
     zone: randomUUID(), slot: randomUUID(),
-    shift: randomUUID(), specimenA: randomUUID(), specimenB: randomUUID(),
+    shift: randomUUID(), courierShift: randomUUID(), specimenA: randomUUID(), specimenB: randomUUID(),
     collectorStaff: randomUUID(), courierStaff: randomUUID(), outsiderStaff: randomUUID(),
     dispatcherStaff: randomUUID(), labStaff: randomUUID()
   };
@@ -77,6 +77,11 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
       'INSERT INTO phase3_staff_shifts(id,staff_id,zone_code,starts_at,ends_at) ' +
       'VALUES($1,$2,$3,$4,$5)',
       [shift,collectorStaff,'synthetic-lagos-zone',
+        new Date(now + 60 * 60_000),new Date(now + 6 * 60 * 60_000)]);
+    await pool.query(
+      'INSERT INTO phase3_staff_shifts(id,staff_id,zone_code,starts_at,ends_at) ' +
+      'VALUES($1,$2,$3,$4,$5)',
+      [ids.courierShift,courierStaff,'synthetic-lagos-zone',
         new Date(now + 60 * 60_000),new Date(now + 6 * 60 * 60_000)]);
     await pool.query(
       'INSERT INTO service_zones(id,code,name,active,regular_fee_kobo,premium_fee_kobo) ' +
@@ -188,6 +193,8 @@ suite.sequential('Phase 3 full custody workflow (disposable PostgreSQL only)', (
   });
 
   it('requires the designated courier to acknowledge the frozen specimen set', async () => {
+    await expect(handoffs.offer(identity(subs.collector),assignmentId,ids.outsiderStaff,randomUUID()))
+      .rejects.toThrow('Courier not available for this service zone or window');
     const key = randomUUID();
     const first = await handoffs.offer(identity(subs.collector),assignmentId,ids.courierStaff,key);
     offerId = first.data.id;
