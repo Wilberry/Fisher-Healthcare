@@ -32,6 +32,37 @@ export class Phase3HandoffService implements OnModuleDestroy {
   }
   async onModuleDestroy() { await this.pool?.end(); }
 
+  async eligibleCouriers(identity:AuthenticatedIdentity,assignmentId:string){
+    requirePhase3SyntheticMode();
+    requireStaffMfa(identity);
+    await this.access.requireStaffCapability(identity.subject,'specimens:collect');
+    if(!this.pool)throw new ServiceUnavailableException('Data service unavailable');
+    const result=await this.pool.query(
+      'SELECT courier.id AS staff_id, sh.id AS shift_id, sh.zone_code ' +
+      'FROM phase3_assignments a ' +
+      'JOIN staff owner ON owner.id=a.staff_id ' +
+      'JOIN users usr ON usr.id=owner.user_id ' +
+      'JOIN orders ord ON ord.id=a.order_id ' +
+      'JOIN collection_slots slot ON slot.id=ord.slot_id ' +
+      'JOIN service_zones zone ON zone.id=slot.zone_id ' +
+      'JOIN phase3_staff_shifts sh ON sh.zone_code=zone.code ' +
+      'JOIN staff courier ON courier.id=sh.staff_id ' +
+      "WHERE a.id=$1 AND usr.identity_subject=$2 AND owner.active " +
+      "AND owner.role='phlebotomist' AND a.status='collecting' " +
+      "AND ord.status='collection_in_progress' AND courier.active " +
+      "AND courier.role='courier' AND courier.id<>owner.id AND sh.active " +
+      'AND zone.active AND slot.active ' +
+      'AND sh.starts_at<=ord.collection_window_start ' +
+      'AND sh.ends_at>=ord.collection_window_end ' +
+      "AND NOT EXISTS(SELECT 1 FROM phase3_handoff_offers h " +
+      "WHERE h.assignment_id=a.id AND h.status IN ('offered','received')) " +
+      "AND NOT EXISTS(SELECT 1 FROM phase3_handoff_offers h " +
+      "WHERE h.courier_staff_id=courier.id AND h.status='offered') " +
+      'ORDER BY courier.id,sh.id LIMIT 100',
+      [assignmentId,identity.subject]);
+    return {data:result.rows};
+  }
+
   async listForCourier(identity: AuthenticatedIdentity) {
     requirePhase3SyntheticMode();
     requireStaffMfa(identity);
@@ -247,6 +278,11 @@ export class Phase3HandoffService implements OnModuleDestroy {
 @UseGuards(IdentityGuard)
 export class Phase3HandoffController {
   constructor(private readonly service: Phase3HandoffService) {}
+  @Get('assignments/:id/eligible-couriers')
+  eligible(@Req() req:AuthenticatedRequest,@Param('id') id:string){
+    if(!req.identity||!uuid.test(id))throw new BadRequestException('Invalid assignment');
+    return this.service.eligibleCouriers(req.identity,id.toLowerCase());
+  }
   @Get('handoff-offers')
   list(@Req() req: AuthenticatedRequest) {
     if (!req.identity) throw new ForbiddenException();
