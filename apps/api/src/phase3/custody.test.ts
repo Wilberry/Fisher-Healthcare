@@ -17,6 +17,13 @@ describe('custody transition policy', () => {
   it('rejects self-handoff', () => {
     expect(() => transitionCustody({ state: 'packaged', version: 2 }, { ...base, action: 'dispatch', expectedVersion: 2, recipientId: 'collector', recipientAcknowledged: true })).toThrowError('HANDOFF_NOT_ACKNOWLEDGED');
   });
+  it('acknowledges receipt only for the authenticated lab receiver', () => {
+    const command = { ...base, role: 'lab_staff' as const, action: 'receive_at_lab' as const,
+      actorId: 'lab-user', recipientId: 'lab-user', recipientAcknowledged: true, expectedVersion: 3 };
+    expect(transitionCustody({ state: 'in_transit', version: 3 }, command)).toEqual({ state: 'lab_received', version: 4 });
+    expect(() => transitionCustody({ state: 'in_transit', version: 3 },
+      { ...command, recipientId: 'another-user' })).toThrowError('HANDOFF_NOT_ACKNOWLEDGED');
+  });
   it('does not permit accepted specimens to be collected again', () => {
     expect(() => transitionCustody({ state: 'accepted', version: 7 }, { ...base, expectedVersion: 7 })).toThrowError('INVALID_TRANSITION');
   });

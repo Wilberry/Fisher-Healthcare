@@ -33,8 +33,13 @@ export function transitionCustody(current: CustodySnapshot, command: CustodyComm
   if (!rule) throw new CustodyConflict('INVALID_ACTION');
   if (!rule.roles.includes(command.role)) throw new CustodyConflict('FORBIDDEN_ACTOR');
   if (!rule.from.includes(current.state)) throw new CustodyConflict('INVALID_TRANSITION');
-  if (command.action === 'dispatch' || command.action === 'receive_at_lab') {
+  if (command.action === 'dispatch') {
     if (!command.recipientId || command.recipientId === command.actorId || command.recipientAcknowledged !== true)
+      throw new CustodyConflict('HANDOFF_NOT_ACKNOWLEDGED');
+  }
+  if (command.action === 'receive_at_lab') {
+    // Only the authenticated manifest handler may construct this acknowledgment.
+    if (command.recipientId !== command.actorId || command.recipientAcknowledged !== true)
       throw new CustodyConflict('HANDOFF_NOT_ACKNOWLEDGED');
   }
   return { state: rule.to, version: current.version + 1 };
