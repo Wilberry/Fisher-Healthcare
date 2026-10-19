@@ -5,6 +5,11 @@ import {clearOfflineRecovery} from '../../lib/offline-store';
 export default function StaffSignedOut(){
   const [state,setState]=useState('Clearing encrypted synthetic recovery data from this browser…');
   useEffect(()=>{
+    if(typeof BroadcastChannel!=='undefined'){
+      const channel=new BroadcastChannel('fisher-phase3-synthetic-recovery');
+      channel.postMessage('signed-out');
+      channel.close();
+    }
     let active=true;
     void clearOfflineRecovery().then(()=>{
       if(active)setState('Signed out. Local synthetic custody recovery data cleared.');
