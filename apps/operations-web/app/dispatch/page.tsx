@@ -18,7 +18,7 @@ export default async function DispatchConsole() {
       <p className="fisher-eyebrow">Phase 3 · Dispatch operations</p>
       <h1 className="fisher-section-title">Collection dispatch workbench</h1>
       <p className="fisher-lead">Plan assignments by zone, shift and capacity, then monitor exception-sensitive handoffs.</p>
-      <p><Link href="/exceptions">Review open custody incidents</Link> · <Link href="/lab-manifests">Laboratory handoffs</Link></p>
+      <p><Link href="/exceptions">Review open custody incidents</Link> · <Link href="/lab-manifests">Laboratory handoffs</Link> · <Link href="/lab-access">Laboratory staff administration</Link></p>
       <Notice title={queue.authorized ? 'Authorized synthetic dispatch queue' :
         demo ? 'Synthetic training mode only' : 'Staff identity verification required'} tone="warning">
         {queue.authorized ? 'Only server-authorized work items are shown. Phase 3 remains in restricted synthetic mode.'
