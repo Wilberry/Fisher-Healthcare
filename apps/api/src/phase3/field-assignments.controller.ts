@@ -16,7 +16,7 @@ export class Phase3FieldAssignmentsService implements OnModuleDestroy {
     requirePhase3SyntheticMode();
     if (!this.pool) throw new ServiceUnavailableException('Data service unavailable');
     const result = await this.pool.query(
-      `SELECT a.id,a.order_id,a.status,ord.collection_window_start,ord.collection_window_end
+      `SELECT a.id,a.order_id,a.status,a.event_version,ord.collection_window_start,ord.collection_window_end
        FROM phase3_assignments a
        JOIN staff st ON st.id=a.staff_id
        JOIN users usr ON usr.id=st.user_id

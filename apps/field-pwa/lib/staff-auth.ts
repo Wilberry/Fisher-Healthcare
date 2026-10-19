@@ -176,3 +176,95 @@ export async function staffApi(path:string){
       records:[] as Record<string,unknown>[]};
   }
 }
+
+
+const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export type FieldSpecimen={id:string;status:string;custodyVersion:number};
+export type FieldAssignment={
+  id:string;status:string;eventVersion:number;
+  collectionWindowStart:string;specimens:FieldSpecimen[]
+};
+export async function staffAssignmentDetail(id:string):Promise<{
+  authorized:boolean;assignment:FieldAssignment|null
+}>{
+  if(!uuid.test(id))return {authorized:false,assignment:null};
+  const session=await readStaffSession(),cfg=oidcConfig();
+  if(!session||!cfg)return {authorized:false,assignment:null};
+  try{
+    const subject=await verifyActiveStaff(session.accessToken,cfg.api);
+    if(subject!==session.subject)throw new Error('Session principal mismatch');
+    const url=new URL('/api/v1/field/assignments/'+id,cfg.api);
+    const response=await fetch(url,{headers:{authorization:'Bearer '+session.accessToken},
+      cache:'no-store',signal:AbortSignal.timeout(8000)});
+    if(!response.ok)return {authorized:false,assignment:null};
+    const raw:unknown=await response.json();
+    if(!raw||typeof raw!=='object'||!('data' in raw)||
+       !raw.data||typeof raw.data!=='object')return {authorized:false,assignment:null};
+    const d=raw.data as Record<string,unknown>;
+    if(d.id!==id||typeof d.status!=='string'||
+       typeof d.event_version!=='number'||!Number.isSafeInteger(d.event_version)||
+       !Array.isArray(d.specimens))
+      return {authorized:false,assignment:null};
+    const specimens:FieldSpecimen[]=d.specimens.filter(
+      (entry):entry is Record<string,unknown>=>!!entry&&typeof entry==='object'&&!Array.isArray(entry)
+    ).filter(entry=>typeof entry.id==='string'&&uuid.test(entry.id)&&
+      typeof entry.status==='string'&&typeof entry.custody_version==='number'&&
+      Number.isSafeInteger(entry.custody_version)).map(entry=>({
+        id:entry.id as string,status:entry.status as string,
+        custodyVersion:entry.custody_version as number
+      }));
+    return {authorized:true,assignment:{
+      id,status:d.status,eventVersion:d.event_version as number,
+      collectionWindowStart:typeof d.collection_window_start==='string'?
+        d.collection_window_start:'',
+      specimens
+    }};
+  }catch{return {authorized:false,assignment:null};}
+}
+export async function forwardFieldAction(request:Request,path:string):Promise<Response>{
+  // The browser never receives a bearer token, and cannot choose arbitrary
+  // upstream URLs, operations endpoints or clinical-result APIs.
+  const allowed=[
+    /^field\/assignments\/[0-9a-f-]{36}\/events$/,
+    /^field\/specimens\/[0-9a-f-]{36}\/label-check$/,
+    /^field\/specimens\/[0-9a-f-]{36}\/events$/,
+    /^field\/events\/sync$/
+  ];
+  const reject=(status:number,error:string)=>Response.json({error},{status,
+    headers:{'cache-control':'no-store'}});
+  if(crossSite(request))return reject(403,'Origin verification failed');
+  if(!allowed.some(pattern=>pattern.test(path)))return reject(404,'Unknown field action');
+  if(request.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()!=='application/json')
+    return reject(415,'JSON required');
+  const declared=Number(request.headers.get('content-length')??'0');
+  if(!Number.isFinite(declared)||declared>16384)return reject(413,'Payload too large');
+  const session=await readStaffSession(),cfg=oidcConfig();
+  if(!session)return reject(401,'Staff sign-in required');
+  if(!cfg)return reject(503,'Staff service unavailable');
+  let raw:string;
+  try{
+    raw=await request.text();
+    if(raw.length>16384)return reject(413,'Payload too large');
+    const parsed:unknown=JSON.parse(raw);
+    if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
+      return reject(400,'Invalid field action');
+  }catch{return reject(400,'Invalid JSON');}
+  try{
+    const subject=await verifyActiveStaff(session.accessToken,cfg.api);
+    if(subject!==session.subject)return reject(401,'Staff identity changed');
+    const result=await fetch(new URL('/api/v1/'+path,cfg.api),{
+      method:'POST',headers:{
+        authorization:'Bearer '+session.accessToken,
+        'content-type':'application/json'
+      },body:raw,cache:'no-store',signal:AbortSignal.timeout(10000)
+    });
+    if(!result.ok){
+      const status=[400,401,403,404,409,413,422,503].includes(result.status)?
+        result.status:503;
+      return reject(status,status===409?'Field state conflict requires review':
+        'Field action rejected');
+    }
+    const content:unknown=await result.json();
+    return Response.json(content,{status:200,headers:{'cache-control':'no-store'}});
+  }catch{return reject(503,'Field service unavailable');}
+}
