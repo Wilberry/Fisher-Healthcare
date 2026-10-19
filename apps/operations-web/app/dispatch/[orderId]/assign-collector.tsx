@@ -1,3 +1,4 @@
+import type {FormEvent} from 'react';
 'use client';
 import {useState} from 'react';
 import {useRouter} from 'next/navigation';
@@ -8,7 +9,7 @@ export function AssignCollector({orderId,shifts}:{orderId:string;shifts:Shift[]}
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState('');
   const router=useRouter();
-  async function submit(event:React.FormEvent<HTMLFormElement>){
+  async function submit(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     if(busy)return;
     const shift=shifts.find(item=>item.shiftId===selected);

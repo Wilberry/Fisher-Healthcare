@@ -15,6 +15,7 @@
 - Two-person administrator review for internal lab staff access requests, with immediate auditable revocation.
 - Phase 3 API methods fail closed outside explicit synthetic-only execution on a loopback `fisher_test` database and refuse production mode.
 - Offline event reconciliation and `/field/events/sync` API contracts, with a same-origin field gateway. The new visit UI retains only short-lived in-memory retry IDs; durable device sync remains in development and is not presented as implemented.
+- Operations workbenches for eligible paid-order collector shifts, incident resolution, manifest preparation, and lab-scoped receipt reconciliation, with a fixed-route same-origin command gateway and negative request tests.
 - Production-gated UI workbenches at `/dispatch` and `/visits`, plus `/visits/[id]` for signed, scoped collection actions. Both staff portals now include encrypted, HTTP-only OIDC/PKCE sessions and server-side API authorization checks; no browser access token is exposed.
 - Phase 3 additive migrations numbered `0017`–`0024`, database-backed full-flow, lab-receipt, and two-admin lab-onboarding tests authored. Not yet locally executed.
 

@@ -1,3 +1,4 @@
+import type {FormEvent} from 'react';
 'use client';
 import {useState} from 'react';
 import {useRouter} from 'next/navigation';
@@ -6,7 +7,7 @@ export function ReviewIncident({id}:{id:string}){
   const [busy,setBusy]=useState(false);
   const [message,setMessage]=useState('');
   const router=useRouter();
-  async function submit(event:React.FormEvent<HTMLFormElement>){
+  async function submit(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     if(busy||note.trim().length<8)return;
     setBusy(true);

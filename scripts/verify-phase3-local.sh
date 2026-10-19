@@ -144,6 +144,17 @@ for app in operations-web field-pwa; do
       fail "Originless field mutation was not blocked by the same-origin BFF"
   fi
   if [[ "$app" == operations-web ]]; then
+    for route in exceptions lab-manifests; do
+      [[ "$(http_status "http://127.0.0.1:$WEB_PORT/$route")" == 200 ]] ||
+        fail "Unauthorized $route view must stay access-locked"
+    done
+    [[ "$(http_status "http://127.0.0.1:$WEB_PORT/dispatch/00000000-0000-4000-8000-000000000001")" == 200 ]] ||
+      fail "Unverified dispatcher order detail did not render a locked response"
+    code="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
+      -X POST "http://127.0.0.1:$WEB_PORT/api/phase3/ops/assignments" \
+      -H 'Content-Type: application/json' --data '{"orderId":"synthetic"}')"
+    [[ "$code" == 403 ]] ||
+      fail "Originless dispatch mutation was not blocked"
     grep -q "Staff identity verification required" "$LOG/$app-locked.html" ||
       fail "Dispatch authentication boundary missing"
     ! grep -q "SYN-DSP-001" "$LOG/$app-locked.html" ||

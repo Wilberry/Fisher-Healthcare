@@ -1,3 +1,4 @@
+import type {FormEvent} from 'react';
 'use client';
 import {useState} from 'react';
 import {useRouter} from 'next/navigation';
@@ -6,7 +7,7 @@ export function PrepareManifest(){
   const [lab,setLab]=useState(''),[ids,setIds]=useState('');
   const [message,setMessage]=useState(''),[busy,setBusy]=useState(false);
   const router=useRouter();
-  async function submit(event:React.FormEvent<HTMLFormElement>){
+  async function submit(event:FormEvent<HTMLFormElement>){
     event.preventDefault();
     const specimenIds=ids.split(/[\s,]+/).filter(Boolean).map(id=>id.toLowerCase());
     if(!uuid.test(lab)||!specimenIds.length||specimenIds.length>100||
