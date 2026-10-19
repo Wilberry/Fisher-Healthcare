@@ -12,7 +12,10 @@ const required=[
  'apps/field-pwa/app/handoffs/courier-acknowledge.tsx',
  'apps/operations-web/app/lab-access/lab-access-actions.tsx',
  'apps/field-pwa/components/offline-recovery-panel.tsx',
- 'apps/field-pwa/app/signed-out/page.tsx'
+ 'apps/field-pwa/app/signed-out/page.tsx',
+ 'apps/field-pwa/components/staff-session-boundary.tsx',
+ 'apps/operations-web/components/staff-session-boundary.tsx',
+ 'apps/operations-web/app/signed-out/page.tsx'
 ];
 const failures=[];
 const read=path=>readFileSync(join(root,path),'utf8');
@@ -52,14 +55,32 @@ function check(file){
 // Run on staff-facing apps and their action gateway routes (including nested routes).
 walk(join(root,'apps/field-pwa/app'));
 walk(join(root,'apps/field-pwa/lib'));
+walk(join(root,'apps/field-pwa/components'));
 walk(join(root,'apps/operations-web/app'));
 walk(join(root,'apps/operations-web/lib'));
+walk(join(root,'apps/operations-web/components'));
 const collection=read('apps/api/src/phase3/field-assignments.controller.ts');
 const manifest=read('apps/api/src/phase3/manifests.controller.ts');
 if(/SELECT\s+id,barcode,status,custody_version\s+FROM specimens/.test(collection))
  failures.push('Expected specimen barcode exposed via field assignment API');
 if(/SELECT\s+sp.id,sp.barcode/.test(manifest))
  failures.push('Expected specimen barcode exposed via lab manifest API');
+const offlineStore=read('apps/field-pwa/lib/offline-store.ts');
+const recovery=read('apps/field-pwa/lib/use-synthetic-recovery.ts');
+const visit=read('apps/field-pwa/app/visits/[id]/visit-actions.tsx');
+if(!offlineStore.includes("createIndex('owner_fingerprint'")||
+   !offlineStore.includes('additionalData:aad(owner,event.eventId)'))
+ failures.push('Synthetic recovery lacks cross-tab deduplication or authenticated encryption');
+if(!recovery.includes("navigator.locks.request('fisher-phase3-synthetic-sync'"))
+ failures.push('Manual synthetic synchronization must hold cross-tab exclusion');
+if(!visit.includes("import { Notice } from '@fisher/ui'"))
+ failures.push('Field visit client component missing safety notice import');
+for(const area of ['field-pwa','operations-web']){
+ if(!read('apps/'+area+'/app/auth/logout/route.ts').includes('Clear-Site-Data'))
+   failures.push(area+' does not clear browser storage on sign-out');
+ if(!read('apps/'+area+'/lib/staff-auth.ts').includes('FISHER_STAFF_WEB_ORIGIN'))
+   failures.push(area+' must use trusted origin for CSRF');
+}
 if(failures.length){
  for(const issue of failures)console.error('FAIL: '+issue);
  process.exit(1);
