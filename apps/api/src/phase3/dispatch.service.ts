@@ -47,8 +47,13 @@ export class Phase3DispatchService implements OnModuleDestroy {
       const order = await client.query<{ status: string }>(
         'SELECT status FROM orders WHERE id=$1 FOR UPDATE', [orderId]);
       if (order.rows[0]?.status !== 'confirmed') throw new ConflictException('Order not eligible for dispatch');
-      // Lock both the staff and shift rows. Different overlapping shifts for the
-      // same worker must serialize on the staff row before capacity decisions.
+      // Serialize all claims for one worker first. This is a separate statement:
+      // a waiting dispatcher obtains a NEW READ COMMITTED snapshot for capacity
+      // after the preceding dispatcher commits, even across different shifts.
+      const worker = await client.query(
+        "SELECT id FROM staff WHERE id=$1 AND active AND role='phlebotomist' FOR UPDATE",
+        [staffId]);
+      if (worker.rowCount !== 1) throw new ForbiddenException('Collector unavailable');
       const eligible = await client.query(
         "SELECT 1 FROM phase3_staff_shifts sh " +
         "JOIN staff st ON st.id=sh.staff_id " +
@@ -67,7 +72,7 @@ export class Phase3DispatchService implements OnModuleDestroy {
         " AND a2.status IN ('assigned','arrived','collecting') " +
         " AND tstzrange(o2.collection_window_start,o2.collection_window_end,'[)') " +
         " && tstzrange(ord.collection_window_start,ord.collection_window_end,'[)')" +
-        ") FOR UPDATE OF sh,st",
+        ") FOR UPDATE OF sh",
         [shiftId, orderId, staffId]);
       if (eligible.rowCount !== 1) throw new ForbiddenException('Staff shift not eligible');
       const inserted = await client.query<{ id: string }>(
