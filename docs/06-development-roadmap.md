@@ -1,10 +1,10 @@
 # Fisher Healthcare Development Roadmap
 
-**Programme status:** Phased platform development in progress. The roadmap defines the company's proposed delivery sequence, scope, and release assurance requirements. Milestone dates will be established alongside staffing, commercial partnerships, and operational capacity.
+**Programme status:** **Phase 3 — Dispatch, Collection and Custody is in active engineering development.** Phases 1 and 2 are merged into `main` following local engineering acceptance; Phase 3 is not yet accepted or merged. The roadmap defines the company's delivery sequence, scope and release assurance requirements. Milestone dates remain dependent on staffing, partnerships and operational capacity.
 
 ## Phase 1 — Product foundation, UX and architecture
 
-**Engineering milestone status: PASS WITH DOCUMENTED SECURITY EXCEPTION (16 October 2026).** The exact pinned baseline `a504bee8d858712a8ada350a9792a87d23ecbb9a` passed builds, tests, migrations, OpenAPI, runtime smoke, and production high/critical dependency audit. The full development dependency audit remained **FAIL** because of an unpatched Next.js ESLint `braces` advisory; its follow-up remains open in [Issue #2](https://github.com/Wilberry/Fisher-Healthcare/issues/2). This permits continued engineering work, **not** production release or use of real clinical/patient data. [Acceptance and exception record](operations/phase-1-engineering-acceptance.md).
+**Engineering milestone status: COMPLETED AND MERGED.** Initial local engineering acceptance on 16 October 2026 at `a504bee8d858712a8ada350a9792a87d23ecbb9a` passed functional checks with a documented development-only `braces` dependency exception. The follow-up remediation was subsequently merged into `main` ([PR #4](https://github.com/Wilberry/Fisher-Healthcare/pull/4)); [Issue #2](https://github.com/Wilberry/Fisher-Healthcare/issues/2) is closed. Production release and use of real clinical/patient data remain separately prohibited until approved. [Historical Phase 1 acceptance](operations/phase-1-engineering-acceptance.md).
 
 **Strategic objective:** Establish the software engineering, product design, data architecture, and security foundations required for subsequent service development.
 
@@ -18,15 +18,19 @@
 - CI lint, typecheck, unit/integration tests, dependency/security scanning.
 - Environment and secret handling, containerized local development and staging plan.
 
-**Engineering closure evidence:** Reproducible committed-lockfile local verification passed the functional foundation checks, including database and authorization tests. GitHub Actions remained unavailable; the full dependency audit was a documented failing gate, specifically excepted for **Phase 1 engineering milestone acceptance only**. Separate security, clinical, privacy and release controls remain required for production.
+**Engineering closure evidence:** Reproducible committed-lockfile local verification passed the functional foundation checks, including database and authorization tests. GitHub Actions remained unavailable. The original Phase 1 acceptance exception is retained in the historical record; its security follow-up was subsequently remediated and merged. Separate clinical, privacy, provider and production-release controls still apply.
 
 ## Phase 2 — Patient booking and payment
+
+**Engineering milestone status: COMPLETED AND MERGED INTO `main` (19 October 2026).** Local exact-commit acceptance passed at `bec33a3bae4e0c12eb160c75f388ac672e7aa357`, with reviewed lockfile, OpenAPI, lint, typecheck, builds, disposable PostgreSQL migrations, automated tests, production/full high-severity dependency audits and API/three-interface smoke tests. Merged in [PR #1](https://github.com/Wilberry/Fisher-Healthcare/pull/1) as `82f025d582d976cc8f6c04818351ce1a47aa8996`. This is **engineering acceptance for synthetic/test modes only**, not external live-provider or clinical launch approval. [Acceptance record](phase-2-implementation-status.md).
 
 **Planned capabilities and deliverables:** Public site, catalogue, service zones, lab offerings, test preparation, patient/family profiles, booking drafts, slot holds, Regular/Premium quotes, verified checkout, receipts, customer dashboard shell, booking timeline, notifications, WhatsApp-assisted intake.
 
 **Phase completion criteria:** Full synthetic booking works; expired holds cannot oversell; duplicate callbacks cannot double-charge; caregiver result permissions are separated; cancellations follow policy.
 
 ## Phase 3 — Dispatch, collection and custody
+
+**Engineering milestone status: IN PROGRESS — NOT YET ACCEPTED.** Active development is tracked on `feat/phase3-dispatch-collection-custody`, independently of the accepted Phase 2 merge. Phase 3 authorization boundaries, incident/laboratory manifests, dispatch and field interfaces, migration safety and database-backed integration tests still require completion and consolidated local verification.
 
 **Planned capabilities and deliverables:** Operations queues, staffing and shifts, assignment and zone batching, field PWA, specimen IDs/labels, collection checklists, handoff records, lab manifests, transport status, incident/exception management, offline event synchronization.
 

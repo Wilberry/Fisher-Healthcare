@@ -71,6 +71,10 @@ The documentation in this repository defines the company's intended product capa
 
 ## Project status
 
-**Current development phase: Phase 2 — Patient Booking and Customer Experience** · [Development Roadmap](docs/06-development-roadmap.md)
+**Current development phase: Phase 3 — Dispatch, Collection and Custody.** Engineering is under development on `feat/phase3-dispatch-collection-custody`; Phase 3 acceptance and merge are not yet complete.
 
-Phase 2 engineering status: [Phase 2 Implementation Status](docs/phase-2-implementation-status.md).
+**Phase 1 and Phase 2:** Their engineering foundations and synthetic booking/payment implementations have been merged into `main`. Phase 2 passed local exact-commit verification at `bec33a3bae4e0c12eb160c75f388ac672e7aa357` and merged through [PR #1](https://github.com/Wilberry/Fisher-Healthcare/pull/1) in commit `82f025d582d976cc8f6c04818351ce1a47aa8996`.
+
+The completed Phase 2 engineering is **synthetic/staging-only**, not authorization to process real patient data, accept live payments or deliver clinical services. External-provider staging, clinical/privacy approvals and production readiness remain separately gated.
+
+[Development Roadmap](docs/06-development-roadmap.md) · [Phase 2 Engineering Acceptance](docs/phase-2-implementation-status.md)

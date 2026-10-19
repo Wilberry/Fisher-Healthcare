@@ -1,12 +1,14 @@
 # Fisher Healthcare — Phase 2 Implementation & Acceptance
 
-**Working branch:** `feat/phase2-patient-booking-payment`
+**Engineering milestone: COMPLETED — merged to `main` (19 October 2026).**
 
-**Pull request:** [Draft PR #1](https://github.com/Wilberry/Fisher-Healthcare/pull/1)
+**Accepted integration commit:** `bec33a3bae4e0c12eb160c75f388ac672e7aa357`.
 
-**Phase 1:** independent verification remains a prerequisite.
+**Main merge commit:** `82f025d582d976cc8f6c04818351ce1a47aa8996` via [merged PR #1](https://github.com/Wilberry/Fisher-Healthcare/pull/1).
 
-**Phase 2:** synthetic feature implementation assembled; **local exact-commit acceptance OPEN**. No production or live-patient rollout authorized.
+**Next engineering milestone:** [Phase 3 — Dispatch, Collection and Custody](06-development-roadmap.md#phase-3--dispatch-collection-and-custody), in progress; not yet verified or merged.
+
+**Release boundary:** Local acceptance covers synthetic booking/payment implementations. Production, real patient/clinical data, live payments and external integration acceptance are not authorized by this milestone.
 
 ## Complete source implementation areas
 
@@ -35,26 +37,23 @@ Booking rights (`can_book`) and clinical rights (`can_view_results`) are never c
 
 Resend `sent` means the provider returned an acceptance identifier; it does not prove inbox delivery. WhatsApp is a **preference only** until a separately approved provider, opt-in and delivery-audit path exists. Guest intake is a **staff-assisted request**, not a confirmed booking.
 
-## Gates that still require real evidence
+## Local engineering acceptance evidence
 
-1. **Exact pinned local one-pass verification** under Node 22, pnpm 9.15.9 and one disposable PostgreSQL 16, including migrations 0000–0016, lint/typecheck/build, unit/integration tests, signed HTTP negative cases, APIs, frontends, audits and OpenAPI. Fix any failures before acceptance.
-2. **Reproducible lockfile and generated OpenAPI snapshot** reviewed and committed at the tested SHA. Source code without these artifacts is diagnostic only.
-3. **OIDC staging provider** configured with registered callback, issuer/JWKS/audience, signed MFA claims and verified patient contact email. Validate PKCE, cookie handling, login/logout and guardian revocation with real signed staging tokens.
-4. **External staging integration**: separately approved Paystack sandbox account/test recipients and signed callback, approved Resend domain/test inboxes, email idempotency window and operational telemetry. Do not put API keys in Git.
-5. **Business / clinical / legal approvals**: diagnostics catalogue and preparation guidance, approved lab partnerships, real Lagos coverage and prices, proof of guardianship and address, patient privacy/consent text, cancellation/refund policy and regulatory readiness.
-6. **Operations handoff**: documented staff training, response SLA, charge exceptions/refunds, legitimate consent review, monitoring, backups and manual incident response. Provider-backed WhatsApp requires separate explicit opt-in and review if requested for production.
-7. **Phase 1 acceptance and integration**: reconcile any verified Phase 1 changes into Phase 2 and repeat the exact-commit verification before merge. No automatic PR merge or production deploy.
+The merged integration commit `bec33a3bae4e0c12eb160c75f388ac672e7aa357` passed the clean, pinned, one-pass local verifier in synthetic mode on 19 October 2026. The recorded final summary reported `Result: PASS`, `Final acceptance: PASS`, a committed lockfile, both production and full dependency security audits passing, and no pending worktree changes. Verification covered installation, Next.js lint-guard tests, all 11 workspace lint tasks, TypeScript, production builds, disposable PostgreSQL migrations/rollback/authorization checks, workspace tests, OpenAPI generation, and API and three interface smoke checks.
 
-The latest code is **not claimed tested or production-ready**. The final consolidated Bash is prepared for independent local execution when source changes are frozen.
+The merged dependency lockfile and OpenAPI snapshot were regenerated and reviewed against both Phase 1 and Phase 2 operations during integration; the generated OpenAPI retained all 55 operations. GitHub Actions were unavailable due to billing; this acceptance relies on documented local verification rather than hosted CI.
+
+**Engineering completion does not authorize clinical launch or live service.**
+
+## Outstanding external staging and production gates
+
+1. Confirm real signed OIDC staging identity-provider integration with registered callback, JWKS/audience, MFA claims and approved test users; exercise PKCE, cookie security, login/logout and guardian revocation.
+2. Validate separately approved Paystack **sandbox** callbacks/test accounts and Resend verified staging domain/test recipients, provider idempotency and operational telemetry; do not commit credentials.
+3. Obtain business, clinical, legal and privacy approvals for laboratory partners, diagnostics catalogue/preparation, real service zones and prices, guardianship, patient consent, cancellations/refunds and Nigerian regulatory obligations.
+4. Approve operational handoff, staff training, incident and exception handling, backups/restore, monitoring, and any future opt-in WhatsApp integration. No real patient data or live payment processing before these gates.
 
 ## Final local verification
 
-Run only from a clean local detached or exact-commit worktree; do not run this against real patient, payment or production services.
+The accepted source workflow is `scripts/verify-phase2-local.sh` with `FISHER_PHASE2_LOCAL_ACK=synthetic-only`, `FISHER_PHASE2_ACCEPTANCE_ACK=exact-commit`, and `FISHER_EXPECTED_COMMIT` pinned to the integrated SHA. Evidence was collected under `.verification/phase2-*/summary.txt` in the isolated local integration worktree.
 
-```bash
-FISHER_PHASE2_LOCAL_ACK=synthetic-only \\
-FISHER_EXPECTED_COMMIT=<verified-phase-2-head-sha> \\
-bash scripts/verify-phase2-local.sh
-```
-
-The script refuses unexpected worktree changes or the wrong pinned commit, starts one disposable PostgreSQL container on loopback, does not stop unrelated containers, and writes scoped evidence into `.verification/phase2-*/summary.txt`. No successful local verification evidence is available from this chat.
+Future changes to the accepted source must pass new exact-commit verification. Phase 3 acceptance is tracked separately.
