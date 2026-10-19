@@ -100,13 +100,20 @@ export function challenge(verifier:string):string{
 export function crossSite(request:Request):boolean{
   const origin=request.headers.get('origin');
   const requested=new URL(request.url).origin;
-  const trusted=process.env.FISHER_STAFF_WEB_ORIGIN;
-  // Never derive the CSRF trust boundary solely from an attacker-controlled Host.
-  if(process.env.NODE_ENV==='production'&&!trusted)return true;
-  return !origin||origin!==requested||(!!trusted&&
-    (!trusted.startsWith('https://')&&
-      !(process.env.NODE_ENV!=='production'&&trusted.startsWith('http://127.0.0.1:'))||
-      origin!==trusted));
+  const configured=process.env.FISHER_STAFF_WEB_ORIGIN;
+  if(!configured&&process.env.NODE_ENV==='production')return true;
+  if(configured){
+    try{
+      const trusted=new URL(configured);
+      const loopback=process.env.NODE_ENV!=='production'&&
+        process.env.FISHER_STAFF_AUTH_ALLOW_LOOPBACK_HTTP==='synthetic-only'&&
+        trusted.protocol==='http:'&&['127.0.0.1','localhost'].includes(trusted.hostname);
+      if(trusted.origin!==configured||(!loopback&&trusted.protocol!=='https:'))
+        return true;
+      return !origin||origin!==trusted.origin||requested!==trusted.origin;
+    }catch{return true;}
+  }
+  return !origin||origin!==requested;
 }
 export async function readStaffSession():Promise<StaffSession|null>{
   const cookieStore=await cookies();
