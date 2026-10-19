@@ -106,23 +106,34 @@ export async function readStaffSession():Promise<StaffSession|null>{
   const payload=unseal(cookieStore.get(sessionName)?.value);
   return payload?.type==='session'?payload:null;
 }
+export class StaffSessionError extends Error {
+  constructor(readonly reason:'reauth_required'|'access_denied'|'service_unavailable') {
+    super(reason);
+    this.name='StaffSessionError';
+  }
+}
 export async function verifyActiveStaff(accessToken:string,api:string):Promise<string>{
   const auth={authorization:'Bearer '+accessToken};
   const urls=['/api/v1/identity/session','/api/v1/access/staff/capabilities'];
-  const values=await Promise.all(urls.map(path=>fetch(new URL(path,api),{
-    headers:auth,cache:'no-store',signal:AbortSignal.timeout(8000)
-  })));
-  if(values.some(v=>!v.ok))throw new Error('Staff authorization unavailable');
+  let values:Response[];
+  try {
+    values=await Promise.all(urls.map(path=>fetch(new URL(path,api),{
+      headers:auth,cache:'no-store',signal:AbortSignal.timeout(8000)
+    })));
+  } catch {throw new StaffSessionError('service_unavailable');}
+  if(values.some(v=>v.status===401))throw new StaffSessionError('reauth_required');
+  if(values.some(v=>v.status===403))throw new StaffSessionError('access_denied');
+  if(values.some(v=>!v.ok))throw new StaffSessionError('service_unavailable');
   const principal:unknown=await values[0]!.json();
   const permissions:unknown=await values[1]!.json();
   if(!principal||typeof principal!=='object'||!('subject' in principal)||
      typeof principal.subject!=='string'||!principal.subject||
      !('authenticated' in principal)||principal.authenticated!==true)
-    throw new Error('Signed staff identity missing');
+    throw new StaffSessionError('reauth_required');
   if(!permissions||typeof permissions!=='object'||!('capabilities' in permissions)||
     !Array.isArray(permissions.capabilities)||
     !permissions.capabilities.some(cap=>typeof cap==='string'&&allowedCaps.includes(cap)))
-    throw new Error('Role not authorized for this staff portal');
+    throw new StaffSessionError('access_denied');
   return principal.subject;
 }
 export async function exchangeCode(code:string,pending:Pending):Promise<StaffSession>{
@@ -152,31 +163,38 @@ export async function exchangeCode(code:string,pending:Pending):Promise<StaffSes
   return {type:'session',accessToken:parsed.access_token,
     subject,expires:now()+Math.min(3600,parsed.expires_in)};
 }
+export type StaffApiState='signed_out'|'authorized'|'access_denied'|'reauth_required'|'service_unavailable';
 export async function staffApi(path:string){
+  const absent=(state:StaffApiState,signedIn:boolean)=>({
+    signedIn,authorized:false as const,state,
+    records:[] as Record<string,unknown>[]
+  });
   const session=await readStaffSession(),cfg=oidcConfig();
-  if(!session||!cfg)return {signedIn:false as const,authorized:false as const,
-    records:[] as Record<string,unknown>[]};
+  if(!session)return absent('signed_out',false);
+  if(!cfg)return absent('service_unavailable',true);
   try{
     const subject=await verifyActiveStaff(session.accessToken,cfg.api);
-    if(subject!==session.subject)throw new Error('Staff session subject changed');
-    if(!/^(?:ops|field)\/[a-zA-Z0-9/_-]+$/.test(path))throw new Error('Invalid path');
+    if(subject!==session.subject)throw new StaffSessionError('reauth_required');
+    if(!/^(?:ops|field)\/[a-zA-Z0-9/_-]+$/.test(path))
+      throw new StaffSessionError('access_denied');
     const url=new URL('/api/v1/'+path,cfg.api);
     const response=await fetch(url,{headers:{authorization:'Bearer '+session.accessToken},
       cache:'no-store',signal:AbortSignal.timeout(8000)});
-    if(!response.ok)return {signedIn:true as const,authorized:false as const,
-      records:[] as Record<string,unknown>[]};
+    if(response.status===401)return absent('reauth_required',false);
+    if(response.status===403)return absent('access_denied',true);
+    if(!response.ok)return absent('service_unavailable',true);
     const data:unknown=await response.json();
     const rows=data&&typeof data==='object'&&'data' in data &&
       Array.isArray(data.data)?data.data:[];
-    return {signedIn:true as const,authorized:true as const,
+    return {signedIn:true as const,authorized:true as const,state:'authorized' as const,
       records:rows.filter((entry):entry is Record<string,unknown> =>
         !!entry&&typeof entry==='object'&&!Array.isArray(entry))};
-  }catch{
-    return {signedIn:true as const,authorized:false as const,
-      records:[] as Record<string,unknown>[]};
+  }catch(error){
+    if(error instanceof StaffSessionError)
+      return absent(error.reason,error.reason!=='reauth_required');
+    return absent('service_unavailable',true);
   }
 }
-
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export type FieldSpecimen={id:string;status:string;custodyVersion:number};
