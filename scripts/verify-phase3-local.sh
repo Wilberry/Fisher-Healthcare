@@ -9,6 +9,7 @@ LOG="$ROOT/.verification/phase3-$(date +%Y%m%d-%H%M%S)"
 API_PID=""
 WEB_PID=""
 PHASE3_SHA=""
+SOURCE_SHA=""
 RESULT=FAIL
 CORE=NOT_RUN
 SMOKE=NOT_RUN
@@ -61,27 +62,17 @@ node scripts/phase3-source-guards.mjs > "$LOG/00-source-guards.log" 2>&1 ||
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 export NEXT_TELEMETRY_DISABLED=1
 
-# Prepare a generated OpenAPI contract locally from the integrated source.
-pnpm install --frozen-lockfile > "$LOG/01-install.log" 2>&1 || fail "Frozen install failed"
-pnpm exec turbo run build --filter=@fisher/api... --concurrency=1 \
-  > "$LOG/02-api-build.log" 2>&1 || fail "API build failed"
-pnpm --filter @fisher/api openapi:generate \
-  > "$LOG/03-openapi-generate.log" 2>&1 || fail "OpenAPI generation failed"
+# The pinned source revision and its tracked OpenAPI snapshot are immutable.
+# Phase 2 runs frozen installation, lint, typecheck, builds, migrations, unit/
+# security tests, OpenAPI generation, audits and application smoke checks once.
+# Never create a commit in a verification worktree or silently alter HEAD.
+git ls-files --error-unmatch docs/api/openapi.json >/dev/null 2>&1 ||
+  fail "OpenAPI snapshot must be tracked at the pinned commit"
 node scripts/verify-phase3-openapi.mjs > "$LOG/04-openapi-parity.log" 2>&1 ||
-  fail "OpenAPI contract mismatch"
-while IFS= read -r changed; do
-  case "$changed" in
-    " M docs/api/openapi.json"|"") ;;
-    *) fail "Unexpected generated modification: $changed" ;;
-  esac
-done < <(git status --porcelain --untracked-files=all)
-if ! git diff --quiet -- docs/api/openapi.json; then
-  git add -- docs/api/openapi.json
-  git diff --cached --check
-  git commit -m "build(phase3): pin reviewed Phase 3 generated OpenAPI" > "$LOG/05-artifact-commit.log"
-fi
-PHASE3_SHA="$(git rev-parse HEAD)"
-[[ -z "$(git status --porcelain --untracked-files=all)" ]] || fail "Uncommitted artifacts"
+  fail "Committed Phase 3 OpenAPI contract mismatch"
+PHASE3_SHA="$SOURCE_SHA"
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
+export NEXT_TELEMETRY_DISABLED=1
 
 # One Phase 2 baseline verifier also runs ALL added Phase 3 migrations and
 # synthetic integration tests. The new worktree SHA is pinned after OpenAPI.
@@ -177,15 +168,17 @@ done
 SMOKE=PASS
 [[ -z "$(git status --porcelain --untracked-files=all)" ]] || fail "Dirty final tree"
 
-if [[ "${FISHER_PHASE3_PUSH_ON_PASS:-0}" == 1 ]]; then
-  git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
-  [[ "$(git rev-parse "refs/remotes/origin/$BRANCH")" == "$SOURCE_SHA" ]] ||
-    fail "Phase 3 branch moved during verification; push refused"
-  [[ "$PHASE3_SHA" == "$SOURCE_SHA" ]] ||
-    git push origin "HEAD:refs/heads/$BRANCH" || fail "Non-force Phase 3 push rejected"
-  PUSH=YES
-fi
+# Check that the tracked branch did not move during acceptance; never push
+# or create a new commit as a side effect of verification.
+git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+[[ "$(git rev-parse "refs/remotes/origin/$BRANCH")" == "$SOURCE_SHA" ]] ||
+  fail "Remote Phase 3 branch changed during acceptance; report a stale SHA"
+[[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]] ||
+  fail "Verification worktree HEAD changed unexpectedly"
+[[ "${FISHER_PHASE3_PUSH_ON_PASS:-0}" != 1 ]] ||
+  fail "Automatic verification push has been disabled"
+
 RESULT=PASS
 echo "PHASE3_LOCAL_ACCEPTED_SHA=$PHASE3_SHA"
-echo "PHASE3_PUSHED=$PUSH"
+echo "PHASE3_PUSHED=NO"
 echo "Phase 3 remains subject to final PR review and separate live-service gates."
