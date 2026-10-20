@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  cookieNames,crossSite,makePending,oidcConfig,safeReturnPath,seal,unseal,
+  cookieNames,cookieOptions,crossSite,makePending,oidcConfig,safeReturnPath,seal,unseal,
   verifyActiveStaff,StaffSessionError
 } from './staff-auth';
 
@@ -44,6 +44,13 @@ describe('field staff session and PKCE policy',()=>{
     expect(unseal(expired)).toBeNull();
     expect(unseal(undefined)).toBeNull();
     expect(cookieNames().session).toContain('fisher_field_staff_session');
+  });
+  it('retains required __Host cookie properties when expiring sessions',()=>{
+    process.env.NODE_ENV='production';
+    expect(cookieNames().session.startsWith('__Host-')).toBe(true);
+    expect(cookieOptions(0)).toMatchObject({
+      httpOnly:true,secure:true,path:'/',sameSite:'lax',maxAge:0
+    });
   });
   it('fails closed on originless or cross-site state mutations',()=>{
     const local=new Request('https://staff.example.test/auth/logout',{
