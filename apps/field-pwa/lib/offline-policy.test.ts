@@ -10,6 +10,8 @@ describe('restricted synthetic custody recovery envelopes',()=>{
     expect(validOfflineEvent(fixture,now)).toBe(true);
     expect(validOfflineEvent({...fixture,observedBarcode:'FORBIDDEN'},now)).toBe(false);
     expect(validOfflineEvent({...fixture,accessToken:'FORBIDDEN'},now)).toBe(false);
+    expect(validOfflineEvent({...fixture,eventId:key.toUpperCase()},now)).toBe(false);
+    expect(validOfflineEvent({...fixture,specimenId:id.toUpperCase()},now)).toBe(false);
     expect(validOfflineEvent({...fixture,action:'dispatch'},now)).toBe(false);
     expect(validOfflineEvent({...fixture,action:'receive_at_lab'},now)).toBe(false);
     expect(validOfflineEvent({...fixture,expectedVersion:-1},now)).toBe(false);
