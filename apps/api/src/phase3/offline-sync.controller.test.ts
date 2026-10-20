@@ -36,6 +36,20 @@ describe('offline custody API rejects unsafe client authority', () => {
     })).rejects.toThrow('Invalid event');
     expect(apply).not.toHaveBeenCalled();
   });
+  it('rejects barcodes, patient data and duplicate IDs atomically before mutation',async()=>{
+    const {apply,offline}=mockApply();
+    const allowed={specimenId:id,eventId:event,action:'collect',expectedVersion:0};
+    await expect(offline.sync(request as never,{events:[
+      {...allowed,observedBarcode:'synthetic-label'}
+    ]})).rejects.toThrow('Unexpected offline custody fields');
+    await expect(offline.sync(request as never,{events:[
+      {...allowed,patientName:'forbidden'}
+    ]})).rejects.toThrow('Unexpected offline custody fields');
+    await expect(offline.sync(request as never,{events:[
+      allowed,{...allowed,action:'package',eventId:event.toUpperCase()}
+    ]})).rejects.toThrow('Duplicate offline custody event ID');
+    expect(apply).not.toHaveBeenCalled();
+  });
   it('accepts only collection-scoped actions, returning conflict outcomes independently', async () => {
     const {apply,offline} = mockApply();
     apply.mockRejectedValueOnce(new CustodyConflict('STALE_VERSION'))
