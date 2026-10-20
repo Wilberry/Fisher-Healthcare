@@ -59,9 +59,6 @@ done
 mkdir -p "$LOG"
 node scripts/phase3-source-guards.mjs > "$LOG/00-source-guards.log" 2>&1 ||
   fail "Phase 3 source safety preflight failed; inspect 00-source-guards.log"
-export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
-export NEXT_TELEMETRY_DISABLED=1
-
 # The pinned source revision and its tracked OpenAPI snapshot are immutable.
 # Phase 2 runs frozen installation, lint, typecheck, builds, migrations, unit/
 # security tests, OpenAPI generation, audits and application smoke checks once.
@@ -74,8 +71,8 @@ PHASE3_SHA="$SOURCE_SHA"
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 export NEXT_TELEMETRY_DISABLED=1
 
-# One Phase 2 baseline verifier also runs ALL added Phase 3 migrations and
-# synthetic integration tests. The new worktree SHA is pinned after OpenAPI.
+# One Phase 2 baseline verifier runs all additive Phase 3 migrations and
+# synthetic integration tests without changing the pinned worktree commit.
 unset FISHER_PHASE3_OPERATION_MODE
 if FISHER_VERIFY_LOG_DIR="$LOG/core" \
   FISHER_PHASE2_LOCAL_ACK=synthetic-only \
