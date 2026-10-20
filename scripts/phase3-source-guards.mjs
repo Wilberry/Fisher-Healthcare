@@ -81,6 +81,23 @@ for(const area of ['field-pwa','operations-web']){
  if(!read('apps/'+area+'/lib/staff-auth.ts').includes('FISHER_STAFF_WEB_ORIGIN'))
    failures.push(area+' must use trusted origin for CSRF');
 }
+// Additional Step 1 invariants protect the synthetic-only API recovery path
+// and ensure existing security tests are actually discovered by Vitest.
+const offlinePolicy=read('apps/field-pwa/lib/offline-policy.ts');
+const offlineApi=read('apps/api/src/phase3/offline-sync.controller.ts');
+const localVerifier=read('scripts/verify-phase3-local.sh');
+if(!offlinePolicy.includes('item.eventId===item.eventId.toLowerCase()')||
+   !offlinePolicy.includes("const permitted=['specimenId','eventId','action','expectedVersion','createdAt']"))
+ failures.push('Offline envelopes must reject case variants and unexpected fields');
+if(!offlineApi.includes('seenEventIds.has(eventId)')||
+   !offlineApi.includes('Unexpected offline custody fields'))
+ failures.push('Offline API must reject duplicate IDs and unexpected clinical/client fields');
+for(const area of ['field-pwa','operations-web']){
+ if(!read('apps/'+area+'/vitest.config.ts').includes("'lib/**/*.test.ts'"))
+   failures.push(area+' unit/security tests under lib must be discoverable');
+}
+if(localVerifier.includes('git push origin')||localVerifier.includes('git commit -m'))
+ failures.push('Exact-commit verifier must not commit or push');
 if(failures.length){
  for(const issue of failures)console.error('FAIL: '+issue);
  process.exit(1);
