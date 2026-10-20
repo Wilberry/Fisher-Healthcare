@@ -39,6 +39,9 @@ describe('offline custody API rejects unsafe client authority', () => {
   it('rejects barcodes, patient data and duplicate IDs atomically before mutation',async()=>{
     const {apply,offline}=mockApply();
     const allowed={specimenId:id,eventId:event,action:'collect',expectedVersion:0};
+    await expect(offline.sync(request as never,{
+      events:[allowed],patientName:'prohibited'
+    })).rejects.toThrow('Unexpected offline batch fields');
     await expect(offline.sync(request as never,{events:[
       {...allowed,observedBarcode:'synthetic-label'}
     ]})).rejects.toThrow('Unexpected offline custody fields');
