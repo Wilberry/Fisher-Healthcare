@@ -71,6 +71,20 @@ behavior and reauthentication still require disposable integration acceptance.
   added TypeScript files. This is **not** a substitute for running the
   dependency-free preflight or consolidated local acceptance.
 
+### Prepared consolidated acceptance invocation
+
+After engineering review, the repository includes
+`scripts/run-phase3-acceptance.sh`. It requires the caller to set the
+`FISHER_PHASE3_LOCAL_ACK=synthetic-only` acknowledgment, fetches and pins
+the latest Phase 3 remote HEAD, creates a new sibling **detached** worktree,
+and runs `scripts/verify-phase3-local.sh` against that exact SHA.
+
+The runner is opt-in and has **not been executed**. It does not reset, stash,
+commit, push, merge, or remove an existing working tree. The acceptance script
+retains logs in the disposable verification worktree and rejects uncommitted
+OpenAPI changes. The full pass still includes controlled disposable database
+startup/cleanup; this is not a production release procedure.
+
 ## Remaining release engineering
 
 1. **Integrated on Phase 3 branch:** the accepted Phase 2 `main` baseline was preserved in integration commit `65c4f1309c874de3ed71ae59c02b751da767e91f` (not merged back into `main`). Phase 3 exact-commit verification and PR review remain required.
