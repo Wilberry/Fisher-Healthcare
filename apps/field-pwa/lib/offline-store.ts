@@ -177,7 +177,13 @@ export async function saveOfflineEvent(owner:string,event:QueuedCustodyEvent):Pr
   const db=await open();
   try{
     const pending=await readAll(db,owner);
-    if(pending.some(item=>item.event.eventId===event.eventId))return;
+    const sameId=pending.find(item=>item.event.eventId===event.eventId);
+    if(sameId){
+      if(sameId.event.specimenId===event.specimenId&&
+         sameId.event.action===event.action&&
+         sameId.event.expectedVersion===event.expectedVersion)return;
+      throw Error('Custody event ID was reused for a different operation');
+    }
     if(pending.some(item=>item.event.specimenId===event.specimenId&&
         item.event.action===event.action&&item.event.expectedVersion===event.expectedVersion))
       throw Error('Matching event already awaits reconciliation');
