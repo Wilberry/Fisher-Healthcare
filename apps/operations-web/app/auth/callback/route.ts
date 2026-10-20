@@ -6,8 +6,12 @@ export async function GET(request:NextRequest){
     return NextResponse.json({error:'Staff sign-in unavailable'},{status:503});
   const failed=()=>{
     const response=NextResponse.redirect(new URL('/?staff_auth=failed',config.origin));
-    response.cookies.delete(cookieNames().pending);
-    response.cookies.delete(cookieNames().session);
+    response.cookies.set(cookieNames().pending,'',{
+    ...cookieOptions(0),expires:new Date(0)
+  });
+    response.cookies.set(cookieNames().session,'',{
+    ...cookieOptions(0),expires:new Date(0)
+  });
     return response;
   };
   const pending=unseal(request.cookies.get(cookieNames().pending)?.value);
@@ -18,7 +22,9 @@ export async function GET(request:NextRequest){
   try{
     const session=await exchangeCode(code,pending);
     const response=NextResponse.redirect(new URL(safeReturnPath(pending.next),config.origin));
-    response.cookies.delete(cookieNames().pending);
+    response.cookies.set(cookieNames().pending,'',{
+    ...cookieOptions(0),expires:new Date(0)
+  });
     response.cookies.set(cookieNames().session,seal(session),
       cookieOptions(Math.max(1,Math.min(3600,session.expires-Math.floor(Date.now()/1000)))));
     return response;
