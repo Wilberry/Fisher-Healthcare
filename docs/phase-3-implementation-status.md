@@ -50,6 +50,27 @@ PostgreSQL migrations and test suite have not been run**. Browser Web Locks,
 IndexedDB privacy guarantees, OIDC/MFA provider outage handling, sign-out
 behavior and reauthentication still require disposable integration acceptance.
 
+### Latest additional source controls
+
+- Custody event IDs are now content-bound in the synthetic offline store,
+  canonical lowercase UUIDs are required, and server-side offline batch
+  validation rejects duplicate event IDs or unexpected properties before
+  making any custody mutation.
+- Browser recovery distinguishes expired/revoked staff sessions from
+  identity-provider outages, retaining encrypted envelopes through temporary
+  service failures. Focused negative-path test cases were added.
+- Staff HTTP-only `__Host-` cookies now expire with matching Secure,
+  Path and other creation attributes during logout and OIDC callback handling.
+  Signed MFA presence and failure cases are explicitly covered in API tests.
+- The exact-commit Phase 3 verification script now refuses uncommitted
+  generated contracts and does not create commits or push a verified HEAD.
+  The previous redundant first API build has been removed; the integrated
+  Phase 2 verifier owns the single full build/test/database/audit pass.
+- Connector-backed static inspection confirmed one Phase 3 SQL migration
+  for each version 0017–0025 and no missing relative imports in newly
+  added TypeScript files. This is **not** a substitute for running the
+  dependency-free preflight or consolidated local acceptance.
+
 ## Remaining release engineering
 
 1. **Integrated on Phase 3 branch:** the accepted Phase 2 `main` baseline was preserved in integration commit `65c4f1309c874de3ed71ae59c02b751da767e91f` (not merged back into `main`). Phase 3 exact-commit verification and PR review remain required.
