@@ -11,10 +11,13 @@ export async function fetchOfflineCapability():Promise<OfflineCapability|null>{
   const response=await fetch('/api/phase3/field/offline/context',{
     method:'GET',credentials:'same-origin',cache:'no-store'
   });
-  if(!response.ok)return null;
+  if(response.status===401||response.status===403)return null;
+  if(!response.ok)throw Error('Offline staff identity service unavailable');
   const raw:unknown=await response.json();
   if(!raw||typeof raw!=='object'||!('scope' in raw)||
-     typeof raw.scope!=='string'||!validOfflineScope(raw.scope))return null;
+     typeof raw.scope!=='string'||!validOfflineScope(raw.scope)||
+     !('enabled' in raw)||raw.enabled!==true)
+    throw Error('Invalid synthetic recovery identity response');
   return {scope:raw.scope,checkedAt:Date.now()};
 }
 export function useSyntheticRecovery(){
@@ -118,7 +121,8 @@ export function useSyntheticRecovery(){
             'Accepted events reconciled; any unresolved events remain encrypted.');
         });
     }catch{
-      setMessage('Recovery outcome unknown. Original event IDs remain queued for safe retry.');
+      setCapability(null);setEntries([]);
+      setMessage('Identity verification or recovery response unavailable. Pending encrypted events were retained; reconnect before retrying.');
     }finally{syncing.current=false;setLoading(false);}
   },[]);
   const discard=useCallback(async(id:string)=>{
