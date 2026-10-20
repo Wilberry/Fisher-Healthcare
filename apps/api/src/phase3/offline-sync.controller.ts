@@ -14,7 +14,10 @@ export class Phase3OfflineSyncController {
   async sync(@Req() req: AuthenticatedRequest, @Body() body: unknown) {
     if (!req.identity) throw new BadRequestException('Identity missing');
     if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new BadRequestException('Invalid batch');
-    const raw = (body as Record<string, unknown>).events;
+    const batch = body as Record<string,unknown>;
+    if (Object.keys(batch).length !== 1 || !Object.hasOwn(batch,'events'))
+      throw new BadRequestException('Unexpected offline batch fields');
+    const raw = batch.events;
     if (!Array.isArray(raw) || raw.length === 0 || raw.length > 50) throw new BadRequestException('Invalid batch size');
     const events: { specimenId: string; input: FieldCustodyInput }[] = [];
     const seenEventIds = new Set<string>();
