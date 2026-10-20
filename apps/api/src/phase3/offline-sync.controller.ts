@@ -17,15 +17,25 @@ export class Phase3OfflineSyncController {
     const raw = (body as Record<string, unknown>).events;
     if (!Array.isArray(raw) || raw.length === 0 || raw.length > 50) throw new BadRequestException('Invalid batch size');
     const events: { specimenId: string; input: FieldCustodyInput }[] = [];
+    const seenEventIds = new Set<string>();
+    // Reject an entire malformed batch before applying ANY custody changes.
+    const permitted = ['specimenId','eventId','action','expectedVersion'];
     for (const item of raw) {
       if (!item || typeof item !== 'object' || Array.isArray(item)) throw new BadRequestException('Invalid event');
       const b = item as Record<string, unknown>;
+      if (Object.keys(b).length !== permitted.length ||
+          Object.keys(b).some(key => !permitted.includes(key)))
+        throw new BadRequestException('Unexpected offline custody fields');
       if (typeof b.specimenId !== 'string' || !uuid.test(b.specimenId) ||
           typeof b.eventId !== 'string' || !uuid.test(b.eventId) ||
           typeof b.action !== 'string' || !actions.includes(b.action) ||
           !Number.isSafeInteger(b.expectedVersion) || (b.expectedVersion as number) < 0 ||
           b.recipientId !== undefined || b.recipientAcknowledged !== undefined)
         throw new BadRequestException('Invalid event');
+      const eventId = b.eventId.toLowerCase();
+      if (seenEventIds.has(eventId))
+        throw new BadRequestException('Duplicate offline custody event ID');
+      seenEventIds.add(eventId);
       events.push({ specimenId: b.specimenId.toLowerCase(), input: {
         eventId: b.eventId.toLowerCase(), action: b.action as CustodyAction,
         expectedVersion: b.expectedVersion as number
