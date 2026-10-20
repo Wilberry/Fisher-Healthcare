@@ -17,8 +17,12 @@ export function validOfflineEvent(event:unknown,now=Date.now()):event is QueuedC
   const permitted=['specimenId','eventId','action','expectedVersion','createdAt'];
   if(Object.keys(item).length!==permitted.length||
      !Object.keys(item).every(field=>permitted.includes(field)))return false;
+  // Server identifiers are normalized to lower case. Reject case variants
+  // rather than create an unreconcilable local receipt ID.
   return typeof item.specimenId==='string'&&uuid.test(item.specimenId)&&
+    item.specimenId===item.specimenId.toLowerCase()&&
     typeof item.eventId==='string'&&uuid.test(item.eventId)&&
+    item.eventId===item.eventId.toLowerCase()&&
     offlineActions.some(action=>action===item.action)&&
     typeof item.expectedVersion==='number'&&
     Number.isSafeInteger(item.expectedVersion)&&item.expectedVersion>=0&&
