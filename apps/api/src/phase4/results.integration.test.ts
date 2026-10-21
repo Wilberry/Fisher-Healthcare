@@ -132,6 +132,10 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
     const notReleased=await pool.query(
       'SELECT released_at FROM results WHERE id=$1',[resultId]);
     expect(notReleased.rows[0]?.released_at).toBeNull();
+    const queued=await pool.query(
+      'SELECT 1 FROM phase4_result_delivery_intents WHERE result_id=$1',
+      [resultId]);
+    expect(queued.rowCount).toBe(0);
     await writeFile(privateDir+'/'+id.intakeKey+'.pdf',syntheticPdf);
     const first=await service.release(identity(sub.reviewer,true),resultId,id.releaseKey);
     expect(first.data).toMatchObject({id:resultId,status:'released',replayed:false});
