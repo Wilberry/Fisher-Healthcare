@@ -67,6 +67,6 @@ Development milestones are governed by the [Development Roadmap](docs/06-develop
 
 ## Project status
 
-**Current development phase: Phase 3 — Dispatch, Collection and Custody.** Engineering is under development on `feat/phase3-dispatch-collection-custody`; Phase 3 acceptance and merge are not yet complete.
+**Current development phase: Phase 4 — Laboratory, Results and Finance.** Phases 1–3 are merged. Phase 4 is under development. The software is not approved for live clinical use.
 
-[Development Roadmap](docs/06-development-roadmap.md) · [Phase 2 Engineering Acceptance](docs/phase-2-implementation-status.md)
+[Development Roadmap](docs/06-development-roadmap.md) · [Phase 3 Engineering Status](docs/phase-3-implementation-status.md)
