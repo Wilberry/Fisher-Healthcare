@@ -10,10 +10,15 @@ SOURCE=""
 CORE="NOT_RUN"
 SMOKE="NOT_RUN"
 API_PID=""
+WEB_PID=""
 fail(){ echo "ERROR: $*" >&2; exit 2; }
 cleanup(){
   code=$?
   trap - EXIT
+  if [[ -n "$WEB_PID" ]]; then
+    kill "$WEB_PID" 2>/dev/null || true
+    wait "$WEB_PID" 2>/dev/null || true
+  fi
   if [[ -n "$API_PID" ]]; then
     kill "$API_PID" 2>/dev/null || true
     wait "$API_PID" 2>/dev/null || true
@@ -123,6 +128,52 @@ SMOKE="PASS"
 kill "$API_PID" 2>/dev/null || true
 wait "$API_PID" 2>/dev/null || true
 API_PID=""
+# Smoke newly built patient/operations pages in signed-out mode with no
+# clinical data, staff bearer token, or live upstream connection.
+WEB_PORT="$((47000+RANDOM%2000))"
+for app in patient-web operations-web; do
+  pnpm --filter "@fisher/$app" exec next start -p "$WEB_PORT" -H 127.0.0.1 \
+    >"$LOG/06-$app-phase4.log" 2>&1 &
+  WEB_PID=$!
+  root="http://127.0.0.1:$WEB_PORT"
+  ready="no"
+  for i in $(seq 1 35); do
+    if [[ "$(status "$root/")" == 200 ]]; then ready="yes"; break; fi
+    sleep 1
+  done
+  [[ "$ready" == "yes" ]] || fail "Phase 4 $app startup failed"
+  if [[ "$app" == patient-web ]]; then
+    for path in /account/results \
+      /account/results/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa; do
+      [[ "$(status "$root$path")" == 200 ]] ||
+        fail "Signed-out patient results page failed: $path"
+    done
+    [[ "$(status "$root/api/phase4/results/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/download")" == 401 ]] ||
+      fail "Unauthenticated patient PDF proxy did not reject"
+    deny="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
+      -H 'content-type: application/json' \
+      -d '{"enabled":true}' \
+      "$root/api/phase4/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/result-email-preference" 2>/dev/null || true)"
+    [[ "$deny" == 403 ]] || fail "Patient result email proxy accepted originless mutation"
+  else
+    for path in /results /finance; do
+      [[ "$(status "$root$path")" == 200 ]] ||
+        fail "Signed-out staff page failed: $path"
+    done
+    for path in /api/phase4/ops/results/intake \
+      /api/phase4/finance/refunds \
+      /api/phase4/finance/reconciliation/runs \
+      /api/phase4/finance/lab-settlements; do
+      deny="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
+        -H 'content-type: application/json' -d '{}' "$root$path" 2>/dev/null || true)"
+      [[ "$deny" == 403 ]] || fail "Staff BFF accepted originless mutation: $path"
+    done
+  fi
+  kill "$WEB_PID" 2>/dev/null || true
+  wait "$WEB_PID" 2>/dev/null || true
+  WEB_PID=""
+  WEB_PORT="$((WEB_PORT+1))"
+done
 git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
 [[ "$(git rev-parse "refs/remotes/origin/$BRANCH")" == "$SOURCE" ]] ||
   fail "Source branch moved during acceptance"
