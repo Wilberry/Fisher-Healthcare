@@ -161,5 +161,21 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
       delete process.env.FISHER_PHASE4_PRIVATE_DOCUMENT_DIR;
     }
   });
+  it('requires separate explicit email opt-in and permits revocation only by self',async()=>{
+    await expect(service.emailPreference(identity(sub.outsider),id.patient,true))
+      .rejects.toThrow();
+    const initial=await service.readEmailPreference(identity(sub.owner),id.patient);
+    expect(initial.data.emailEnabled).toBe(false);
+    const optedIn=await service.emailPreference(identity(sub.owner),id.patient,true);
+    expect(optedIn.data.emailEnabled).toBe(true);
+    expect((await service.readEmailPreference(identity(sub.owner),id.patient))
+      .data.emailEnabled).toBe(true);
+    const optedOut=await service.emailPreference(identity(sub.owner),id.patient,false);
+    expect(optedOut.data.emailEnabled).toBe(false);
+    const row=await pool.query<{enabled:boolean}>(`
+      SELECT enabled FROM phase4_result_email_preferences
+      WHERE user_id=$1 AND patient_id=$2`,[id.owner,id.patient]);
+    expect(row.rows[0]?.enabled).toBe(false);
+  });
 
 });

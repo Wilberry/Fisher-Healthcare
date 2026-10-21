@@ -43,11 +43,18 @@ export function FinanceActions({refunds,payables,batches}:{refunds:Row[];payable
   if(!uuid.test(labId)||ids.length===0||!ids.every(v=>uuid.test(v)))return;
   void send('lab-settlements',{labId,batchKey:crypto.randomUUID(),payableIds:ids});
  };
+ function reconcile(){
+  void send('reconciliation/runs',{runKey:crypto.randomUUID()});
+ }
  function review(path:string,decision:'approve'|'reject'){
   if(note.trim().length<10||note.trim().length>240)return;
   void send(path,{decision,note:note.trim()});
  }
  return <section aria-label="Synthetic finance approvals">
+  <h2>Ledger reconciliation</h2>
+  <button type="button" disabled={busy} onClick={reconcile}>
+    Run synthetic ledger reconciliation
+  </button>
   <h2>Request a refund review</h2>
   <form onSubmit={submitRefund}>
    <p><label>Paid payment UUID <input value={payment} onChange={e=>setPayment(e.target.value)} required/></label></p>

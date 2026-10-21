@@ -12,6 +12,7 @@ const allow = [
   /^ops\/labs\/access\/[0-9a-f-]{36}\/staff\/[0-9a-f-]{36}\/revoke$/,
   /^ops\/results\/intake$/,
   /^ops\/results\/[0-9a-f-]{36}\/release$/,
+  /^finance\/reconciliation\/runs$/,
   /^finance\/refunds$/,
   /^finance\/refunds\/[0-9a-f-]{36}\/review$/,
   /^finance\/lab-payables$/,
