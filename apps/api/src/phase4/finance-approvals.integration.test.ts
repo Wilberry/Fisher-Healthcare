@@ -101,6 +101,23 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
     await expect(refunds.review(identity(subjectB),refundId,'reject',
       'Reviewed collected fee')).rejects.toThrow();
   });
+  it('refuses approval when a paid payment has independently changed state',async()=>{
+    const key=randomUUID();
+    const request=await refunds.request(identity(subjectA),{
+      paymentId:ids.payment,requestKey:key,amountKobo:100,
+      reasonCode:'manual_review'
+    });
+    await pool.query("UPDATE payments SET status='refunded' WHERE id=$1",[ids.payment]);
+    await expect(refunds.review(identity(subjectB),request.data.id,'approve',
+      'Payment reversal independently checked')).rejects.toThrow();
+    const state=await pool.query<{status:string}>(`
+      SELECT status FROM phase4_refund_requests WHERE id=$1`,[request.data.id]);
+    expect(state.rows[0]?.status).toBe('pending');
+    await pool.query("UPDATE payments SET status='paid' WHERE id=$1",[ids.payment]);
+    const declined=await refunds.review(identity(subjectB),request.data.id,'reject',
+      'Payment reversal independently checked');
+    expect(declined.data.status).toBe('rejected');
+  });
   it('records payable from a released result, never from the customer list price',async()=>{
     const p={resultId:ids.result,amountKobo:2500,agreementReference:'SYN-AGREEMENT-0001'};
     const one=await settlements.addPayable(identity(subjectA),p);

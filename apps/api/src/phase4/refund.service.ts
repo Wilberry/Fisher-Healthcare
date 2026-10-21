@@ -93,7 +93,9 @@ export class Phase4RefundService implements OnModuleDestroy{
         const reference=await c.query<{payment_id:string}>(`
           SELECT payment_id FROM phase4_refund_requests WHERE id=$1`,[id]);
         if(!reference.rows[0])throw new ForbiddenException('Refund request unavailable');
-        await c.query('SELECT id FROM payments WHERE id=$1 FOR UPDATE',[reference.rows[0].payment_id]);
+        const payment=await c.query<{status:string;amount_kobo:number}>(`
+          SELECT status,amount_kobo FROM payments WHERE id=$1 FOR UPDATE`,
+          [reference.rows[0].payment_id]);
         const result=await c.query<RefundRow>(`
           SELECT * FROM phase4_refund_requests WHERE id=$1 FOR UPDATE`,[id]);
         const refund=result.rows[0];
@@ -101,6 +103,12 @@ export class Phase4RefundService implements OnModuleDestroy{
         if(refund.requested_by===actor)
           throw new ForbiddenException('Independent finance reviewer required');
         const target=decision==='approve'?'approved':'rejected';
+        // A request accepted while the payment was paid is not a standing
+        // authorization to refund after an independent reversal or status change.
+        if(decision==='approve'&&payment.rows[0]?.status!=='paid')
+          throw new ConflictException('Payment no longer eligible for refund approval');
+        if(decision==='approve'&&BigInt(refund.amount_kobo)>BigInt(payment.rows[0]!.amount_kobo))
+          throw new ConflictException('Approved refund exceeds current payment amount');
         if(refund.status!== 'pending'){
           if(refund.status!==target||refund.reviewed_by!==actor||refund.review_note!==note)
             throw new ConflictException('Refund decision already finalized');
