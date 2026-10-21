@@ -118,8 +118,11 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
       'Payment reversal independently checked');
     expect(declined.data.status).toBe('rejected');
   });
-  it('records payable from a released result, never from the customer list price',async()=>{
+  it('records payable from a released, paid result, never from the customer list price',async()=>{
     const p={resultId:ids.result,amountKobo:2500,agreementReference:'SYN-AGREEMENT-0001'};
+    await pool.query("UPDATE payments SET status='pending' WHERE id=$1",[ids.payment]);
+    await expect(settlements.addPayable(identity(subjectA),p)).rejects.toThrow();
+    await pool.query("UPDATE payments SET status='paid' WHERE id=$1",[ids.payment]);
     const one=await settlements.addPayable(identity(subjectA),p);
     payableId=one.data.id;
     expect(one.data.payoutExecuted).toBe(false);

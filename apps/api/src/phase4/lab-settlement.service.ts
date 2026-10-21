@@ -61,8 +61,10 @@ export class Phase4LabSettlementsService implements OnModuleDestroy{
    const source=await c.query<{lab_id:string}>(`
     SELECT i.lab_id FROM phase4_result_intakes i
     JOIN results r ON r.id=i.result_id
+    JOIN orders o ON o.id=r.order_id AND o.lab_id=i.lab_id
+    JOIN payments p ON p.order_id=o.id AND p.status='paid'
     WHERE i.result_id=$1 AND r.released_at IS NOT NULL
-      AND r.released_by IS NOT NULL FOR SHARE OF r,i`,[input.resultId]);
+      AND r.released_by IS NOT NULL FOR SHARE OF r,i,p`,[input.resultId]);
    const labId=source.rows[0]?.lab_id;
    if(!labId)throw new ConflictException('Verified released result required');
    const existing=await c.query<{id:string;amount_kobo:string;agreement_reference:string}>(`
