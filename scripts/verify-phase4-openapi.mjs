@@ -6,6 +6,7 @@ const required=[
   ['post','/api/v1/ops/results/{resultId}/release'],
   ['get','/api/v1/patients/{patientId}/results'],
   ['get','/api/v1/results/{resultId}'],
+  ['get','/api/v1/results/{resultId}/document'],
   ['get','/api/v1/finance/transactions'],
   ['get','/api/v1/finance/reconciliation'],
   ['post','/api/v1/finance/reconciliation/runs'],

@@ -2092,6 +2092,31 @@
           }
         ]
       }
+    },
+    "/api/v1/results/{resultId}/document": {
+      "get": {
+        "operationId": "Phase4ResultsController_document",
+        "parameters": [
+          {
+            "name": "resultId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified PDF for authorized patient in synthetic-only environment"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
