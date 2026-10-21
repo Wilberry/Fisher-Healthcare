@@ -1,5 +1,5 @@
-import {crossSiteRequest} from '../../../../../../../lib/patient-auth';
-import {patientApi} from '../../../../../../../lib/patient-api';
+import {crossSiteRequest} from '../../../../../../../../lib/patient-auth';
+import {patientApi} from '../../../../../../../../lib/patient-api';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export async function POST(request:Request,{params}:{
  params:Promise<{id:string;copyId:string}>
