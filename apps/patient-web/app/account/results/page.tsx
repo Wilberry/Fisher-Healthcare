@@ -83,7 +83,9 @@ export default async function PatientResults(){
             </Card>)}
           {!history.length&&<Notice title="No verified profiles">No patient profiles are currently available to this account.</Notice>}
         </div>}
-      <p>Result access is separate from booking authority. Only released, authorized metadata is shown. Secure document access and email delivery are not yet active.</p>
+      <p>Result access is separate from booking authority. Synthetic document downloads
+        and result-availability emails are restricted to approved testing. No real clinical
+        report delivery or physical-copy payment is enabled.</p>
     </div></section>
   </SiteShell>;
 }
