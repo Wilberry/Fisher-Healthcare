@@ -96,7 +96,8 @@ done
 [[ "$(status "$health")" == 200 ]] || fail "API health smoke failed"
 for path in /api/v1/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/results \
  /api/v1/results/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa \
- /api/v1/finance/transactions /api/v1/finance/reconciliation \
+ /api/v1/ops/results/pending \
+  /api/v1/finance/transactions /api/v1/finance/reconciliation \
   /api/v1/finance/refunds /api/v1/finance/lab-payables \
   /api/v1/finance/lab-settlements; do
   [[ "$(status "http://127.0.0.1:$PORT$path")" == 401 ]] ||

@@ -1,6 +1,7 @@
 import {readFileSync} from 'node:fs';
 const doc=JSON.parse(readFileSync('docs/api/openapi.json','utf8'));
 const required=[
+  ['get','/api/v1/ops/results/pending'],
   ['post','/api/v1/ops/results/intake'],
   ['post','/api/v1/ops/results/{resultId}/release'],
   ['get','/api/v1/patients/{patientId}/results'],

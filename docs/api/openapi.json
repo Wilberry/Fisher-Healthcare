@@ -2076,6 +2076,22 @@
           }
         ]
       }
+    },
+    "/api/v1/ops/results/pending": {
+      "get": {
+        "operationId": "Phase4ResultsController_pending",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
