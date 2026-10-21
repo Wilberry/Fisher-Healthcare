@@ -104,9 +104,10 @@ export class Phase4ResultsService implements OnModuleDestroy {
       const actorId=staff.rows[0]?.id;
       if(!actorId)throw new ForbiddenException('Result release denied');
       const row=await c.query<{
-        id:string;released_at:Date|null;intake_by:string;specimen_id:string;
+        id:string;released_at:Date|null;intake_by:string;specimen_id:string;object_key:string;document_sha256:string;
       }>(`
-        SELECT r.id,r.released_at,i.intake_by,i.specimen_id
+        SELECT r.id,r.released_at,i.intake_by,i.specimen_id,
+          r.object_key,i.document_sha256
         FROM results r JOIN phase4_result_intakes i ON i.result_id=r.id
         WHERE r.id=$1 FOR UPDATE OF r`,[resultId]);
       const result=row.rows[0];
@@ -130,6 +131,10 @@ export class Phase4ResultsService implements OnModuleDestroy {
             WHERE inc.specimen_id=sp.id AND inc.resolution_status='open')
         FOR SHARE OF sp`,[result.specimen_id]);
       if(eligible.rowCount!==1)throw new ConflictException('Specimen not eligible for release');
+      // In synthetic mode there is no release without the exact private
+      // document being present and matching the submitted SHA-256 evidence.
+      // Rejections leave both result state and notification queue unchanged.
+      await readSyntheticResultDocument(result.object_key,result.document_sha256);
       const updated=await c.query(`
         UPDATE results SET released_at=now(),released_by=$2,updated_at=now()
         WHERE id=$1 AND released_at IS NULL RETURNING id`,[resultId,actorId]);

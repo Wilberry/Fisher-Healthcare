@@ -9,6 +9,8 @@ const suite=process.env.FISHER_DISPOSABLE_DB_ACK==='disposable-test-only' &&
   process.env.DATABASE_URL?describe:describe.skip;
 suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',()=>{
   const prev=process.env.FISHER_PHASE4_OPERATION_MODE;
+  const previousDocumentMode=process.env.FISHER_PHASE4_DOCUMENT_MODE;
+  const previousDocumentDir=process.env.FISHER_PHASE4_PRIVATE_DOCUMENT_DIR;
   let pool:Pool,access:AccessService,service:Phase4ResultsService;
   const id={
     owner:randomUUID(),labUser:randomUUID(),reviewUser:randomUUID(),
@@ -37,6 +39,10 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
   let resultId:string;
   beforeAll(async()=>{
     process.env.FISHER_PHASE4_OPERATION_MODE='synthetic-only';
+    privateDir=await mkdtemp('/tmp/fisher-healthcare-phase4-private-');
+    await writeFile(privateDir+'/'+id.intakeKey+'.pdf',syntheticPdf);
+    process.env.FISHER_PHASE4_DOCUMENT_MODE='synthetic-only';
+    process.env.FISHER_PHASE4_PRIVATE_DOCUMENT_DIR=privateDir;
     if(!process.env.DATABASE_URL||process.env.FISHER_DISPOSABLE_DB_ACK!=='disposable-test-only')
       throw new Error('Disposable test database required');
     pool=new Pool({connectionString:process.env.DATABASE_URL});
@@ -88,6 +94,10 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
     await service?.onModuleDestroy();
     await access?.onModuleDestroy();
     await pool?.end();
+    if(previousDocumentMode===undefined)delete process.env.FISHER_PHASE4_DOCUMENT_MODE;
+    else process.env.FISHER_PHASE4_DOCUMENT_MODE=previousDocumentMode;
+    if(previousDocumentDir===undefined)delete process.env.FISHER_PHASE4_PRIVATE_DOCUMENT_DIR;
+    else process.env.FISHER_PHASE4_PRIVATE_DOCUMENT_DIR=previousDocumentDir;
     if(privateDir)await rm(privateDir,{recursive:true,force:true});
   });
   it('denies unauthenticated-strength or unscoped intake before any result is stored',async()=>{
@@ -115,6 +125,14 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
   it('requires an independent MFA result-release actor',async()=>{
     await expect(service.release(identity(sub.lab,true),resultId,id.releaseKey)).rejects.toThrow();
     await expect(service.release(identity(sub.reviewer),resultId,id.releaseKey)).rejects.toThrow();
+    // A missing or corrupted PDF must not mark a result released.
+    await writeFile(privateDir+'/'+id.intakeKey+'.pdf',Buffer.from('invalid'));
+    await expect(service.release(identity(sub.reviewer,true),resultId,id.releaseKey))
+      .rejects.toThrow();
+    const notReleased=await pool.query(
+      'SELECT released_at FROM results WHERE id=$1',[resultId]);
+    expect(notReleased.rows[0]?.released_at).toBeNull();
+    await writeFile(privateDir+'/'+id.intakeKey+'.pdf',syntheticPdf);
     const first=await service.release(identity(sub.reviewer,true),resultId,id.releaseKey);
     expect(first.data).toMatchObject({id:resultId,status:'released',replayed:false});
     expect((await service.release(identity(sub.reviewer,true),resultId,id.releaseKey))
@@ -136,7 +154,7 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
     const serialized=JSON.stringify({list,detail});
     expect(serialized).not.toContain(envelope.objectKey);
     expect(serialized).not.toContain(envelope.documentSha256);
-    expect(detail.data.documentAccess).toBe('pending_secure_delivery');
+    expect(detail.data.documentAccess).toBe('synthetic_document_available');
     await expect(service.list(identity(sub.outsider),id.patient)).rejects.toThrow();
     await expect(service.detail(identity(sub.outsider),resultId)).rejects.toThrow();
     const audit=await pool.query<{action:string}>(
@@ -144,10 +162,6 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
       [id.patient]);
     expect(audit.rows.some(x=>x.action==='phase4.results.listed')).toBe(true);
   });  it('downloads only an authorized, released and integrity-verified synthetic PDF',async()=>{
-    privateDir=await mkdtemp('/tmp/fisher-healthcare-phase4-private-');
-    await writeFile(privateDir+'/'+id.intakeKey+'.pdf',syntheticPdf);
-    process.env.FISHER_PHASE4_DOCUMENT_MODE='synthetic-only';
-    process.env.FISHER_PHASE4_PRIVATE_DOCUMENT_DIR=privateDir;
     try{
       const detail=await service.detail(identity(sub.owner),resultId);
       expect(detail.data.documentAccess).toBe('synthetic_document_available');
@@ -157,8 +171,7 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
       await writeFile(privateDir+'/'+id.intakeKey+'.pdf',Buffer.from('invalid'));
       await expect(service.document(identity(sub.owner),resultId)).rejects.toThrow();
     }finally{
-      delete process.env.FISHER_PHASE4_DOCUMENT_MODE;
-      delete process.env.FISHER_PHASE4_PRIVATE_DOCUMENT_DIR;
+      await writeFile(privateDir+'/'+id.intakeKey+'.pdf',syntheticPdf);
     }
   });
   it('requires separate explicit email opt-in and permits revocation only by self',async()=>{
