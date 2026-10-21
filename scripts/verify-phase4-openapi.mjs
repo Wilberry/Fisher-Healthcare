@@ -4,7 +4,10 @@ const required=[
   ['post','/api/v1/ops/results/intake'],
   ['post','/api/v1/ops/results/{resultId}/release'],
   ['get','/api/v1/patients/{patientId}/results'],
-  ['get','/api/v1/results/{resultId}']
+  ['get','/api/v1/results/{resultId}'],
+  ['get','/api/v1/finance/transactions'],
+  ['get','/api/v1/finance/reconciliation'],
+  ['post','/api/v1/finance/reconciliation/runs']
 ];
 for(const [method,path] of required){
   const operation=doc.paths?.[path]?.[method];

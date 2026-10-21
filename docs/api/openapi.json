@@ -1888,6 +1888,54 @@
           }
         ]
       }
+    },
+    "/api/v1/finance/transactions": {
+      "get": {
+        "operationId": "Phase4FinanceController_transactions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/finance/reconciliation": {
+      "get": {
+        "operationId": "Phase4FinanceController_runs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/finance/reconciliation/runs": {
+      "post": {
+        "operationId": "Phase4FinanceController_reconcile",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
