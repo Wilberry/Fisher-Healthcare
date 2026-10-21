@@ -157,6 +157,20 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
     const approved=await settlements.review(identity(subjectB),retry.data.id,'approve',
       'Agreement independently checked');
     expect(approved.data).toMatchObject({status:'approved',payoutExecuted:false});
+    // Persisted accounting evidence cannot be silently rewritten even by a
+    // future service bug or administrator using direct SQL.
+    await expect(pool.query(`
+      UPDATE phase4_refund_requests SET amount_kobo=amount_kobo+1 WHERE id=$1`,
+      [refundId])).rejects.toThrow();
+    await expect(pool.query(`
+      UPDATE phase4_lab_payables SET amount_kobo=amount_kobo+1 WHERE id=$1`,
+      [payableId])).rejects.toThrow();
+    await expect(pool.query(`
+      UPDATE phase4_lab_settlement_batches SET total_kobo=total_kobo+1 WHERE id=$1`,
+      [retry.data.id])).rejects.toThrow();
+    await expect(pool.query(`
+      UPDATE phase4_lab_payables SET assigned_batch=NULL WHERE id=$1`,
+      [payableId])).rejects.toThrow();
     await expect(settlements.propose(identity(subjectA),{
       ...request,batchKey:randomUUID()
     })).rejects.toThrow();

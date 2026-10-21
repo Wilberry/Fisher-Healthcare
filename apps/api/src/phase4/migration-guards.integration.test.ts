@@ -13,16 +13,17 @@ suite.sequential('Phase 4 schema and immutable evidence (disposable PostgreSQL)'
     if(identity.rows[0]?.db!=='fisher_test')throw new Error('Refusing a non-test database');
   });
   afterAll(async()=>{await pool?.end();});
-  it('applies all six new checksummed migrations in sequence',async()=>{
+  it('applies all seven new checksummed migrations in sequence',async()=>{
     const sql=`SELECT version,sha256 FROM fisher_migrations
       WHERE version LIKE '0026_%' OR version LIKE '0027_%'
         OR version LIKE '0028_%' OR version LIKE '0029_%'
         OR version LIKE '0030_%' OR version LIKE '0031_%'
+        OR version LIKE '0032_%'
       ORDER BY version`;
     const applied=await pool.query<{version:string;sha256:string}>(sql);
-    expect(applied.rows).toHaveLength(6);
+    expect(applied.rows).toHaveLength(7);
     expect(applied.rows.map(v=>v.version.slice(0,4))).toEqual([
-      '0026','0027','0028','0029','0030','0031'
+      '0026','0027','0028','0029','0030','0031','0032'
     ]);
     expect(applied.rows.every(v=>/^[a-f0-9]{64}$/.test(v.sha256.trim()))).toBe(true);
   });
@@ -46,7 +47,10 @@ suite.sequential('Phase 4 schema and immutable evidence (disposable PostgreSQL)'
       'phase4_result_release_events_immutable',
       'phase4_reconciliation_runs_immutable',
       'phase4_reconciliation_items_immutable',
-      'phase4_lab_batch_items_immutable'];
+      'phase4_lab_batch_items_immutable',
+      'phase4_refund_immutable_fields',
+      'phase4_lab_batch_immutable_fields',
+      'phase4_lab_payable_immutable_fields'];
     const found=await pool.query<{name:string}>(`
       SELECT tgname AS name FROM pg_trigger
       WHERE tgname=ANY($1::text[]) AND NOT tgisinternal`,[triggers]);

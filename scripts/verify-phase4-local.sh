@@ -57,7 +57,8 @@ git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
 for migration in 0026_phase4_result_intake_release.sql 0027_phase4_finance_reconciliation.sql \
   0028_phase4_result_email_delivery.sql 0029_phase4_refund_approval.sql \
   0030_phase4_lab_payables_settlements.sql \
-  0031_phase4_result_email_preferences.sql; do
+  0031_phase4_result_email_preferences.sql \
+  0032_phase4_finance_immutable_fields.sql; do
   [[ -f "packages/database/drizzle/$migration" ]] || fail "Missing $migration"
 done
 mkdir -p "$LOG"
