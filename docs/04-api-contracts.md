@@ -1,6 +1,6 @@
 # Planned API and endpoint specification
 
-**Status:** Programme target contract. Some Phase 1 and Phase 2 routes are implemented in source; others remain planned. See [Phase 2 engineering status](phase-2-implementation-status.md) for the exact subset. All paths below are under `/api/v1`. The generated OpenAPI is the machine-readable description of what is actually implemented.
+**Status:** Programme target contract. Phases 1–3 are merged; Phase 4 is in development. This document includes planned routes. The generated [OpenAPI contract](api/openapi.json) lists implemented routes. All paths below are under `/api/v1`.
 
 ## 1. Conventions
 
