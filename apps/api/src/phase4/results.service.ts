@@ -4,6 +4,7 @@ import { AccessService } from '../access.service';
 import { requireStaffMfa, type AuthenticatedIdentity } from '../identity';
 import { requirePhase4SyntheticMode } from './phase4-mode';
 import { intakeFingerprint, type ResultIntakeInput } from './result-policy';
+import {readSyntheticResultDocument,syntheticDocumentModeEnabled} from './document-store';
 
 type IntakeRow={id:string;fingerprint:string;released_at:Date|null};
 type Provenance={actor_id:string;order_id:string;patient_id:string;lab_id:string};
@@ -191,9 +192,10 @@ export class Phase4ResultsService implements OnModuleDestroy {
     requirePhase4SyntheticMode();
     return this.transaction(async c=>{
       const authorized=await c.query<{
-        actor_id:string;id:string;released_at:Date;test_id:string;test_name:string;
+        actor_id:string;id:string;released_at:Date;test_id:string;test_name:string;object_key:string;document_sha256:string;
       }>(`
-        SELECT u.id AS actor_id,r.id,r.released_at,item.test_id,t.name AS test_name
+        SELECT u.id AS actor_id,r.id,r.released_at,item.test_id,t.name AS test_name,
+          r.object_key,intake.document_sha256
         FROM users u JOIN patient_relationships rel ON rel.user_id=u.id
         JOIN results r ON r.patient_id=rel.patient_id
         JOIN phase4_result_intakes intake ON intake.result_id=r.id
@@ -211,8 +213,39 @@ export class Phase4ResultsService implements OnModuleDestroy {
         VALUES($1,'phase4.result.viewed','result',$2)`,[value.actor_id,resultId]);
       // The protected object key and clinical document are never returned
       // until a separately reviewed private-storage delivery adapter exists.
+      const available=syntheticDocumentModeEnabled()&&
+        await readSyntheticResultDocument(value.object_key,value.document_sha256)
+          .then(()=>true).catch(()=>false);
       return {data:{id:value.id,releasedAt:value.released_at,
-        testId:value.test_id,testName:value.test_name,documentAccess:'pending_secure_delivery'}};
+        testId:value.test_id,testName:value.test_name,
+        documentAccess:available?'synthetic_document_available':'pending_secure_delivery'}};
     });
   }
+  async document(identity:AuthenticatedIdentity,resultId:string):Promise<Buffer>{
+    requirePhase4SyntheticMode();
+    return this.transaction(async c=>{
+      const permitted=await c.query<{
+        actor_id:string;object_key:string;document_sha256:string
+      }>(`
+        SELECT u.id AS actor_id,r.object_key,intake.document_sha256
+        FROM users u JOIN patient_relationships rel ON rel.user_id=u.id
+        JOIN results r ON r.patient_id=rel.patient_id
+        JOIN phase4_result_intakes intake ON intake.result_id=r.id
+        WHERE u.identity_subject=$1 AND r.id=$2
+          AND rel.can_view_results AND rel.verified_at IS NOT NULL
+          AND rel.revoked_at IS NULL AND r.released_at IS NOT NULL
+          AND r.released_by IS NOT NULL FOR SHARE OF rel,r`,
+        [identity.subject,resultId]);
+      const record=permitted.rows[0];
+      if(!record)throw new ForbiddenException('Result document access denied');
+      const bytes=await readSyntheticResultDocument(
+        record.object_key,record.document_sha256);
+      await c.query(`
+        INSERT INTO audit_events(actor_id,action,resource_type,resource_id)
+        VALUES($1,'phase4.result.document_downloaded','result',$2)`,
+        [record.actor_id,resultId]);
+      return bytes;
+    });
+  }
+
 }

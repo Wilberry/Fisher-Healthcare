@@ -29,7 +29,10 @@ export default async function ResultDetail({params}:{params:Promise<{id:string}>
         <Card>
           <h2>{detail.testName}</h2>
           <p>Released {new Date(detail.releasedAt).toLocaleDateString('en-NG')}</p>
-          <Notice title="Secure document pending">Clinical document viewing and secure email delivery will be enabled only after private-storage and clinical release controls pass testing.</Notice>
+          {detail.documentAccess==='synthetic_document_available'?
+           <p><a href={'/api/phase4/results/'+detail.id+'/download'}>
+             Download verified synthetic PDF (testing only)</a></p>:
+           <Notice title="Secure document pending">Clinical report delivery requires separate private-storage and release validation. Your released result metadata is accessible above.</Notice>}
         </Card>}
     </div></section>
   </SiteShell>;

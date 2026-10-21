@@ -1,5 +1,5 @@
 import {ApiBearerAuth} from '@nestjs/swagger';
-import {BadRequestException,Body,Controller,Get,Param,Post,Req,UseGuards} from '@nestjs/common';
+import {BadRequestException,Body,Controller,Get,Header,Param,Post,Req,StreamableFile,UseGuards} from '@nestjs/common';
 import {IdentityGuard,type AuthenticatedRequest} from '../identity.guard';
 import {Phase4ResultsService} from './results.service';
 import {isCanonicalUuid,parseResultIntake,parseResultRelease} from './result-policy';
@@ -32,4 +32,17 @@ export class Phase4ResultsController{
     if(!isCanonicalUuid(id))throw new BadRequestException('Invalid result ID');
     return this.service.detail(req.identity!,id);
   }
+  @Get('results/:resultId/document')
+  @Header('Cache-Control','private, no-store')
+  @Header('X-Content-Type-Options','nosniff')
+  @Header('Content-Security-Policy','sandbox')
+  async document(@Req() req:AuthenticatedRequest,@Param('resultId') id:string){
+    if(!isCanonicalUuid(id))throw new BadRequestException('Invalid result ID');
+    const bytes=await this.service.document(req.identity!,id);
+    return new StreamableFile(bytes,{
+      type:'application/pdf',
+      disposition:'attachment; filename="fisher-laboratory-result.pdf"'
+    });
+  }
+
 }
