@@ -148,6 +148,18 @@ export class Phase4ResultsService implements OnModuleDestroy {
     });
   }
 
+  async pending(identity:AuthenticatedIdentity){
+    requirePhase4SyntheticMode();
+    requireStaffMfa(identity);
+    await this.access.requireStaffCapability(identity.subject,'results:release');
+    const r=await this.db.query(`
+      SELECT res.id,intake.lab_id,intake.created_at
+      FROM results res JOIN phase4_result_intakes intake ON intake.result_id=res.id
+      WHERE res.released_at IS NULL
+      ORDER BY intake.created_at,intake.result_id LIMIT 100`);
+    return {data:r.rows};
+  }
+
   async list(identity:AuthenticatedIdentity,patientId:string){
     requirePhase4SyntheticMode();
     return this.transaction(async c=>{

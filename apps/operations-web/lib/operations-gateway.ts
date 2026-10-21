@@ -9,7 +9,14 @@ const allow = [
   /^ops\/labs\/access-requests$/,
   /^ops\/labs\/access-requests\/[0-9a-f-]{36}\/approve$/,
   /^ops\/labs\/access-requests\/[0-9a-f-]{36}\/reject$/,
-  /^ops\/labs\/access\/[0-9a-f-]{36}\/staff\/[0-9a-f-]{36}\/revoke$/
+  /^ops\/labs\/access\/[0-9a-f-]{36}\/staff\/[0-9a-f-]{36}\/revoke$/,
+  /^ops\/results\/intake$/,
+  /^ops\/results\/[0-9a-f-]{36}\/release$/,
+  /^finance\/refunds$/,
+  /^finance\/refunds\/[0-9a-f-]{36}\/review$/,
+  /^finance\/lab-payables$/,
+  /^finance\/lab-settlements$/,
+  /^finance\/lab-settlements\/[0-9a-f-]{36}\/review$/
 ] as const;
 
 const response = (status:number,error:string) =>
