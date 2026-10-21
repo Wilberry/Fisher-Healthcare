@@ -10,8 +10,12 @@ describe('restricted synthetic custody recovery envelopes',()=>{
     expect(validOfflineEvent(fixture,now)).toBe(true);
     expect(validOfflineEvent({...fixture,observedBarcode:'FORBIDDEN'},now)).toBe(false);
     expect(validOfflineEvent({...fixture,accessToken:'FORBIDDEN'},now)).toBe(false);
-    expect(validOfflineEvent({...fixture,eventId:key.toUpperCase()},now)).toBe(false);
-    expect(validOfflineEvent({...fixture,specimenId:id.toUpperCase()},now)).toBe(false);
+    // Use UUIDs with a-f hex digits: numeric-only UUIDs do not change
+    // under toUpperCase() and silently invalidate this regression test.
+    const mixed='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+    expect(validOfflineEvent({...fixture,eventId:mixed.toUpperCase()},now)).toBe(false);
+    expect(validOfflineEvent({...fixture,specimenId:mixed.toUpperCase()},now)).toBe(false);
+    expect(validOfflineEvent({...fixture,eventId:mixed},now)).toBe(true);
     expect(validOfflineEvent({...fixture,action:'dispatch'},now)).toBe(false);
     expect(validOfflineEvent({...fixture,action:'receive_at_lab'},now)).toBe(false);
     expect(validOfflineEvent({...fixture,expectedVersion:-1},now)).toBe(false);
