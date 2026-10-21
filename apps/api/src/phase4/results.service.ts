@@ -45,7 +45,9 @@ export class Phase4ResultsService implements OnModuleDestroy {
         JOIN order_items item ON item.order_id=o.id
         JOIN specimens sp ON sp.order_id=o.id
         JOIN phase3_manifest_specimens ms ON ms.specimen_id=sp.id
-        JOIN phase3_manifest_receipts receipt ON receipt.manifest_id=ms.manifest_id
+        JOIN phase3_lab_manifests manifest ON manifest.id=ms.manifest_id
+          AND manifest.lab_id=o.lab_id AND manifest.status='received'
+        JOIN phase3_manifest_receipts receipt ON receipt.manifest_id=manifest.id
         WHERE u.identity_subject=$1 AND item.id=$2 AND sp.id=$3
           AND st.active AND st.role='lab_coordinator' AND granted.active
           AND granted.revoked_at IS NULL AND lab.active AND sp.status='lab_received'
@@ -123,13 +125,17 @@ export class Phase4ResultsService implements OnModuleDestroy {
       // A later open incident, rejection or custody change blocks release.
       const eligible=await c.query(`
         SELECT 1 FROM specimens sp
+        JOIN phase4_result_intakes intake ON intake.specimen_id=sp.id
+          AND intake.result_id=$2
         JOIN phase3_manifest_specimens ms ON ms.specimen_id=sp.id
-        JOIN phase3_manifest_receipts receipt ON receipt.manifest_id=ms.manifest_id
+        JOIN phase3_lab_manifests manifest ON manifest.id=ms.manifest_id
+          AND manifest.lab_id=intake.lab_id AND manifest.status='received'
+        JOIN phase3_manifest_receipts receipt ON receipt.manifest_id=manifest.id
         WHERE sp.id=$1 AND sp.status='lab_received'
           AND receipt.accepted_specimen_ids @> jsonb_build_array(sp.id::text)
           AND NOT EXISTS(SELECT 1 FROM phase3_incidents inc
             WHERE inc.specimen_id=sp.id AND inc.resolution_status='open')
-        FOR SHARE OF sp`,[result.specimen_id]);
+        FOR SHARE OF sp,manifest,intake`,[result.specimen_id,resultId]);
       if(eligible.rowCount!==1)throw new ConflictException('Specimen not eligible for release');
       // In synthetic mode there is no release without the exact private
       // document being present and matching the submitted SHA-256 evidence.

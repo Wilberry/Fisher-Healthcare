@@ -118,6 +118,22 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
       ...envelope,documentSha256:'b'.repeat(64)
     })).rejects.toThrow();
   });
+  it('refuses intake when the accepted manifest belongs to a different laboratory',async()=>{
+    await pool.query('UPDATE phase3_lab_manifests SET lab_id=$2 WHERE id=$1',
+      [id.manifest,id.lab]);
+    const otherLab=randomUUID();
+    await pool.query("INSERT INTO laboratories(id,name,active) VALUES($1,'Wrong Synthetic Lab',true)",[otherLab]);
+    await pool.query('UPDATE phase3_lab_manifests SET lab_id=$2 WHERE id=$1',
+      [id.manifest,otherLab]);
+    const otherTestItem=randomUUID();
+    await pool.query('INSERT INTO order_items(id,order_id,test_id,price_kobo) VALUES($1,$2,$3,10000)',
+      [otherTestItem,id.order,id.test]);
+    await expect(service.intake(identity(sub.lab,true),{
+      ...envelope,orderItemId:otherTestItem,intakeKey:randomUUID()
+    })).rejects.toThrow();
+    await pool.query('UPDATE phase3_lab_manifests SET lab_id=$2 WHERE id=$1',
+      [id.manifest,id.lab]);
+  });
   it('never grants diagnostic access from booking authority alone',async()=>{
     await expect(service.list(identity(sub.owner),id.patient)).rejects.toThrow();
     await expect(service.detail(identity(sub.owner),resultId)).rejects.toThrow();
