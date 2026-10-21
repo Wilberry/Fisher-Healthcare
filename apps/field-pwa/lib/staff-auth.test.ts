@@ -5,7 +5,7 @@ import {
 } from './staff-auth';
 
 const environment = [
-  'NODE_ENV','FISHER_STAFF_WEB_SESSION_KEY','FISHER_STAFF_AUTH_ALLOW_LOOPBACK_HTTP',
+  'FISHER_STAFF_WEB_SESSION_KEY','FISHER_STAFF_AUTH_ALLOW_LOOPBACK_HTTP',
   'OIDC_ISSUER','FISHER_STAFF_OIDC_CLIENT_ID','FISHER_STAFF_OIDC_AUTHORIZATION_URL',
   'FISHER_STAFF_OIDC_TOKEN_URL','FISHER_STAFF_OIDC_REDIRECT_URI',
   'FISHER_STAFF_WEB_ORIGIN','FISHER_API_SERVER_URL'
@@ -13,7 +13,7 @@ const environment = [
 const saved=Object.fromEntries(environment.map(name=>[name,process.env[name]]));
 describe('field staff session and PKCE policy',()=>{
   beforeEach(()=>{
-    process.env.NODE_ENV='test';
+    vi.stubEnv('NODE_ENV','test');
     process.env.FISHER_STAFF_WEB_SESSION_KEY=Buffer.alloc(32,7).toString('base64url');
     process.env.FISHER_STAFF_AUTH_ALLOW_LOOPBACK_HTTP='synthetic-only';
   });
@@ -23,6 +23,7 @@ describe('field staff session and PKCE policy',()=>{
       if(saved[name]===undefined)delete process.env[name];
       else process.env[name]=saved[name];
     }
+    vi.unstubAllEnvs();
   });
   it('refuses open redirects and control characters',()=>{
     expect(safeReturnPath('//evil.example')).toBe('/visits');
@@ -51,7 +52,7 @@ describe('field staff session and PKCE policy',()=>{
     expect(cookieNames().session).toContain('fisher_field_staff_session');
   });
   it('retains required __Host cookie properties when expiring sessions',()=>{
-    process.env.NODE_ENV='production';
+    vi.stubEnv('NODE_ENV','production');
     expect(cookieNames().session.startsWith('__Host-')).toBe(true);
     expect(cookieOptions(0)).toMatchObject({
       httpOnly:true,secure:true,path:'/',sameSite:'lax',maxAge:0
