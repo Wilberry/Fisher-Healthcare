@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import {Notice,SiteShell,Card} from '@fisher/ui';
 import {patientAccountData,patientApi} from '../../../lib/patient-api';
+import {ResultEmailPreference} from './result-email-preference';
 export const dynamic='force-dynamic';
 type Result={id:string;released_at:string;test_name:string;test_id:string};
 function parseResults(raw:unknown):Result[]{
@@ -20,8 +21,15 @@ export default async function PatientResults(){
   // checks can_view_results and audits authorized result history access.
   const profiles=account.signedIn&&account.available?account.patients.slice(0,20):[];
   const history=await Promise.all(profiles.map(async patient=>{
-    const reply=await patientApi('patients/'+patient.id+'/results');
-    return {patient,authorized:reply.ok,results:reply.ok?parseResults(reply.data):[]};
+    const [reply,mail]=await Promise.all([
+      patientApi('patients/'+patient.id+'/results'),
+      patientApi('patients/'+patient.id+'/result-email-preference')
+    ]);
+    const preference=mail.ok&&mail.data&&typeof mail.data==='object'&&
+      'data' in mail.data&&mail.data.data&&typeof mail.data.data==='object'&&
+      'emailEnabled' in mail.data.data&&typeof mail.data.data.emailEnabled==='boolean'
+      ?mail.data.data.emailEnabled:null;
+    return {patient,authorized:reply.ok,results:reply.ok?parseResults(reply.data):[],preference};
   }));
   return <SiteShell subtitle="Private laboratory results" navigation={[
     {href:'/account',label:'My account'},{href:'/',label:'Home'}
@@ -39,6 +47,8 @@ export default async function PatientResults(){
           {history.map(({patient,authorized,results})=>
             <Card key={patient.id}>
               <h2>{patient.display_name}</h2>
+              {authorized&&preference!==null&&
+                <ResultEmailPreference patientId={patient.id} initiallyEnabled={preference}/>}
               {!authorized?
                 <p>Results are unavailable or you do not have current result-viewing permission for this profile.</p>:
                 results.length?<ul className="fisher-record-list">

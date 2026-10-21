@@ -162,6 +162,21 @@ export class Phase4ResultsService implements OnModuleDestroy {
   }
 
 
+  async readEmailPreference(identity:AuthenticatedIdentity,patientId:string){
+    requirePhase4SyntheticMode();
+    const row=await this.db.query<{enabled:boolean|null}>(`
+      SELECT pref.enabled FROM users u
+      JOIN patient_relationships rel ON rel.user_id=u.id
+      LEFT JOIN phase4_result_email_preferences pref
+        ON pref.user_id=u.id AND pref.patient_id=rel.patient_id
+      WHERE u.identity_subject=$1 AND rel.patient_id=$2
+        AND rel.relationship='self' AND rel.can_view_results
+        AND rel.verified_at IS NOT NULL AND rel.revoked_at IS NULL`,
+      [identity.subject,patientId]);
+    if(!row.rows[0])throw new ForbiddenException('Result email preference denied');
+    return {data:{patientId,emailEnabled:row.rows[0].enabled===true}};
+  }
+
   async emailPreference(identity:AuthenticatedIdentity,patientId:string,enabled:boolean){
     requirePhase4SyntheticMode();
     return this.transaction(async c=>{
