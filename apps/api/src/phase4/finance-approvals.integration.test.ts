@@ -150,6 +150,10 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
       SELECT status FROM phase4_lab_settlement_batches WHERE id=$1`,[retry.data.id]);
     expect(stillPending.rows[0]?.status).toBe('pending');
     await pool.query('UPDATE laboratories SET active=true WHERE id=$1',[ids.lab]);
+    await pool.query("UPDATE payments SET status='refunded' WHERE id=$1",[ids.payment]);
+    await expect(settlements.review(identity(subjectB),retry.data.id,'approve',
+      'Agreement independently checked')).rejects.toThrow();
+    await pool.query("UPDATE payments SET status='paid' WHERE id=$1",[ids.payment]);
     const approved=await settlements.review(identity(subjectB),retry.data.id,'approve',
       'Agreement independently checked');
     expect(approved.data).toMatchObject({status:'approved',payoutExecuted:false});

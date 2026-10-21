@@ -164,6 +164,20 @@ export class Phase4LabSettlementsService implements OnModuleDestroy{
    const value=batch.rows[0];
    if(!value)throw new ForbiddenException('Settlement unavailable');
    if(value.requested_by===actor)throw new ForbiddenException('Independent settlement reviewer required');
+   if(decision==='approve'&&value.status==='pending'){
+     const sources=await c.query<{payment_status:string;released:boolean}>(`
+       SELECT p.status AS payment_status,
+         (r.released_at IS NOT NULL AND r.released_by IS NOT NULL) AS released
+       FROM phase4_lab_settlement_items it
+       JOIN phase4_lab_payables payable ON payable.id=it.payable_id
+       JOIN results r ON r.id=payable.result_id
+       JOIN payments p ON p.order_id=r.order_id
+       WHERE it.batch_id=$1
+       FOR SHARE OF p,r,payable`,[id]);
+     if(sources.rows.length===0||sources.rows.some(row=>
+       row.payment_status!=='paid'||!row.released))
+       throw new ConflictException('Settlement sources no longer payable');
+   }
    const status=decision==='approve'?'approved':'rejected';
    if(value.status!=='pending'){
      if(value.status!==status||value.reviewed_by!==actor||value.review_note!==note)
