@@ -1797,11 +1797,102 @@
           }
         ]
       }
+    },
+    "/api/v1/ops/results/intake": {
+      "post": {
+        "operationId": "Phase4ResultsController_intake",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ops/results/{resultId}/release": {
+      "post": {
+        "operationId": "Phase4ResultsController_release",
+        "parameters": [
+          {
+            "name": "resultId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/patients/{patientId}/results": {
+      "get": {
+        "operationId": "Phase4ResultsController_list",
+        "parameters": [
+          {
+            "name": "patientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/results/{resultId}": {
+      "get": {
+        "operationId": "Phase4ResultsController_detail",
+        "parameters": [
+          {
+            "name": "resultId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
     "title": "Fisher Healthcare API",
-    "description": "Phase 1 identity, Phase 2 booking/payment, and Phase 3 dispatch/custody contracts. Phase 3 operations are disabled outside explicit synthetic test mode.",
+    "description": "Phase 1 identity, Phase 2 booking/payment, Phase 3 dispatch/custody and Phase 4 results contracts. Phase 3 and Phase 4 operations require explicitly enabled synthetic test mode.",
     "version": "0.1.0",
     "contact": {}
   },
