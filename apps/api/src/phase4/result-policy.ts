@@ -3,7 +3,8 @@ import { BadRequestException } from '@nestjs/common';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const checksum=/^[0-9a-f]{64}$/;
-const documentKey=/^synthetic\/results\/[0-9a-f]{8}-[0-9a-f-]{27}\.pdf$/;
+// The document reference is an opaque, synthetic-only private storage key
+// bound to this exact intake id, never a URL or an arbitrary filesystem path.
 const validation=/^SYN-[A-Z0-9-]{8,64}$/;
 
 export interface ResultIntakeInput{
@@ -24,7 +25,7 @@ export function parseResultIntake(raw:unknown):ResultIntakeInput{
     throw new BadRequestException('Invalid result intake fields');
   if(!isCanonicalUuid(value.orderItemId)||!isCanonicalUuid(value.specimenId)||
      !isCanonicalUuid(value.intakeKey)||
-     typeof value.objectKey!=='string'||!documentKey.test(value.objectKey)||
+     typeof value.objectKey!=='string'||value.objectKey!==('synthetic/results/'+value.intakeKey+'.pdf')||
      typeof value.documentSha256!=='string'||!checksum.test(value.documentSha256)||
      typeof value.validationReference!=='string'||!validation.test(value.validationReference))
     throw new BadRequestException('Invalid result intake');
