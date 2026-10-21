@@ -50,11 +50,11 @@ for(const [name,filename,prefix] of controllers){
  const className=source.match(/export class (Phase4\w+Controller)/)?.[1];
  if(!className)throw new Error('Phase 4 controller not found: '+name);
  const root=source.match(/@Controller\('([^']+)'\)/)?.[1]??prefix;
- const methods=[...source.matchAll(/@(Get|Post)\('([^']+)'\)\s*(?:@Header\([^\n]+\)\s*)*(?:async\s+)?(\w+)\s*\(/g)];
+ const methods=[...source.matchAll(/@(Get|Post)\((?:'([^']+)')?\)\s*(?:@Header\([^\n]+\)\s*)*(?:async\s+)?(\w+)\s*\(/g)];
  if(!methods.length)throw new Error('No Phase 4 routes found: '+name);
  for(const [,verb,fragment,handler] of methods){
    const method=verb.toLowerCase();
-   const path='/api/v1/'+[root,fragment].filter(Boolean).join('/')
+   const path='/api/v1/'+[root,fragment??''].filter(Boolean).join('/')
       .replace(/:([a-zA-Z]+)/g,'{$1}');
    const key=method+' '+path;
    if(!declared.has(key))throw new Error('Undeclared source route: '+key);
