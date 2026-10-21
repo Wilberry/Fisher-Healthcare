@@ -6,6 +6,11 @@ vi.mock('./staff-auth',()=>({
   readStaffSession:mocks.readStaffSession,
   oidcConfig:mocks.oidcConfig,
   verifyActiveStaff:mocks.verifyActiveStaff,
+  // Gateways classify a branded staff-session failure; the hoisted
+  // mock must export the same constructor used by instanceof checks.
+  StaffSessionError:class StaffSessionError extends Error{
+    constructor(readonly reason:string){super(reason);this.name='StaffSessionError';}
+  },
   crossSite:(request:Request)=>{
     const origin=request.headers.get('origin');
     return !origin||origin!==new URL(request.url).origin;
