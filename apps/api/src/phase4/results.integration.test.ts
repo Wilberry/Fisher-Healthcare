@@ -164,6 +164,18 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
       [resultId]);
     expect(intent.rows).toEqual([{status:'pending'}]);
   });
+  it('database refuses changing provenance or release state of an accepted result',async()=>{
+    await expect(pool.query(
+      "UPDATE results SET object_key='synthetic/results/not-the-original.pdf' WHERE id=$1",
+      [resultId])).rejects.toThrow();
+    await expect(pool.query(
+      'UPDATE results SET released_at=NULL,released_by=NULL WHERE id=$1',
+      [resultId])).rejects.toThrow();
+    const frozen=await pool.query<{object_key:string;released_at:Date|null}>(`
+      SELECT object_key,released_at FROM results WHERE id=$1`,[resultId]);
+    expect(frozen.rows[0]?.object_key).toBe(envelope.objectKey);
+    expect(frozen.rows[0]?.released_at).not.toBeNull();
+  });
   it('exposes only released metadata to explicitly authorized patient relationships and audits each read',async()=>{
     await pool.query(
       'UPDATE patient_relationships SET can_view_results=true WHERE user_id=$1 AND patient_id=$2',
