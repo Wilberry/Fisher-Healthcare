@@ -13,7 +13,8 @@ const pendingName=()=> (process.env.NODE_ENV==='production'?'__Host-':'')+
 const sessionName=()=> (process.env.NODE_ENV==='production'?'__Host-':'')+
   'fisher_'+scope+'_staff_session';
 const now=()=>Math.floor(Date.now()/1000);
-const allowedCaps=['dispatch:manage','labs:manage','staff:manage'];
+const allowedCaps=['dispatch:manage','labs:manage','staff:manage',
+  'results:release','finance:read','finance:manage'];
 export function safeReturnPath(raw:string|null|undefined):string {
   const fallback='/dispatch';
   if(!raw||raw.length>300||!raw.startsWith('/')||raw.startsWith('//')||
