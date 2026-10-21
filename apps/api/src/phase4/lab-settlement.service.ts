@@ -146,6 +146,17 @@ export class Phase4LabSettlementsService implements OnModuleDestroy{
   await this.authorized(identity);
   return this.transact(async c=>{
    const actor=await this.actor(c,identity.subject);
+   if(decision==='approve'){
+     // Approval never overrides laboratory deactivation. Acquire the lab
+     // lock before the batch lock, matching settlement creation lock order.
+     const current=await c.query<{lab_id:string}>(`
+       SELECT lab_id FROM phase4_lab_settlement_batches WHERE id=$1`,[id]);
+     if(!current.rows[0])throw new ForbiddenException('Settlement unavailable');
+     const live=await c.query(`
+       SELECT id FROM laboratories WHERE id=$1 AND active FOR SHARE`,
+       [current.rows[0].lab_id]);
+     if(live.rowCount!==1)throw new ConflictException('Laboratory is no longer active');
+   }
    const batch=await c.query<Batch>(`
      SELECT * FROM phase4_lab_settlement_batches WHERE id=$1 FOR UPDATE`,[id]);
    const value=batch.rows[0];
