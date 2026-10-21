@@ -5,9 +5,13 @@ type Pending={type:'pending';state:string;verifier:string;next:string;expires:nu
 type Sealed=StaffSession|Pending;
 const scope='field';
 const ctx=Buffer.from('fisher.staff.'+scope+'.session.v1');
-const hostPrefix=process.env.NODE_ENV==='production'?'__Host-':'';
-const pendingName=hostPrefix+'fisher_'+scope+'_oidc_pending';
-const sessionName=hostPrefix+'fisher_'+scope+'_staff_session';
+// Derive the prefix when using it, not at module import time. This also
+// prevents a stale test/dev module cache from selecting a non-production
+// cookie name when the current request requires a __Host- cookie.
+const pendingName=()=> (process.env.NODE_ENV==='production'?'__Host-':'')+
+  'fisher_'+scope+'_oidc_pending';
+const sessionName=()=> (process.env.NODE_ENV==='production'?'__Host-':'')+
+  'fisher_'+scope+'_staff_session';
 const now=()=>Math.floor(Date.now()/1000);
 const allowedCaps=['specimens:collect','specimens:transport'];
 export function safeReturnPath(raw:string|null|undefined):string {
@@ -56,7 +60,7 @@ export function unseal(raw:string|undefined):Sealed|null {
     return null;
   }catch{return null;}
 }
-export function cookieNames(){return {pending:pendingName,session:sessionName};}
+export function cookieNames(){return {pending:pendingName(),session:sessionName()};}
 export function cookieOptions(age:number){
   return {httpOnly:true,secure:process.env.NODE_ENV==='production',
     sameSite:'lax' as const,path:'/',maxAge:age};
@@ -117,7 +121,7 @@ export function crossSite(request:Request):boolean{
 }
 export async function readStaffSession():Promise<StaffSession|null>{
   const cookieStore=await cookies();
-  const payload=unseal(cookieStore.get(sessionName)?.value);
+  const payload=unseal(cookieStore.get(sessionName())?.value);
   return payload?.type==='session'?payload:null;
 }
 export class StaffSessionError extends Error {
