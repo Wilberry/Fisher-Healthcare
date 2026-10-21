@@ -44,7 +44,7 @@ export default async function PatientResults(){
         !account.available?
         <Notice title="Result history unavailable">Your account could not be verified. No clinical information is displayed.</Notice>:
         <div className="fisher-grid">
-          {history.map(({patient,authorized,results})=>
+          {history.map(({patient,authorized,results,preference})=>
             <Card key={patient.id}>
               <h2>{patient.display_name}</h2>
               {authorized&&preference!==null&&
