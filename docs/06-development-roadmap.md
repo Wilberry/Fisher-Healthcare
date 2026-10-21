@@ -1,6 +1,6 @@
 # Fisher Healthcare Development Roadmap
 
-**Programme status:** **Phase 3 — Dispatch, Collection and Custody is in active engineering development.** Phases 1 and 2 are merged into `main` following local engineering acceptance; Phase 3 is not yet accepted or merged. The roadmap defines the company's delivery sequence, scope and release assurance requirements. Milestone dates remain dependent on staffing, partnerships and operational capacity.
+**Programme status:** **Phase 4 — Laboratory, Results and Finance is in development.** Phases 1–3 are merged into `main` following local engineering acceptance. The roadmap defines the company's delivery sequence, scope and release assurance requirements. Milestone dates remain dependent on staffing, partnerships and operational capacity.
 
 ## Phase 1 — Product foundation, UX and architecture
 
@@ -30,13 +30,15 @@
 
 ## Phase 3 — Dispatch, collection and custody
 
-**Engineering milestone status: IN PROGRESS — NOT YET ACCEPTED.** Active development is tracked on `feat/phase3-dispatch-collection-custody`, independently of the accepted Phase 2 merge. Phase 3 authorization boundaries, incident/laboratory manifests, dispatch and field interfaces, migration safety and database-backed integration tests still require completion and consolidated local verification.
+**Engineering milestone status: COMPLETED AND MERGED (21 October 2026).** Exact-commit synthetic-only local acceptance passed for `3e59f0143c69786e300389713f1d50f6017ca301`. Merged via [PR #5](https://github.com/Wilberry/Fisher-Healthcare/pull/5) as `909971ac8ec482d23a714d64d8050d6aeea8a8bb`. This does not approve clinical production use.
 
 **Planned capabilities and deliverables:** Operations queues, staffing and shifts, assignment and zone batching, field PWA, specimen IDs/labels, collection checklists, handoff records, lab manifests, transport status, incident/exception management, offline event synchronization.
 
 **Phase completion criteria:** Complete multi-specimen collection is traceable; wrong actor cannot alter custody; retries do not duplicate events; field recovery tested; operational staff can resolve failed collection.
 
 ## Phase 4 — Laboratory, results and finance
+
+**Engineering milestone status: IN DEVELOPMENT.** Work is on `feat/phase4-lab-results-finance`.
 
 **Planned capabilities and deliverables:** Internal laboratory onboarding and offerings, acceptance/rejection workflows, controlled result intake/release, patient dashboard result history, secure email delivery, physical-copy add-on workflow, payment reconciliation, refunds, lab payables/settlements and reporting.
 
