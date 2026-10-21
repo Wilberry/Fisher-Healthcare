@@ -17,7 +17,8 @@ const allow = [
   /^finance\/refunds\/[0-9a-f-]{36}\/review$/,
   /^finance\/lab-payables$/,
   /^finance\/lab-settlements$/,
-  /^finance\/lab-settlements\/[0-9a-f-]{36}\/review$/
+  /^finance\/lab-settlements\/[0-9a-f-]{36}\/review$/,
+  /^finance\/physical-copies\/[0-9a-f-]{36}\/quote$/
 ] as const;
 
 const response = (status:number,error:string) =>

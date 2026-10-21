@@ -8,14 +8,15 @@ const visible=(rows:Row[],fields:string[])=>
  rows.map(row=>Object.fromEntries(fields.filter(k=>typeof row[k]==='string'||
    typeof row[k]==='number').map(k=>[k,row[k]])) as Row);
 export default async function Finance(){
- const [transactions,refunds,payables,settlements,runs]=await Promise.all([
+ const [transactions,refunds,payables,settlements,runs,copies]=await Promise.all([
   staffApi('finance/transactions'),staffApi('finance/refunds'),
   staffApi('finance/lab-payables'),staffApi('finance/lab-settlements'),
-  staffApi('finance/reconciliation')]);
- const allowed=[transactions,refunds,payables,settlements,runs].every(r=>r.authorized);
+  staffApi('finance/reconciliation'),staffApi('finance/physical-copies')]);
+ const allowed=[transactions,refunds,payables,settlements,runs,copies].every(r=>r.authorized);
  const refundRows=visible(refunds.records,['id','payment_id','amount_kobo','status']);
  const payableRows=visible(payables.records,['id','lab_id','result_id','amount_kobo','assigned_batch']);
  const batchRows=visible(settlements.records,['id','lab_id','total_kobo','status']);
+ const copyRows=visible(copies.records,['id','status','quote_kobo']);
  return <SiteShell subtitle="Operations · Finance"
    navigation={[{href:'/',label:'Operations'},{href:'/results',label:'Result review'}]}>
   <section className="fisher-section"><div className="fisher-container">
@@ -46,7 +47,13 @@ export default async function Finance(){
     <ul>{batchRows.map((row,i)=><li key={String(row.id??i)}>
       {String(row.id)} · {String(row.total_kobo)} kobo · {String(row.status)}
     </li>)}</ul>
-    <FinanceActions refunds={refundRows} payables={payableRows} batches={batchRows}/>
+    <h2>Physical-copy quote requests</h2>
+    <p>Quotes only: no payment, courier dispatch or delivery proof is recorded.</p>
+    <ul>{copyRows.map((r,i)=><li key={String(r.id??i)}>
+      {String(r.id)} · {String(r.status)} {r.quote_kobo!=null?'· '+String(r.quote_kobo)+' kobo':''}
+    </li>)}</ul>
+    <FinanceActions refunds={refundRows} payables={payableRows}
+      batches={batchRows} physicalCopies={copyRows}/>
    </>}
    <p><Link href="/">Return to operations</Link></p>
   </div></section>

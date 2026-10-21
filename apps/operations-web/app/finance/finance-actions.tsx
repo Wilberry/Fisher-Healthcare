@@ -3,12 +3,15 @@ import {useRef,useState,type FormEvent} from 'react';
 import {useRouter} from 'next/navigation';
 type Row=Record<string,unknown>;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-export function FinanceActions({refunds,payables,batches}:{refunds:Row[];payables:Row[];batches:Row[]}){
+export function FinanceActions({refunds,payables,batches,physicalCopies}:{
+ refunds:Row[];payables:Row[];batches:Row[];physicalCopies:Row[]
+}){
  const [payment,setPayment]=useState(''),[amount,setAmount]=useState('');
  const [resultId,setResultId]=useState(''),[agreed,setAgreed]=useState('');
  const [agreement,setAgreement]=useState('');
  const [labId,setLabId]=useState(''),[payableIds,setPayableIds]=useState('');
  const [note,setNote]=useState('');
+ const [physicalQuote,setPhysicalQuote]=useState('');
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const router=useRouter();
  const retryKeys=useRef<Record<string,{payload:string;key:string}>>({});
@@ -93,6 +96,21 @@ export function FinanceActions({refunds,payables,batches}:{refunds:Row[];payable
      value={payableIds} onChange={e=>setPayableIds(e.target.value)}/></label></p>
    <button type="submit" disabled={busy}>Submit batch for review</button>
   </form>
+  <h2>Physical-copy quotation review</h2>
+  <p>Quotes are not payment links or courier instructions.</p>
+  <p><label>Proposed physical-copy fee (kobo)
+    <input type="number" min="1" max="2000000" value={physicalQuote}
+      onChange={e=>setPhysicalQuote(e.target.value)}/>
+  </label></p>
+  <ul>{physicalCopies.filter(r=>r.status==='requested'&&
+     typeof r.id==='string'&&uuid.test(r.id)).map(r=>
+    <li key={String(r.id)}>{String(r.id)}{' '}
+      <button type="button" disabled={busy||!Number.isSafeInteger(Number(physicalQuote))||
+        Number(physicalQuote)<1||Number(physicalQuote)>2000000}
+        onClick={()=>void send('physical-copies/'+String(r.id)+'/quote',{
+          amountKobo:Number(physicalQuote)
+        })}>Record quote (no charge)</button>
+    </li>)}</ul>
   <h2>Independent finance decisions</h2>
   <p><label>Decision justification (10–240 characters)
    <textarea minLength={10} maxLength={240} rows={2}

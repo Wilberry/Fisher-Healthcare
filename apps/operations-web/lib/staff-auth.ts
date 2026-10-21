@@ -195,7 +195,7 @@ export async function staffApi(path:string){
     const subject=await verifyActiveStaff(session.accessToken,cfg.api);
     if(subject!==session.subject)throw new StaffSessionError('reauth_required');
     if(!(/^(?:ops|field)\/[a-zA-Z0-9/_-]+$/.test(path) ||
-      /^finance\/(?:transactions|reconciliation|refunds|lab-payables|lab-settlements)$/.test(path)))
+      /^finance\/(?:transactions|reconciliation|refunds|lab-payables|lab-settlements|physical-copies)$/.test(path)))
       throw new StaffSessionError('access_denied');
     const url=new URL('/api/v1/'+path,cfg.api);
     const response=await fetch(url,{headers:{authorization:'Bearer '+session.accessToken},
