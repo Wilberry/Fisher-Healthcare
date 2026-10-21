@@ -46,7 +46,7 @@ export default async function AccountPage(){
      <ul className="fisher-record-list">{account.supportCases.map(s=><li key={s.id}>
       <strong>{s.category.replaceAll('_',' ')}</strong><span>{s.status} · {s.preferred_contact} preferred</span>
      </li>)}</ul>:<p>No support cases are recorded for this account.</p>}</Card>
-    <Notice title="Diagnostic results">Released laboratory results will appear under separate patient-specific permissions in Phase 4. Booking access does not authorize clinical document access.</Notice>
+    <Notice title="Diagnostic results">Result visibility requires separate patient-specific authorization. <Link href="/account/results">View your authorized result history</Link>.</Notice>
    </>}
   </div></section>
  </SiteShell>;
