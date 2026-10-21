@@ -51,7 +51,8 @@ git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
   fail "Remote branch changed"
 for migration in 0026_phase4_result_intake_release.sql 0027_phase4_finance_reconciliation.sql \
   0028_phase4_result_email_delivery.sql 0029_phase4_refund_approval.sql \
-  0030_phase4_lab_payables_settlements.sql; do
+  0030_phase4_lab_payables_settlements.sql \
+  0031_phase4_result_email_preferences.sql; do
   [[ -f "packages/database/drizzle/$migration" ]] || fail "Missing $migration"
 done
 mkdir -p "$LOG"
@@ -98,6 +99,8 @@ for path in /api/v1/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/results \
  /api/v1/results/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa \
  /api/v1/results/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/document \
  /api/v1/ops/results/pending \
+  /api/v1/ops/results/intake-readiness \
+  /api/v1/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/result-email-preference \
   /api/v1/finance/transactions /api/v1/finance/reconciliation \
   /api/v1/finance/refunds /api/v1/finance/lab-payables \
   /api/v1/finance/lab-settlements; do
@@ -107,6 +110,7 @@ done
 for path in /api/v1/ops/results/intake \
  /api/v1/ops/results/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/release \
  /api/v1/finance/reconciliation/runs \
+  /api/v1/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/result-email-preference \
   /api/v1/finance/refunds /api/v1/finance/refunds/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/review \
   /api/v1/finance/lab-payables /api/v1/finance/lab-settlements \
   /api/v1/finance/lab-settlements/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/review; do

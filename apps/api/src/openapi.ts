@@ -147,9 +147,12 @@ function validateDocument(document: OpenAPIObject): void {
   }
 
   const phase4Operations = [
+    ['/api/v1/ops/results/intake-readiness','get'],
     ['/api/v1/ops/results/pending','get'],
     ['/api/v1/ops/results/intake','post'],
     ['/api/v1/ops/results/{resultId}/release','post'],
+    ['/api/v1/patients/{patientId}/result-email-preference','get'],
+    ['/api/v1/patients/{patientId}/result-email-preference','post'],
     ['/api/v1/patients/{patientId}/results','get'],
     ['/api/v1/results/{resultId}','get'],
     ['/api/v1/results/{resultId}/document','get'],

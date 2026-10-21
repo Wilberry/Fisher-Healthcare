@@ -2117,6 +2117,70 @@
           }
         ]
       }
+    },
+    "/api/v1/ops/results/intake-readiness": {
+      "get": {
+        "operationId": "Phase4ResultsController_intakeReadiness",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/patients/{patientId}/result-email-preference": {
+      "get": {
+        "operationId": "Phase4ResultsController_readEmailPreference",
+        "parameters": [
+          {
+            "name": "patientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "Phase4ResultsController_emailPreference",
+        "parameters": [
+          {
+            "name": "patientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
