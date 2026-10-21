@@ -22,6 +22,15 @@ export class Phase4ResultsController{
     if(!isCanonicalUuid(id))throw new BadRequestException('Invalid result ID');
     return this.service.release(req.identity!,id,parseResultRelease(body).releaseKey);
   }
+  @Post('patients/:patientId/result-email-preference')
+  emailPreference(@Req() req:AuthenticatedRequest,
+    @Param('patientId') id:string,@Body() body:unknown){
+    if(!isCanonicalUuid(id)||!body||typeof body!=='object'||Array.isArray(body)||
+      Object.keys(body).length!==1||!('enabled' in body)||
+      typeof body.enabled!=='boolean')
+      throw new BadRequestException('Invalid email preference');
+    return this.service.emailPreference(req.identity!,id,body.enabled);
+  }
   @Get('patients/:patientId/results')
   list(@Req() req:AuthenticatedRequest,@Param('patientId') id:string){
     if(!isCanonicalUuid(id))throw new BadRequestException('Invalid patient ID');

@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {mkdtemp,mkdir,rm,writeFile,symlink} from 'node:fs/promises';
+import {mkdtemp,rm,writeFile,symlink} from 'node:fs/promises';
 import {afterEach,describe,it,expect,vi} from 'vitest';
 import {readSyntheticResultDocument} from './document-store';
 const id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';

@@ -40,6 +40,8 @@ export async function claimResultEmail(pool:Pool,allowed:readonly string[]):Prom
       JOIN patient_relationships rel ON rel.patient_id=r.patient_id
         AND rel.can_view_results AND rel.verified_at IS NOT NULL
         AND rel.revoked_at IS NULL AND rel.relationship='self'
+      JOIN phase4_result_email_preferences pref ON pref.user_id=rel.user_id
+        AND pref.patient_id=rel.patient_id AND pref.enabled
       JOIN users u ON u.id=rel.user_id AND u.email IS NOT NULL
       WHERE n.channel='email'
         AND lower(u.email)=ANY($1::text[])

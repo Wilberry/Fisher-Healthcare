@@ -161,6 +161,33 @@ export class Phase4ResultsService implements OnModuleDestroy {
     return {data:r.rows};
   }
 
+
+  async emailPreference(identity:AuthenticatedIdentity,patientId:string,enabled:boolean){
+    requirePhase4SyntheticMode();
+    return this.transaction(async c=>{
+      const authorized=await c.query<{id:string}>(`
+        SELECT u.id FROM users u
+        JOIN patient_relationships rel ON rel.user_id=u.id
+        WHERE u.identity_subject=$1 AND rel.patient_id=$2
+          AND rel.relationship='self' AND rel.can_view_results
+          AND rel.verified_at IS NOT NULL AND rel.revoked_at IS NULL
+        FOR SHARE OF rel`,[identity.subject,patientId]);
+      const userId=authorized.rows[0]?.id;
+      if(!userId)throw new ForbiddenException('Result email preference denied');
+      await c.query(`
+        INSERT INTO phase4_result_email_preferences(user_id,patient_id,enabled)
+        VALUES($1,$2,$3)
+        ON CONFLICT(user_id,patient_id) DO UPDATE
+        SET enabled=EXCLUDED.enabled,updated_at=now()`,
+        [userId,patientId,enabled]);
+      await c.query(`
+        INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
+        VALUES($1,'phase4.result.email_preference','patient',$2,$3::jsonb)`,
+        [userId,patientId,JSON.stringify({enabled})]);
+      return {data:{patientId,emailEnabled:enabled}};
+    });
+  }
+
   async list(identity:AuthenticatedIdentity,patientId:string){
     requirePhase4SyntheticMode();
     return this.transaction(async c=>{
