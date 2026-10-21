@@ -25,6 +25,18 @@ import { AccountProvisioningService } from './account-provisioning.service';
 import { AccountProvisioningController } from './account-provisioning.controller';
 import { BookingVerificationController, AddressVerificationController } from './booking-verification.controller';
 import { BookingVerificationService } from './booking-verification.service';
+import { Phase3CustodyController } from './phase3/custody.controller';
+import { Phase3CustodyService } from './phase3/custody.service';
+import { Phase3DispatchController } from './phase3/dispatch.controller';
+import { Phase3DispatchService } from './phase3/dispatch.service';
+import { Phase3FieldAssignmentsController, Phase3FieldAssignmentsService } from './phase3/field-assignments.controller';
+import { Phase3OfflineSyncController } from './phase3/offline-sync.controller';
+import { Phase3IncidentsController, Phase3IncidentsService } from './phase3/incidents.controller';
+import { Phase3ManifestController, Phase3ManifestService } from './phase3/manifests.controller';
+import { Phase3HandoffController, Phase3HandoffService } from './phase3/handoffs.controller';
+import { Phase3AssignmentEventsController, Phase3AssignmentEventsService } from './phase3/assignment-events.controller';
+import { Phase3LabAccessController, Phase3LabAccessService } from './phase3/lab-access.controller';
+import { Phase3LabelController, Phase3LabelService } from './phase3/label-check.controller';
 
 @Controller('health')
 class HealthController {
@@ -35,7 +47,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController, CatalogAdminController, GuestBookingPublicController, GuestBookingStaffController, WorkQueueController],
-  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PublicRateLimitService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService, PaymentReviewService]
+  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController, CatalogAdminController, GuestBookingPublicController, GuestBookingStaffController, WorkQueueController, Phase3CustodyController, Phase3DispatchController, Phase3FieldAssignmentsController, Phase3OfflineSyncController, Phase3IncidentsController, Phase3ManifestController, Phase3HandoffController, Phase3AssignmentEventsController, Phase3LabAccessController, Phase3LabelController],
+  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PublicRateLimitService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService, PaymentReviewService, Phase3CustodyService, Phase3DispatchService, Phase3FieldAssignmentsService, Phase3IncidentsService, Phase3ManifestService, Phase3HandoffService, Phase3AssignmentEventsService, Phase3LabAccessService, Phase3LabelService]
 })
 export class AppModule {}

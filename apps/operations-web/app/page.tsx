@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card, Notice, SiteShell, StatusPill } from '@fisher/ui';
 
 const areas = [
@@ -35,6 +36,7 @@ export default function Operations() {
       <div className="fisher-container">
         <h2 className="fisher-section-title">Controlled activation</h2>
         <p className="fisher-lead">Staff access, role-specific workflows, accountability, and data handling controls remain mandatory before operational use. This environment does not display synthetic metrics as real operations.</p>
+        <p><Link href="/dispatch">Explore the Phase 3 dispatch workbench (staff access gated)</Link></p>
       </div>
     </section>
   </SiteShell>;

@@ -11,7 +11,9 @@ export default defineConfig({
       'app/**/*.test.ts',
       'app/**/*.test.tsx',
       'app/**/*.spec.ts',
-      'app/**/*.spec.tsx'
+      'app/**/*.spec.tsx',
+      'lib/**/*.test.ts',
+      'lib/**/*.test.tsx'
     ]
   }
 });

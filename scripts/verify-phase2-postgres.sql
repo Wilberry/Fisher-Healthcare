@@ -16,8 +16,9 @@ BEGIN
  IF current_database()<>'fisher_test' THEN
   RAISE EXCEPTION 'Refusing Phase 2 SQL checks outside fisher_test';
  END IF;
- IF (SELECT COUNT(*) FROM fisher_migrations)<>17 THEN
-  RAISE EXCEPTION 'Expected 17 checksummed migrations 0000 through 0016';
+ IF (SELECT COUNT(*) FROM fisher_migrations
+     WHERE version ~ '^00(0[0-9]|1[0-6])_')<>17 THEN
+  RAISE EXCEPTION 'Expected 17 checksummed baseline migrations 0000 through 0016';
  END IF;
  FOREACH name IN ARRAY names LOOP
   IF to_regclass('public.'||name) IS NULL THEN

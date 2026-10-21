@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# Synthetic-only Phase 3 exact-commit acceptance. Run in a NEW detached worktree.
+set -Eeuo pipefail
+umask 077
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+BRANCH="feat/phase3-dispatch-collection-custody"
+LOG="$ROOT/.verification/phase3-$(date +%Y%m%d-%H%M%S)"
+API_PID=""
+WEB_PID=""
+PHASE3_SHA=""
+SOURCE_SHA=""
+RESULT=FAIL
+CORE=NOT_RUN
+SMOKE=NOT_RUN
+PUSH=NOT_REQUESTED
+fail() { echo "ERROR: $*" >&2; exit 2; }
+cleanup() {
+  local code=$?
+  trap - EXIT
+  [[ -z "$API_PID" ]] || { kill "$API_PID" 2>/dev/null || true; wait "$API_PID" 2>/dev/null || true; }
+  [[ -z "$WEB_PID" ]] || { kill "$WEB_PID" 2>/dev/null || true; wait "$WEB_PID" 2>/dev/null || true; }
+  if [[ -d "$LOG" ]]; then
+    {
+      echo "Result: $([[ "$code" -eq 0 ]] && echo PASS || echo FAIL)"
+      echo "Source commit: $SOURCE_SHA"
+      echo "Verified commit: $PHASE3_SHA"
+      echo "Core exact-commit verification: $CORE"
+      echo "Phase 3 smoke: $SMOKE"
+      echo "Pushed: $PUSH"
+      echo "Pending working-tree changes:"
+      git status --short
+    } > "$LOG/summary.txt"
+    echo "Phase 3 verification summary: $LOG/summary.txt"
+  fi
+  exit "$code"
+}
+trap cleanup EXIT
+[[ "${FISHER_PHASE3_LOCAL_ACK:-}" == "synthetic-only" ]] || fail "Synthetic-only acknowledgment required"
+[[ "$(basename "$ROOT")" == Fisher-Healthcare-phase3-verification* ]] || fail "Use a separate Phase 3 verification worktree"
+[[ -z "$(git symbolic-ref -q --short HEAD || true)" ]] || fail "Detached worktree required"
+[[ -z "$(git status --porcelain --untracked-files=all)" ]] || fail "Dirty worktree; no automatic cleanup"
+for tool in git node corepack pnpm docker psql curl sha256sum; do
+  command -v "$tool" >/dev/null || fail "Missing prerequisite $tool"
+done
+[[ "$(node -p 'process.versions.node.split(".")[0]')" == 22 ]] || fail "Node 22 required"
+[[ "$(pnpm --version)" == 9.15.9 ]] || fail "pnpm 9.15.9 required"
+SOURCE_SHA="$(git rev-parse HEAD)"
+[[ "${FISHER_EXPECTED_COMMIT:-}" == "$SOURCE_SHA" ]] || fail "Exact source SHA required"
+git merge-base --is-ancestor a4ee07a95532a7be4252191d56dc8a9fbf906d0b HEAD ||
+  fail "Merged Phase 2 main baseline is missing"
+git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+[[ "$(git rev-parse "refs/remotes/origin/$BRANCH")" == "$SOURCE_SHA" ]] ||
+  fail "Remote Phase 3 has changed; reconcile before verification"
+for version in 0017 0018 0019 0020 0021 0022 0023 0024 0025; do
+  compgen -G "packages/database/drizzle/${version}_phase3_*.sql" >/dev/null ||
+    fail "Missing Phase 3 migration $version"
+done
+mkdir -p "$LOG"
+node scripts/phase3-source-guards.mjs > "$LOG/00-source-guards.log" 2>&1 ||
+  fail "Phase 3 source safety preflight failed; inspect 00-source-guards.log"
+# The pinned source revision and its tracked OpenAPI snapshot are immutable.
+# Phase 2 runs frozen installation, lint, typecheck, builds, migrations, unit/
+# security tests, OpenAPI generation, audits and application smoke checks once.
+# Never create a commit in a verification worktree or silently alter HEAD.
+git ls-files --error-unmatch docs/api/openapi.json >/dev/null 2>&1 ||
+  fail "OpenAPI snapshot must be tracked at the pinned commit"
+node scripts/verify-phase3-openapi.mjs > "$LOG/04-openapi-parity.log" 2>&1 ||
+  fail "Committed Phase 3 OpenAPI contract mismatch"
+PHASE3_SHA="$SOURCE_SHA"
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
+export NEXT_TELEMETRY_DISABLED=1
+
+# One Phase 2 baseline verifier runs all additive Phase 3 migrations and
+# synthetic integration tests without changing the pinned worktree commit.
+unset FISHER_PHASE3_OPERATION_MODE
+if FISHER_VERIFY_LOG_DIR="$LOG/core" \
+  FISHER_PHASE2_LOCAL_ACK=synthetic-only \
+  FISHER_PHASE2_ACCEPTANCE_ACK=exact-commit \
+  FISHER_EXPECTED_COMMIT="$PHASE3_SHA" \
+  bash scripts/verify-phase2-local.sh > "$LOG/06-core-output.log" 2>&1; then
+  :
+else
+  fail "Core verifier failed, inspect $LOG/core/summary.txt"
+fi
+for entry in "Result: PASS" "Final acceptance: PASS" \
+  "Production dependency audit: PASS" "Full dependency audit: PASS"; do
+  grep -Fxq "$entry" "$LOG/core/summary.txt" || fail "Missing acceptance: $entry"
+done
+node scripts/verify-phase3-openapi.mjs > "$LOG/07-openapi-after-build.log" 2>&1 ||
+  fail "OpenAPI parity regression"
+[[ -z "$(git status --porcelain --untracked-files=all)" ]] ||
+  fail "Verifier changed tracked files"
+CORE=PASS
+
+http_status() {
+  curl -sS --max-time 8 -o /dev/null -w '%{http_code}' "$1" 2>/dev/null || true
+}
+await_http() {
+  for count in $(seq 1 30); do
+    [[ "$(http_status "$1")" == "$2" ]] && return 0
+    sleep 1
+  done
+  fail "Expected $2 from $1"
+}
+API_PORT="$((41000+RANDOM%4000))"
+FISHER_API_BIND_HOST=127.0.0.1 PORT="$API_PORT" \
+  node apps/api/dist/main.js > "$LOG/08-api-smoke.log" 2>&1 &
+API_PID=$!
+await_http "http://127.0.0.1:$API_PORT/api/v1/health" 200
+for route in /api/v1/ops/assignments/queue /api/v1/field/assignments \
+ /api/v1/field/handoff-offers /api/v1/ops/exceptions /api/v1/ops/lab-manifests; do
+  [[ "$(http_status "http://127.0.0.1:$API_PORT$route")" == 401 ]] ||
+    fail "Unauthenticated Phase 3 API route not denied: $route"
+done
+kill "$API_PID" 2>/dev/null || true; wait "$API_PID" 2>/dev/null || true; API_PID=""
+
+WEB_PORT="$((47000+RANDOM%3000))"
+for app in operations-web field-pwa; do
+  route=dispatch
+  [[ "$app" != field-pwa ]] || route=visits
+  pnpm --filter "@fisher/$app" exec next start -p "$WEB_PORT" -H 127.0.0.1 \
+    > "$LOG/09-$app-smoke.log" 2>&1 &
+  WEB_PID=$!
+  await_http "http://127.0.0.1:$WEB_PORT/$route" 200
+  curl -sS --max-time 15 "http://127.0.0.1:$WEB_PORT/$route" > "$LOG/$app-locked.html"
+  if [[ "$app" == field-pwa ]]; then
+    [[ "$(http_status "http://127.0.0.1:$WEB_PORT/handoffs")" == 200 ]] ||
+      fail "Couriers must see access-locked handoff queue"
+    [[ "$(http_status "http://127.0.0.1:$WEB_PORT/handoffs/00000000-0000-4000-8000-000000000001")" == 200 ]] ||
+      fail "Unverified courier handoff detail must remain access locked"
+    [[ "$(http_status "http://127.0.0.1:$WEB_PORT/visits/00000000-0000-4000-8000-000000000001")" == 200 ]] ||
+      fail "Unverified field visit must show an access-locked response"
+    [[ "$(http_status "http://127.0.0.1:$WEB_PORT/api/phase3/field/offline/context")" == 503 ]] ||
+      fail "Synthetic offline context must fail closed when not explicitly enabled"
+    code="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
+      -X POST "http://127.0.0.1:$WEB_PORT/api/phase3/field/events/sync" \
+      -H 'Content-Type: application/json' --data '{"events":[]}')"
+    [[ "$code" == 403 ]] ||
+      fail "Originless field mutation was not blocked by the same-origin BFF"
+  fi
+  if [[ "$app" == operations-web ]]; then
+    for route in exceptions lab-access lab-manifests lab-manifests/00000000-0000-4000-8000-000000000001; do
+      [[ "$(http_status "http://127.0.0.1:$WEB_PORT/$route")" == 200 ]] ||
+        fail "Unauthorized $route view must stay access-locked"
+    done
+    [[ "$(http_status "http://127.0.0.1:$WEB_PORT/dispatch/00000000-0000-4000-8000-000000000001")" == 200 ]] ||
+      fail "Unverified dispatcher order detail did not render a locked response"
+    code="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
+      -X POST "http://127.0.0.1:$WEB_PORT/api/phase3/ops/assignments" \
+      -H 'Content-Type: application/json' --data '{"orderId":"synthetic"}')"
+    [[ "$code" == 403 ]] ||
+      fail "Originless dispatch mutation was not blocked"
+    grep -q "Staff identity verification required" "$LOG/$app-locked.html" ||
+      fail "Dispatch authentication boundary missing"
+    ! grep -q "SYN-DSP-001" "$LOG/$app-locked.html" ||
+      fail "Synthetic work items leaked into locked dispatch page"
+  else
+    grep -q "Assigned staff sign-in required" "$LOG/$app-locked.html" ||
+      fail "Field authentication boundary missing"
+  fi
+  kill "$WEB_PID" 2>/dev/null || true; wait "$WEB_PID" 2>/dev/null || true; WEB_PID=""
+  WEB_PORT="$((WEB_PORT+1))"
+done
+SMOKE=PASS
+[[ -z "$(git status --porcelain --untracked-files=all)" ]] || fail "Dirty final tree"
+
+# Check that the tracked branch did not move during acceptance; never push
+# or create a new commit as a side effect of verification.
+git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+[[ "$(git rev-parse "refs/remotes/origin/$BRANCH")" == "$SOURCE_SHA" ]] ||
+  fail "Remote Phase 3 branch changed during acceptance; report a stale SHA"
+[[ "$(git rev-parse HEAD)" == "$SOURCE_SHA" ]] ||
+  fail "Verification worktree HEAD changed unexpectedly"
+[[ "${FISHER_PHASE3_PUSH_ON_PASS:-0}" != 1 ]] ||
+  fail "Automatic verification push has been disabled"
+
+RESULT=PASS
+echo "PHASE3_LOCAL_ACCEPTED_SHA=$PHASE3_SHA"
+echo "PHASE3_PUSHED=NO"
+echo "Phase 3 remains subject to final PR review and separate live-service gates."

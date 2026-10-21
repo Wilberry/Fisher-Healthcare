@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Card, Notice, SiteShell, StatusPill } from '@fisher/ui';
 
 export default function Field() {
@@ -7,6 +8,7 @@ export default function Field() {
         <p className="fisher-eyebrow">Field team platform · Foundation preview</p>
         <h1 className="fisher-section-title">Purpose-built for collection and handoff teams.</h1>
         <p className="fisher-lead">A mobile-first workflow for assigned visits, specimen collection, secure handoffs, and field exception reporting.</p>
+        <p><Link href="/visits">Open the Phase 3 field workbench (training-only until staff SSO)</Link></p>
         <Notice title="Field operations have not been activated" tone="warning">
           No clinical assignments, patient information, or specimen processing functions are available in this foundation build.
         </Notice>
