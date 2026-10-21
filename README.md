@@ -67,6 +67,8 @@ Development milestones are governed by the [Development Roadmap](docs/06-develop
 
 ## Project status
 
-**Current development phase: Phase 4 — Laboratory, Results and Finance.** Phases 1–3 are merged. Phase 4 is under development. The software is not approved for live clinical use.
+**Current development phase: Phase 4 — Laboratory, Results and Finance.**
 
-[Development Roadmap](docs/06-development-roadmap.md) · [Phase 3 Engineering Status](docs/phase-3-implementation-status.md)
+Phases 1–3 are merged. Phase 4 is under development.
+
+[Development Roadmap](docs/06-development-roadmap.md)
