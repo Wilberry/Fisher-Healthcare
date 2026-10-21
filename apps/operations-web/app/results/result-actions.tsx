@@ -1,5 +1,5 @@
 'use client';
-import {useState,type FormEvent} from 'react';
+import {useRef,useState,type FormEvent} from 'react';
 import {useRouter} from 'next/navigation';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 export function ResultActions({pending,canIntake,canRelease}:{
@@ -10,7 +10,8 @@ export function ResultActions({pending,canIntake,canRelease}:{
  const [validation,setValidation]=useState('');
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const router=useRouter();
- async function post(path:string,payload:Record<string,unknown>){
+ const releaseKeys=useRef<Record<string,string>>({});
+ async function post(path:string,payload:Record<string,unknown>,onSuccess?:()=>void){
   if(busy)return;
   setBusy(true);setMessage('');
   try{
@@ -25,6 +26,7 @@ export function ResultActions({pending,canIntake,canRelease}:{
       'Operation not confirmed. Check its status before retrying.');
    }else{
     setMessage('Synthetic operation recorded. Refreshing.');
+    onSuccess?.();
     router.refresh();
    }
   }catch{setMessage('Network outcome unknown. Refresh before retrying.');}
@@ -59,8 +61,12 @@ export function ResultActions({pending,canIntake,canRelease}:{
    {pending.length?<ul>{pending.map(result=>
     <li key={result.id}><span>Result {result.id}</span>{' '}
      <button type="button" disabled={busy}
-       onClick={()=>void post('ops/results/'+result.id+'/release',{
-         releaseKey:crypto.randomUUID()})}>Release after authorized review</button>
+       onClick={()=>{
+         const key=releaseKeys.current[result.id]??crypto.randomUUID();
+         releaseKeys.current[result.id]=key;
+         void post('ops/results/'+result.id+'/release',{releaseKey:key},
+           ()=>{delete releaseKeys.current[result.id];});
+       }}>Release after authorized review</button>
     </li>)}</ul>:<p>No pending releases.</p>}
    </>}
    <p role="status" aria-live="polite">{message}</p>

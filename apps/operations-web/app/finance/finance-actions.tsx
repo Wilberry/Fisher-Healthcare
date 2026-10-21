@@ -1,5 +1,5 @@
 'use client';
-import {useState,type FormEvent} from 'react';
+import {useRef,useState,type FormEvent} from 'react';
 import {useRouter} from 'next/navigation';
 type Row=Record<string,unknown>;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -11,7 +11,15 @@ export function FinanceActions({refunds,payables,batches}:{refunds:Row[];payable
  const [note,setNote]=useState('');
  const [busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const router=useRouter();
- async function send(path:string,body:Record<string,unknown>){
+ const retryKeys=useRef<Record<string,{payload:string;key:string}>>({});
+ function keyFor(scope:string,payload:string):string{
+  const existing=retryKeys.current[scope];
+  if(existing?.payload===payload)return existing.key;
+  const key=crypto.randomUUID();
+  retryKeys.current[scope]={payload,key};
+  return key;
+ }
+ async function send(path:string,body:Record<string,unknown>,onSuccess?:()=>void){
   if(busy)return;setBusy(true);setMessage('');
   try{
    const res=await fetch('/api/phase4/finance/'+path,{
@@ -23,15 +31,17 @@ export function FinanceActions({refunds,payables,batches}:{refunds:Row[];payable
      res.status===403?'Independent finance authorization required.':
      res.status===409?'State conflict. Refresh and review prior decisions.':
      'Operation not confirmed. Refresh and check before retrying.');
-   router.refresh();
+   if(res.ok){onSuccess?.();router.refresh();}
   }catch{setMessage('Network outcome unknown; verify the queue before retrying.');}
   finally{setBusy(false);}
  }
  const submitRefund=(e:FormEvent)=>{
   e.preventDefault();const money=Number(amount);
   if(!uuid.test(payment)||!Number.isSafeInteger(money)||money<1)return;
-  void send('refunds',{paymentId:payment,requestKey:crypto.randomUUID(),
-    amountKobo:money,reasonCode:'manual_review'});
+  const fingerprint=JSON.stringify([payment,money,'manual_review']);
+  void send('refunds',{paymentId:payment,requestKey:keyFor('refund',fingerprint),
+    amountKobo:money,reasonCode:'manual_review'},
+    ()=>{delete retryKeys.current.refund;});
  };
  const submitPayable=(e:FormEvent)=>{
   e.preventDefault();const money=Number(agreed);
@@ -41,10 +51,13 @@ export function FinanceActions({refunds,payables,batches}:{refunds:Row[];payable
  const submitSettlement=(e:FormEvent)=>{
   e.preventDefault();const ids=payableIds.split(',').map(v=>v.trim());
   if(!uuid.test(labId)||ids.length===0||!ids.every(v=>uuid.test(v)))return;
-  void send('lab-settlements',{labId,batchKey:crypto.randomUUID(),payableIds:ids});
+  const fingerprint=JSON.stringify([labId,[...ids].sort()]);
+  void send('lab-settlements',{labId,batchKey:keyFor('batch',fingerprint),payableIds:ids},
+    ()=>{delete retryKeys.current.batch;});
  };
  function reconcile(){
-  void send('reconciliation/runs',{runKey:crypto.randomUUID()});
+  void send('reconciliation/runs',{runKey:keyFor('reconciliation','current')},
+    ()=>{delete retryKeys.current.reconciliation;});
  }
  function review(path:string,decision:'approve'|'reject'){
   if(note.trim().length<10||note.trim().length>240)return;
