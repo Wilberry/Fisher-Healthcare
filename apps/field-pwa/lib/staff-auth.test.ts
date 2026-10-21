@@ -34,7 +34,12 @@ describe('field staff session and PKCE policy',()=>{
     const pending=makePending('/visits');
     const encoded=seal(pending);
     expect(unseal(encoded)).toEqual(pending);
-    expect(unseal(encoded.slice(0,-1)+'x')).toBeNull();
+    // Mutate a significant authenticated tag byte. Changing only the
+    // last Base64URL glyph can change unused padding bits and is not a
+    // reliable ciphertext-tampering assertion.
+    const [iv,ciphertext,tag]=encoded.split('.');
+    const altered=(tag![0]==='A'?'B':'A')+tag!.slice(1);
+    expect(unseal([iv,ciphertext,altered].join('.'))).toBeNull();
     expect(unseal('untrusted.invalid.cookie')).toBeNull();
     expect(unseal('a'.repeat(10001))).toBeNull();
   });
