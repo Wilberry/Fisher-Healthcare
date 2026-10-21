@@ -11,7 +11,8 @@ function parseDetail(raw:unknown):Detail|null{
   const value=candidate as Record<string,unknown>;
   if(typeof value.id!=='string'||typeof value.releasedAt!=='string'||
     typeof value.testName!=='string'||typeof value.documentAccess!=='string')return null;
-  return value as Detail;
+  return {id:value.id,releasedAt:value.releasedAt,
+    testName:value.testName,documentAccess:value.documentAccess};
 }
 export default async function ResultDetail({params}:{params:Promise<{id:string}>}){
   const {id}=await params;
