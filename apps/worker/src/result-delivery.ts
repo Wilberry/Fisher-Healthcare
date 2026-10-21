@@ -66,6 +66,26 @@ export async function claimResultEmail(pool:Pool,allowed:readonly string[]):Prom
   return r.rows[0]??null;
 }
 
+/** Recheck current consent and recipient identity immediately before the provider call. */
+export async function resultClaimStillEligible(pool:Pool,claim:Claim):Promise<boolean>{
+ const r=await pool.query(`
+   SELECT 1 FROM phase4_result_delivery_intents n
+   JOIN results res ON res.id=n.result_id
+     AND res.released_at IS NOT NULL AND res.released_by IS NOT NULL
+   JOIN patient_relationships rel ON rel.patient_id=res.patient_id
+     AND rel.relationship='self' AND rel.can_view_results
+     AND rel.verified_at IS NOT NULL AND rel.revoked_at IS NULL
+   JOIN phase4_result_email_preferences pref ON pref.user_id=rel.user_id
+     AND pref.patient_id=rel.patient_id AND pref.enabled
+   JOIN users u ON u.id=rel.user_id
+   WHERE n.result_id=$1 AND n.lease_token=$2
+     AND n.status='sending' AND n.lease_expires_at>clock_timestamp()
+     AND lower(n.recipient_email)=lower($3)
+     AND lower(u.email)=lower($3)
+   LIMIT 1`,[claim.result_id,claim.lease_token,claim.recipient]);
+ return r.rowCount===1;
+}
+
 /** Staging email only. The message has no test names, clinical values or object keys. */
 export async function dispatchResultEmail(pool:Pool,send:typeof fetch=fetch):Promise<boolean>{
   const config=stagingResultEmailSettings();
@@ -77,6 +97,14 @@ export async function dispatchResultEmail(pool:Pool,send:typeof fetch=fetch):Pro
       AND (lease_expires_at IS NULL OR lease_expires_at<clock_timestamp())`);
   const claim=await claimResultEmail(pool,config.allowed);
   if(!claim)return false;
+  // No network call after a known opt-out, grant revocation or lease loss.
+  if(!await resultClaimStillEligible(pool,claim)){
+    await pool.query(`UPDATE phase4_result_delivery_intents
+      SET status='failed',lease_token=NULL,lease_expires_at=NULL
+      WHERE result_id=$1 AND lease_token=$2 AND status='sending'`,
+      [claim.result_id,claim.lease_token]);
+    return true;
+  }
   let providerId:string|null=null;
   try{
     const reply=await send('https://api.resend.com/emails',{
