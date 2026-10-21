@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CustodyConflict, transitionCustody, type CustodyCommand } from './custody';
+import { transitionCustody, type CustodyCommand } from './custody';
 const base: CustodyCommand = { specimenId: 'specimen', eventId: 'event', actorId: 'collector', role: 'collector', action: 'collect', expectedVersion: 0 };
 describe('custody transition policy', () => {
   it('permits a collector to collect a planned specimen', () => {

@@ -17,7 +17,7 @@ async function fingerprint(owner:string,event:QueuedCustodyEvent):Promise<string
 const STORE='events';
 const KEY_STORE='keys';
 type SealedRecord={
-  id:string;owner:string;createdAt:number;iv:Uint8Array;
+  id:string;owner:string;createdAt:number;iv:ArrayBuffer;
   ciphertext:ArrayBuffer;review:boolean;aadVersion?:1;fingerprint?:string
 };
 export type RecoveryEntry={event:QueuedCustodyEvent;review:boolean};
@@ -191,7 +191,8 @@ export async function saveOfflineEvent(owner:string,event:QueuedCustodyEvent):Pr
     if(pending.length>=OFFLINE_MAX_EVENTS)
       throw Error('Recovery queue is full; reconnect to reconcile');
     const secret=await key(db);
-    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const iv=new ArrayBuffer(12);
+    crypto.getRandomValues(new Uint8Array(iv));
     const plaintext=new TextEncoder().encode(JSON.stringify(minimal));
     const ciphertext=await crypto.subtle.encrypt(
       {name:'AES-GCM',iv,additionalData:aad(owner,event.eventId)},secret,plaintext);

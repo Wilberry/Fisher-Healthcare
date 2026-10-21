@@ -55,3 +55,4 @@ export default async function FieldVisits() {
         </section> : <FieldTrainingWorkbench demo={demo}/>}
     </div></section>
   </SiteShell>;
+}

@@ -57,3 +57,4 @@ export default async function DispatchConsole() {
         </section> : <DispatchWorkbench demo={demo}/>}
     </div></section>
   </SiteShell>;
+}
