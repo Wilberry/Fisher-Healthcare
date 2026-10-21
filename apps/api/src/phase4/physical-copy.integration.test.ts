@@ -11,7 +11,9 @@ suite.sequential('Phase 4 physical copy quote workflow (disposable PostgreSQL)',
  const ids={
   owner:randomUUID(),other:randomUUID(),finance:randomUUID(),financeStaff:randomUUID(),
   patient:randomUUID(),zone:randomUUID(),lab:randomUUID(),order:randomUUID(),
-  result:randomUUID(),address:randomUUID(),secondAddress:randomUUID(),
+  result:randomUUID(),test:randomUUID(),orderItem:randomUUID(),
+  specimen:randomUUID(),intakeKey:randomUUID(),
+  address:randomUUID(),secondAddress:randomUUID(),
   requestKey:randomUUID(),secondKey:randomUUID(),releaseKey:randomUUID()
  };
  const ownerSubject='synthetic-copy-owner-'+randomUUID();
@@ -59,9 +61,32 @@ suite.sequential('Phase 4 physical copy quote workflow (disposable PostgreSQL)',
      VALUES($1,$2,$3,$4,'results_ready','regular',0)`,
      [ids.order,ids.patient,ids.owner,ids.lab]);
    await pool.query(`
-     INSERT INTO results(id,order_id,patient_id,object_key,released_at,released_by)
-     VALUES($1,$2,$3,$4,now(),$5)`,
-     [ids.result,ids.order,ids.patient,'synthetic/results/copy-not-delivered.pdf',ids.finance]);
+     INSERT INTO tests(id,code,name,specimen_type,active)
+     VALUES($1,$2,'Synthetic Physical Copy Test','blood',true)`,
+     [ids.test,'SYN-PHYSICAL-'+ids.test.slice(0,8)]);
+   await pool.query(`
+     INSERT INTO order_items(id,order_id,test_id,price_kobo)
+     VALUES($1,$2,$3,0)`,[ids.orderItem,ids.order,ids.test]);
+   await pool.query(`
+     INSERT INTO specimens(id,order_id,barcode,status)
+     VALUES($1,$2,$3,'lab_received')`,
+     [ids.specimen,ids.order,'SYN-PHYSICAL-'+ids.specimen]);
+   await pool.query(`
+     INSERT INTO results(id,order_id,patient_id,object_key)
+     VALUES($1,$2,$3,$4)`,
+     [ids.result,ids.order,ids.patient,'synthetic/results/'+ids.intakeKey+'.pdf']);
+   await pool.query(`
+     INSERT INTO phase4_result_intakes(result_id,order_item_id,specimen_id,
+       lab_id,intake_key,intake_fingerprint,document_sha256,
+       validation_reference,intake_by)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+     [ids.result,ids.orderItem,ids.specimen,ids.lab,ids.intakeKey,
+       'a'.repeat(64),'b'.repeat(64),'SYN-PHYSICAL-VALIDATION',ids.finance]);
+   // Synthetic fixture models a released intake; the actual release service
+   // separately enforces independent MFA review and PDF checksum validity.
+   await pool.query(`
+     UPDATE results SET released_at=now(),released_by=$2 WHERE id=$1`,
+     [ids.result,ids.finance]);
    await pool.query(`
      INSERT INTO phase4_result_release_events(result_id,release_key,released_by)
      VALUES($1,$2,$3)`,[ids.result,ids.releaseKey,ids.finance]);
