@@ -16,7 +16,8 @@ export function parseRefundRequest(body:unknown):RefundRequest{
      (b.amountKobo as number)<=0 || (b.amountKobo as number)>2147483647||
      typeof b.reasonCode!=='string'||!reasons.includes(b.reasonCode))
     throw new BadRequestException('Invalid refund request');
-  return b as RefundRequest;
+  return {paymentId:b.paymentId as string,requestKey:b.requestKey as string,
+    amountKobo:b.amountKobo as number,reasonCode:b.reasonCode as RefundReason};
 }
 export function parseRefundReview(body:unknown):{decision:'approve'|'reject';note:string}{
   if(!body||typeof body!=='object'||Array.isArray(body))
