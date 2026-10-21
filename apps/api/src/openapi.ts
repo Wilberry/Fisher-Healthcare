@@ -166,7 +166,12 @@ function validateDocument(document: OpenAPIObject): void {
     ['/api/v1/finance/lab-payables','post'],
     ['/api/v1/finance/lab-settlements','get'],
     ['/api/v1/finance/lab-settlements','post'],
-    ['/api/v1/finance/lab-settlements/{id}/review','post']
+    ['/api/v1/finance/lab-settlements/{id}/review','post'],
+    ['/api/v1/patients/{patientId}/physical-copies','get'],
+    ['/api/v1/patients/{patientId}/physical-copies','post'],
+    ['/api/v1/patients/{patientId}/physical-copies/{id}/cancel','post'],
+    ['/api/v1/finance/physical-copies','get'],
+    ['/api/v1/finance/physical-copies/{id}/quote','post']
   ] as const;
   for(const [path,method] of phase4Operations){
     const route=document.paths[path]?.[method];

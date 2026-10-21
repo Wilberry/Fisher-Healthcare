@@ -20,7 +20,12 @@ const required=[
   ['post','/api/v1/finance/lab-payables'],
   ['get','/api/v1/finance/lab-settlements'],
   ['post','/api/v1/finance/lab-settlements'],
-  ['post','/api/v1/finance/lab-settlements/{id}/review']
+  ['post','/api/v1/finance/lab-settlements/{id}/review'],
+  ['get','/api/v1/patients/{patientId}/physical-copies'],
+  ['post','/api/v1/patients/{patientId}/physical-copies'],
+  ['post','/api/v1/patients/{patientId}/physical-copies/{id}/cancel'],
+  ['get','/api/v1/finance/physical-copies'],
+  ['post','/api/v1/finance/physical-copies/{id}/quote']
 ];
 for(const [method,path] of required){
   const operation=doc.paths?.[path]?.[method];

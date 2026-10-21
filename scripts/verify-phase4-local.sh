@@ -59,7 +59,8 @@ for migration in 0026_phase4_result_intake_release.sql 0027_phase4_finance_recon
   0030_phase4_lab_payables_settlements.sql \
   0031_phase4_result_email_preferences.sql \
   0032_phase4_finance_immutable_fields.sql \
-  0033_phase4_result_release_immutability.sql; do
+  0033_phase4_result_release_immutability.sql \
+  0034_phase4_physical_copy_requests.sql; do
   [[ -f "packages/database/drizzle/$migration" ]] || fail "Missing $migration"
 done
 mkdir -p "$LOG"
@@ -108,8 +109,10 @@ for path in /api/v1/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/results \
  /api/v1/ops/results/pending \
   /api/v1/ops/results/intake-readiness \
   /api/v1/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/result-email-preference \
+  /api/v1/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/physical-copies \
   /api/v1/finance/transactions /api/v1/finance/reconciliation \
   /api/v1/finance/refunds /api/v1/finance/lab-payables \
+  /api/v1/finance/physical-copies \
   /api/v1/finance/lab-settlements; do
   [[ "$(status "http://127.0.0.1:$PORT$path")" == 401 ]] ||
     fail "Unauthenticated route not denied: $path"
@@ -120,7 +123,10 @@ for path in /api/v1/ops/results/intake \
   /api/v1/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/result-email-preference \
   /api/v1/finance/refunds /api/v1/finance/refunds/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/review \
   /api/v1/finance/lab-payables /api/v1/finance/lab-settlements \
-  /api/v1/finance/lab-settlements/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/review; do
+  /api/v1/finance/lab-settlements/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/review \
+  /api/v1/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/physical-copies \
+  /api/v1/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/physical-copies/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/cancel \
+  /api/v1/finance/physical-copies/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/quote; do
   [[ "$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
     -H 'content-type: application/json' -d '{}' \
     "http://127.0.0.1:$PORT$path" 2>/dev/null || true)" == 401 ]] ||
@@ -157,6 +163,12 @@ for app in patient-web operations-web; do
       -d '{"enabled":true}' \
       "$root/api/phase4/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/result-email-preference" 2>/dev/null || true)"
     [[ "$deny" == 403 ]] || fail "Patient result email proxy accepted originless mutation"
+    for path in /api/phase4/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/physical-copies \
+      /api/phase4/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/physical-copies/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/cancel; do
+      deny="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
+        -H 'content-type: application/json' -d '{}' "$root$path" 2>/dev/null || true)"
+      [[ "$deny" == 403 ]] || fail "Patient physical-copy proxy accepted originless mutation: $path"
+    done
   else
     for path in /results /finance; do
       [[ "$(status "$root$path")" == 200 ]] ||
@@ -165,7 +177,8 @@ for app in patient-web operations-web; do
     for path in /api/phase4/ops/results/intake \
       /api/phase4/finance/refunds \
       /api/phase4/finance/reconciliation/runs \
-      /api/phase4/finance/lab-settlements; do
+      /api/phase4/finance/lab-settlements \
+      /api/phase4/finance/physical-copies/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/quote; do
       deny="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
         -H 'content-type: application/json' -d '{}' "$root$path" 2>/dev/null || true)"
       [[ "$deny" == 403 ]] || fail "Staff BFF accepted originless mutation: $path"

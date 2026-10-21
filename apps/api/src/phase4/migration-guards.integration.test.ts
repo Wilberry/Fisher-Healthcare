@@ -13,18 +13,19 @@ suite.sequential('Phase 4 schema and immutable evidence (disposable PostgreSQL)'
     if(identity.rows[0]?.db!=='fisher_test')throw new Error('Refusing a non-test database');
   });
   afterAll(async()=>{await pool?.end();});
-  it('applies all eight new checksummed migrations in sequence',async()=>{
+  it('applies all nine new checksummed migrations in sequence',async()=>{
     const sql=`SELECT version,sha256 FROM fisher_migrations
       WHERE version LIKE '0026_%' OR version LIKE '0027_%'
         OR version LIKE '0028_%' OR version LIKE '0029_%'
         OR version LIKE '0030_%' OR version LIKE '0031_%'
         OR version LIKE '0032_%'
         OR version LIKE '0033_%'
+        OR version LIKE '0034_%'
       ORDER BY version`;
     const applied=await pool.query<{version:string;sha256:string}>(sql);
-    expect(applied.rows).toHaveLength(8);
+    expect(applied.rows).toHaveLength(9);
     expect(applied.rows.map(v=>v.version.slice(0,4))).toEqual([
-      '0026','0027','0028','0029','0030','0031','0032','0033'
+      '0026','0027','0028','0029','0030','0031','0032','0033','0034'
     ]);
     expect(applied.rows.every(v=>/^[a-f0-9]{64}$/.test(v.sha256.trim()))).toBe(true);
   });
@@ -34,7 +35,7 @@ suite.sequential('Phase 4 schema and immutable evidence (disposable PostgreSQL)'
       'phase4_result_delivery_intents','phase4_result_email_preferences',
       'phase4_finance_reconciliation_runs','phase4_finance_reconciliation_items',
       'phase4_refund_requests','phase4_lab_settlement_batches',
-      'phase4_lab_payables','phase4_lab_settlement_items'
+      'phase4_lab_payables','phase4_lab_settlement_items','phase4_physical_copy_requests'
     ];
     const r=await pool.query<{name:string|null}>(`
       SELECT to_regclass('public.'||names.name)::text AS name
@@ -52,7 +53,8 @@ suite.sequential('Phase 4 schema and immutable evidence (disposable PostgreSQL)'
       'phase4_refund_immutable_fields',
       'phase4_lab_batch_immutable_fields',
       'phase4_lab_payable_immutable_fields',
-      'phase4_results_immutable'];
+      'phase4_results_immutable',
+      'phase4_physical_copy_state_guard','phase4_physical_copy_no_delete'];
     const found=await pool.query<{name:string}>(`
       SELECT tgname AS name FROM pg_trigger
       WHERE tgname=ANY($1::text[]) AND NOT tgisinternal`,[triggers]);
