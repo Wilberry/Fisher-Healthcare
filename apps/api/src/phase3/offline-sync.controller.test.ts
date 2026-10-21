@@ -26,11 +26,11 @@ describe('offline custody API rejects unsafe client authority', () => {
     await expect(offline.sync(request as never,{events:[
       {specimenId:id,eventId:event,action:'dispatch',expectedVersion:2,
         recipientId:id,recipientAcknowledged:true}
-    ]})).rejects.toThrow('Invalid event');
+    ]})).rejects.toThrow('Unexpected offline custody fields');
     await expect(offline.sync(request as never,{events:[
       {specimenId:id,eventId:event,action:'collect',expectedVersion:0,
         recipientAcknowledged:true}
-    ]})).rejects.toThrow('Invalid event');
+    ]})).rejects.toThrow('Unexpected offline custody fields');
     await expect(direct.apply(request as never,id,{
       eventId:event,action:'receive_at_lab',expectedVersion:3
     })).rejects.toThrow('Invalid event');
