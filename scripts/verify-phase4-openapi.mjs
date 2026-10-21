@@ -47,10 +47,10 @@ const declared=new Set(required.map(([method,path])=>method+' '+path));
 const scanned=new Set();
 for(const [name,filename,prefix] of controllers){
  const source=readFileSync(filename,'utf8');
- const className=source.match(/export class (Phase4\\w+Controller)/)?.[1];
+ const className=source.match(/export class (Phase4\w+Controller)/)?.[1];
  if(!className)throw new Error('Phase 4 controller not found: '+name);
- const root=source.match(/@Controller\\('([^']+)'\\)/)?.[1]??prefix;
- const methods=[...source.matchAll(/@(Get|Post)\\('([^']+)'\\)\\s*(?:@Header\\([^\\n]+\\)\\s*)*(?:async\\s+)?(\\w+)\\s*\\(/g)];
+ const root=source.match(/@Controller\('([^']+)'\)/)?.[1]??prefix;
+ const methods=[...source.matchAll(/@(Get|Post)\('([^']+)'\)\s*(?:@Header\([^\n]+\)\s*)*(?:async\s+)?(\w+)\s*\(/g)];
  if(!methods.length)throw new Error('No Phase 4 routes found: '+name);
  for(const [,verb,fragment,handler] of methods){
    const method=verb.toLowerCase();
