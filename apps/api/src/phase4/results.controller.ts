@@ -9,6 +9,10 @@ import {isCanonicalUuid,parseResultIntake,parseResultRelease} from './result-pol
 @UseGuards(IdentityGuard)
 export class Phase4ResultsController{
   constructor(private readonly service:Phase4ResultsService){}
+  @Get('ops/results/intake-readiness')
+  intakeReadiness(@Req() req:AuthenticatedRequest){
+    return this.service.intakeReadiness(req.identity!);
+  }
   @Get('ops/results/pending')
   pending(@Req() req:AuthenticatedRequest){
     return this.service.pending(req.identity!);

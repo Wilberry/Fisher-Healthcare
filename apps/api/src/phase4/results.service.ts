@@ -149,6 +149,14 @@ export class Phase4ResultsService implements OnModuleDestroy {
     });
   }
 
+  async intakeReadiness(identity:AuthenticatedIdentity){
+    requirePhase4SyntheticMode();
+    requireStaffMfa(identity);
+    await this.access.requireStaffCapability(identity.subject,'labs:manage');
+    // Capability probe returns no patient, result or specimen information.
+    return {data:[]};
+  }
+
   async pending(identity:AuthenticatedIdentity){
     requirePhase4SyntheticMode();
     requireStaffMfa(identity);

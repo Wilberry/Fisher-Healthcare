@@ -2,7 +2,9 @@
 import {useState,type FormEvent} from 'react';
 import {useRouter} from 'next/navigation';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-export function ResultActions({pending}:{pending:{id:string}[]}){
+export function ResultActions({pending,canIntake,canRelease}:{
+  pending:{id:string}[];canIntake:boolean;canRelease:boolean
+}){
  const [item,setItem]=useState(''),[specimen,setSpecimen]=useState('');
  const [key,setKey]=useState(''),[checksum,setChecksum]=useState('');
  const [validation,setValidation]=useState('');
@@ -37,7 +39,7 @@ export function ResultActions({pending}:{pending:{id:string}[]}){
     validationReference:validation});
  }
  return <section aria-label="Phase 4 result administration">
-   <h2>Record a synthetic validated intake</h2>
+   {canIntake&&<><h2>Record a synthetic validated intake</h2>
    <form onSubmit={intake}>
     <p><label>Ordered test UUID <input required value={item} maxLength={36}
       onChange={e=>setItem(e.target.value)}/></label></p>
@@ -52,13 +54,15 @@ export function ResultActions({pending}:{pending:{id:string}[]}){
       maxLength={68} onChange={e=>setValidation(e.target.value)}/></label></p>
     <button type="submit" disabled={busy}>Record intake</button>
    </form>
-   <h2>Independent release review</h2>
+   </>}
+   {canRelease&&<><h2>Independent release review</h2>
    {pending.length?<ul>{pending.map(result=>
     <li key={result.id}><span>Result {result.id}</span>{' '}
      <button type="button" disabled={busy}
        onClick={()=>void post('ops/results/'+result.id+'/release',{
          releaseKey:crypto.randomUUID()})}>Release after authorized review</button>
     </li>)}</ul>:<p>No pending releases.</p>}
+   </>}
    <p role="status" aria-live="polite">{message}</p>
  </section>;
 }
