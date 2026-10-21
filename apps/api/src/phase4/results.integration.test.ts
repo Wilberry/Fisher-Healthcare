@@ -1,4 +1,5 @@
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
+import {mkdtemp,writeFile,rm} from 'node:fs/promises';
 import {Pool} from 'pg';
 import {beforeAll,afterAll,describe,it,expect} from 'vitest';
 import {AccessService} from '../access.service';
@@ -26,10 +27,12 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
   const identity=(subject:string,mfa=false)=>({
     subject,issuer:'https://identity.fisher.test',authenticationMethods:mfa?['mfa']:[]
   });
+  const syntheticPdf=Buffer.from('%PDF-1.4\nSYNTHETIC ONLY\n%%EOF\n');
+  let privateDir='';
   const envelope={
     orderItemId:id.item,specimenId:id.specimen,intakeKey:id.intakeKey,
     objectKey:'synthetic/results/'+id.intakeKey+'.pdf',
-    documentSha256:'a'.repeat(64),validationReference:'SYN-VALIDATED-0001'
+    documentSha256:createHash('sha256').update(syntheticPdf).digest('hex'),validationReference:'SYN-VALIDATED-0001'
   };
   let resultId:string;
   beforeAll(async()=>{
@@ -85,6 +88,7 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
     await service?.onModuleDestroy();
     await access?.onModuleDestroy();
     await pool?.end();
+    if(privateDir)await rm(privateDir,{recursive:true,force:true});
   });
   it('denies unauthenticated-strength or unscoped intake before any result is stored',async()=>{
     await expect(service.intake(identity(sub.lab),envelope)).rejects.toThrow();
@@ -139,5 +143,23 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
       "SELECT action FROM audit_events WHERE resource_id=$1 AND action LIKE 'phase4.results.%'",
       [id.patient]);
     expect(audit.rows.some(x=>x.action==='phase4.results.listed')).toBe(true);
+  });  it('downloads only an authorized, released and integrity-verified synthetic PDF',async()=>{
+    privateDir=await mkdtemp('/tmp/fisher-healthcare-phase4-private-');
+    await writeFile(privateDir+'/'+id.intakeKey+'.pdf',syntheticPdf);
+    process.env.FISHER_PHASE4_DOCUMENT_MODE='synthetic-only';
+    process.env.FISHER_PHASE4_PRIVATE_DOCUMENT_DIR=privateDir;
+    try{
+      const detail=await service.detail(identity(sub.owner),resultId);
+      expect(detail.data.documentAccess).toBe('synthetic_document_available');
+      const bytes=await service.document(identity(sub.owner),resultId);
+      expect(bytes).toEqual(syntheticPdf);
+      await expect(service.document(identity(sub.outsider),resultId)).rejects.toThrow();
+      await writeFile(privateDir+'/'+id.intakeKey+'.pdf',Buffer.from('invalid'));
+      await expect(service.document(identity(sub.owner),resultId)).rejects.toThrow();
+    }finally{
+      delete process.env.FISHER_PHASE4_DOCUMENT_MODE;
+      delete process.env.FISHER_PHASE4_PRIVATE_DOCUMENT_DIR;
+    }
   });
+
 });
