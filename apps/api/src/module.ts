@@ -43,6 +43,8 @@ import { Phase4FinanceController } from './phase4/finance.controller';
 import { Phase4FinanceService } from './phase4/finance.service';
 import { Phase4RefundController } from './phase4/refund.controller';
 import { Phase4RefundService } from './phase4/refund.service';
+import { Phase4LabSettlementController } from './phase4/lab-settlement.controller';
+import { Phase4LabSettlementsService } from './phase4/lab-settlement.service';
 
 @Controller('health')
 class HealthController {
@@ -53,7 +55,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController, CatalogAdminController, GuestBookingPublicController, GuestBookingStaffController, WorkQueueController, Phase3CustodyController, Phase3DispatchController, Phase3FieldAssignmentsController, Phase3OfflineSyncController, Phase3IncidentsController, Phase3ManifestController, Phase3HandoffController, Phase3AssignmentEventsController, Phase3LabAccessController, Phase3LabelController, Phase4ResultsController, Phase4FinanceController, Phase4RefundController],
-  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PublicRateLimitService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService, PaymentReviewService, Phase3CustodyService, Phase3DispatchService, Phase3FieldAssignmentsService, Phase3IncidentsService, Phase3ManifestService, Phase3HandoffService, Phase3AssignmentEventsService, Phase3LabAccessService, Phase3LabelService, Phase4ResultsService, Phase4FinanceService, Phase4RefundService]
+  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController, CatalogAdminController, GuestBookingPublicController, GuestBookingStaffController, WorkQueueController, Phase3CustodyController, Phase3DispatchController, Phase3FieldAssignmentsController, Phase3OfflineSyncController, Phase3IncidentsController, Phase3ManifestController, Phase3HandoffController, Phase3AssignmentEventsController, Phase3LabAccessController, Phase3LabelController, Phase4ResultsController, Phase4FinanceController, Phase4RefundController, Phase4LabSettlementController],
+  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PublicRateLimitService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService, PaymentReviewService, Phase3CustodyService, Phase3DispatchService, Phase3FieldAssignmentsService, Phase3IncidentsService, Phase3ManifestService, Phase3HandoffService, Phase3AssignmentEventsService, Phase3LabAccessService, Phase3LabelService, Phase4ResultsService, Phase4FinanceService, Phase4RefundService, Phase4LabSettlementsService]
 })
 export class AppModule {}
