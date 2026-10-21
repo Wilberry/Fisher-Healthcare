@@ -74,7 +74,8 @@ async function key(db:IDBDatabase):Promise<CryptoKey>{
         store.put(candidate,'origin-key');
       }
     };
-    result.onerror=()=>{try{tx.abort();}catch{}};
+    // An unhandled IndexedDB request error aborts its transaction; the
+    // onabort handler below rejects. Do not hide failed abort operations.
     tx.oncomplete=()=>resolve(selected);
     tx.onerror=()=>reject(tx.error??new Error('Encryption key storage failed'));
     tx.onabort=()=>reject(tx.error??new Error('Encryption key transaction aborted'));
