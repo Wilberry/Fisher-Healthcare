@@ -35,7 +35,9 @@ suite.sequential('Phase 4 schema and immutable evidence (disposable PostgreSQL)'
       'phase4_lab_payables','phase4_lab_settlement_items'
     ];
     const r=await pool.query<{name:string|null}>(`
-      SELECT to_regclass('public.'||unnest($1::text[]))::text AS name`,[names]);
+      SELECT to_regclass('public.'||names.name)::text AS name
+      FROM unnest($1::text[]) WITH ORDINALITY AS names(name,position)
+      ORDER BY names.position`,[names]);
     expect(r.rows).toHaveLength(names.length);
     expect(r.rows.every(v=>v.name!==null)).toBe(true);
   });
