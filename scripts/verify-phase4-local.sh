@@ -49,7 +49,9 @@ git merge-base --is-ancestor 909971ac8ec482d23a714d64d8050d6aeea8a8bb HEAD ||
 git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
 [[ "$(git rev-parse "refs/remotes/origin/$BRANCH")" == "$SOURCE" ]] ||
   fail "Remote branch changed"
-for migration in 0026_phase4_result_intake_release.sql 0027_phase4_finance_reconciliation.sql; do
+for migration in 0026_phase4_result_intake_release.sql 0027_phase4_finance_reconciliation.sql \
+  0028_phase4_result_email_delivery.sql 0029_phase4_refund_approval.sql \
+  0030_phase4_lab_payables_settlements.sql; do
   [[ -f "packages/database/drizzle/$migration" ]] || fail "Missing $migration"
 done
 mkdir -p "$LOG"
@@ -94,13 +96,18 @@ done
 [[ "$(status "$health")" == 200 ]] || fail "API health smoke failed"
 for path in /api/v1/patients/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/results \
  /api/v1/results/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa \
- /api/v1/finance/transactions /api/v1/finance/reconciliation; do
+ /api/v1/finance/transactions /api/v1/finance/reconciliation \
+  /api/v1/finance/refunds /api/v1/finance/lab-payables \
+  /api/v1/finance/lab-settlements; do
   [[ "$(status "http://127.0.0.1:$PORT$path")" == 401 ]] ||
     fail "Unauthenticated route not denied: $path"
 done
 for path in /api/v1/ops/results/intake \
  /api/v1/ops/results/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/release \
- /api/v1/finance/reconciliation/runs; do
+ /api/v1/finance/reconciliation/runs \
+  /api/v1/finance/refunds /api/v1/finance/refunds/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/review \
+  /api/v1/finance/lab-payables /api/v1/finance/lab-settlements \
+  /api/v1/finance/lab-settlements/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/review; do
   [[ "$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
     -H 'content-type: application/json' -d '{}' \
     "http://127.0.0.1:$PORT$path" 2>/dev/null || true)" == 401 ]] ||

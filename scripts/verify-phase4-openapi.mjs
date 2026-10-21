@@ -7,7 +7,15 @@ const required=[
   ['get','/api/v1/results/{resultId}'],
   ['get','/api/v1/finance/transactions'],
   ['get','/api/v1/finance/reconciliation'],
-  ['post','/api/v1/finance/reconciliation/runs']
+  ['post','/api/v1/finance/reconciliation/runs'],
+  ['get','/api/v1/finance/refunds'],
+  ['post','/api/v1/finance/refunds'],
+  ['post','/api/v1/finance/refunds/{id}/review'],
+  ['get','/api/v1/finance/lab-payables'],
+  ['post','/api/v1/finance/lab-payables'],
+  ['get','/api/v1/finance/lab-settlements'],
+  ['post','/api/v1/finance/lab-settlements'],
+  ['post','/api/v1/finance/lab-settlements/{id}/review']
 ];
 for(const [method,path] of required){
   const operation=doc.paths?.[path]?.[method];
