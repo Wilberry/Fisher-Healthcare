@@ -11,7 +11,7 @@ suite.sequential('Phase 4 physical copy quote workflow (disposable PostgreSQL)',
  const ids={
   owner:randomUUID(),other:randomUUID(),finance:randomUUID(),financeStaff:randomUUID(),
   patient:randomUUID(),zone:randomUUID(),lab:randomUUID(),order:randomUUID(),
-  result:randomUUID(),test:randomUUID(),orderItem:randomUUID(),
+  result:randomUUID(),legacyResult:randomUUID(),test:randomUUID(),orderItem:randomUUID(),
   specimen:randomUUID(),intakeKey:randomUUID(),
   address:randomUUID(),secondAddress:randomUUID(),
   requestKey:randomUUID(),secondKey:randomUUID(),releaseKey:randomUUID()
@@ -90,6 +90,15 @@ suite.sequential('Phase 4 physical copy quote workflow (disposable PostgreSQL)',
    await pool.query(`
      INSERT INTO phase4_result_release_events(result_id,release_key,released_by)
      VALUES($1,$2,$3)`,[ids.result,ids.releaseKey,ids.finance]);
+   // Legacy synthetic row with a release event but without Phase 4 intake
+   // must not qualify for the stricter Phase 4 physical-copy workflow.
+   await pool.query(`
+     INSERT INTO results(id,order_id,patient_id,object_key,released_at,released_by)
+     VALUES($1,$2,$3,'synthetic/results/legacy.pdf',now(),$4)`,
+     [ids.legacyResult,ids.order,ids.patient,ids.finance]);
+   await pool.query(`
+     INSERT INTO phase4_result_release_events(result_id,release_key,released_by)
+     VALUES($1,$2,$3)`,[ids.legacyResult,randomUUID(),ids.finance]);
    for(const addr of [ids.address,ids.secondAddress]){
      await pool.query(`
        INSERT INTO patient_addresses(id,patient_id,owner_user_id,zone_id,
@@ -109,6 +118,11 @@ suite.sequential('Phase 4 physical copy quote workflow (disposable PostgreSQL)',
       resultId:ids.result,addressId:ids.address,requestKey:randomUUID()
    })).rejects.toThrow();
    await expect(physical.patientRequests(identity(otherSubject),ids.patient)).rejects.toThrow();
+ });
+ it('refuses legacy release-only rows without an authorized Phase 4 intake',async()=>{
+   await expect(physical.request(identity(ownerSubject),ids.patient,{
+     resultId:ids.legacyResult,addressId:ids.address,requestKey:randomUUID()
+   })).rejects.toThrow();
  });
  it('creates a request but cannot charge or dispatch; retries are idempotent',async()=>{
    const input={resultId:ids.result,addressId:ids.address,requestKey:ids.requestKey};
