@@ -55,7 +55,10 @@ export class Phase4PhysicalCopyService implements OnModuleDestroy{
      const actor=await this.requester(c,identity.subject,patientId);
      const eligible=await c.query(`
        SELECT res.id FROM results res
+       JOIN phase4_result_intakes intake ON intake.result_id=res.id
+       JOIN orders o ON o.id=res.order_id AND o.lab_id=intake.lab_id
        JOIN phase4_result_release_events released ON released.result_id=res.id
+         AND released.released_by=res.released_by
        JOIN patient_addresses addr ON addr.id=$3 AND addr.patient_id=res.patient_id
          AND addr.owner_user_id=$4 AND addr.verified_at IS NOT NULL AND addr.revoked_at IS NULL
        JOIN service_zones zone ON zone.id=addr.zone_id AND zone.active
@@ -156,7 +159,10 @@ export class Phase4PhysicalCopyService implements OnModuleDestroy{
      const eligible=await c.query(`
        SELECT 1 FROM phase4_physical_copy_requests item
        JOIN results res ON res.id=item.result_id
+       JOIN phase4_result_intakes intake ON intake.result_id=res.id
+       JOIN orders o ON o.id=res.order_id AND o.lab_id=intake.lab_id
        JOIN phase4_result_release_events released ON released.result_id=res.id
+         AND released.released_by=res.released_by
        JOIN patient_relationships rel ON rel.patient_id=item.patient_id
          AND rel.user_id=item.requested_by
          AND rel.relationship='self' AND rel.can_view_results AND rel.can_book
