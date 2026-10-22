@@ -137,7 +137,6 @@ for path in /api/v1/ops/results/intake \
     "http://127.0.0.1:$PORT$path" 2>/dev/null || true)" == 401 ]] ||
       fail "Unauthenticated mutation not denied: $path"
 done
-SMOKE="PASS"
 kill "$API_PID" 2>/dev/null || true
 wait "$API_PID" 2>/dev/null || true
 API_PID=""
@@ -199,6 +198,7 @@ git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
   fail "Source branch moved during acceptance"
 [[ "$(git rev-parse HEAD)" == "$SOURCE" ]] || fail "Verification commit changed"
 [[ -z "$(git status --porcelain --untracked-files=all)" ]] || fail "Worktree not clean"
+SMOKE="PASS"
 echo "PHASE4_LOCAL_ACCEPTED_SHA=$SOURCE"
 echo "PHASE4_PUSHED=NO"
 echo "Phase 4 is still synthetic-only and requires separate clinical release gates."
