@@ -9,19 +9,26 @@ const suite = dbUrl && process.env.FISHER_DISPOSABLE_DB_ACK === 'disposable-test
 suite.sequential('PostgreSQL outbox fencing', () => {
   let pool: Pool;
   const created: string[] = [];
+  const schema = 'outbox_test_' + randomUUID().replaceAll('-', '');
   beforeAll(async () => {
     if (!dbUrl || process.env.FISHER_DISPOSABLE_DB_ACK !== 'disposable-test-only') {
       throw new Error('Disposable outbox test environment is required');
     }
-    pool = new Pool({ connectionString: dbUrl, max: 5 });
+    pool = new Pool({ connectionString: dbUrl, max: 5,
+      options: '-c search_path=' + schema + ',public' });
     const identity = await pool.query('SELECT current_database() AS db');
     if (identity.rows[0]?.db !== 'fisher_test') {
       throw new Error('Refusing outbox mutation outside fisher_test');
     }
+    // API suites leave legitimate queued events in public.outbox. Isolate the
+    // queue while retaining the actual migrated columns, indexes and checks.
+    await pool.query('CREATE SCHEMA ' + schema);
+    await pool.query('CREATE TABLE ' + schema + '.outbox (LIKE public.outbox INCLUDING ALL)');
   });
   afterAll(async () => {
     if (pool) {
       for (const id of created) await pool.query('DELETE FROM outbox WHERE id=$1::uuid', [id]);
+      await pool.query('DROP SCHEMA ' + schema + ' CASCADE');
       await pool.end();
     }
   });
