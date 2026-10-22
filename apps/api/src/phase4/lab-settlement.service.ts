@@ -95,9 +95,9 @@ export class Phase4LabSettlementsService implements OnModuleDestroy{
   try{return await this.transact(async c=>{
    const actor=await this.actor(c,identity.subject);
    // Lock the laboratory first to serialize competing batch submissions.
-   const lab=await c.query(`
-     SELECT id FROM laboratories WHERE id=$1 AND active FOR UPDATE`,[input.labId]);
-   if(lab.rowCount!==1)throw new ConflictException('Laboratory unavailable');
+   const lab=await c.query<{active:boolean}>(`
+     SELECT active FROM laboratories WHERE id=$1 FOR UPDATE`,[input.labId]);
+   if(!lab.rows[0])throw new ConflictException('Laboratory unavailable');
    const old=await c.query<Batch>(`
      SELECT * FROM phase4_lab_settlement_batches WHERE batch_key=$1`,[input.batchKey]);
    if(old.rows[0]){
@@ -110,6 +110,7 @@ export class Phase4LabSettlementsService implements OnModuleDestroy{
        throw new ConflictException('Settlement idempotency key reused');
      return {data:{id:batch.id,status:batch.status,replayed:true,payoutExecuted:false}};
    }
+   if(!lab.rows[0].active)throw new ConflictException('Laboratory unavailable');
    const sorted=[...input.payableIds].sort();
    const rows=await c.query<Payable>(`
      SELECT id,lab_id,amount_kobo,assigned_batch FROM phase4_lab_payables
@@ -151,13 +152,15 @@ export class Phase4LabSettlementsService implements OnModuleDestroy{
    if(decision==='approve'){
      // Approval never overrides laboratory deactivation. Acquire the lab
      // lock before the batch lock, matching settlement creation lock order.
-     const current=await c.query<{lab_id:string}>(`
-       SELECT lab_id FROM phase4_lab_settlement_batches WHERE id=$1`,[id]);
+     const current=await c.query<{lab_id:string;status:string}>(`
+       SELECT lab_id,status FROM phase4_lab_settlement_batches WHERE id=$1`,[id]);
      if(!current.rows[0])throw new ForbiddenException('Settlement unavailable');
-     const live=await c.query(`
-       SELECT id FROM laboratories WHERE id=$1 AND active FOR SHARE`,
-       [current.rows[0].lab_id]);
-     if(live.rowCount!==1)throw new ConflictException('Laboratory is no longer active');
+     if(current.rows[0].status==='pending'){
+       const live=await c.query(`
+         SELECT id FROM laboratories WHERE id=$1 AND active FOR SHARE`,
+         [current.rows[0].lab_id]);
+       if(live.rowCount!==1)throw new ConflictException('Laboratory is no longer active');
+     }
    }
    const batch=await c.query<Batch>(`
      SELECT * FROM phase4_lab_settlement_batches WHERE id=$1 FOR UPDATE`,[id]);
@@ -184,6 +187,7 @@ export class Phase4LabSettlementsService implements OnModuleDestroy{
        throw new ConflictException('Settlement decision already finalized');
      return {data:{id,status,replayed:true,payoutExecuted:false}};
    }
+
    await c.query(`
      UPDATE phase4_lab_settlement_batches
      SET status=$2,reviewed_by=$3,reviewed_at=now(),review_note=$4

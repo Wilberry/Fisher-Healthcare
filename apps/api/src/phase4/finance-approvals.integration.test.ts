@@ -98,6 +98,10 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
     expect(one.data).toMatchObject({status:'approved',providerRefundExecuted:false});
     expect((await refunds.review(identity(subjectB),refundId,'approve',
       'Reviewed collected fee')).data.replayed).toBe(true);
+    await pool.query("UPDATE payments SET status='refunded' WHERE id=$1",[ids.payment]);
+    expect((await refunds.review(identity(subjectB),refundId,'approve',
+      'Reviewed collected fee')).data.replayed).toBe(true);
+    await pool.query("UPDATE payments SET status='paid' WHERE id=$1",[ids.payment]);
     await expect(refunds.review(identity(subjectB),refundId,'reject',
       'Reviewed collected fee')).rejects.toThrow();
   });
@@ -157,6 +161,10 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
     const approved=await settlements.review(identity(subjectB),retry.data.id,'approve',
       'Agreement independently checked');
     expect(approved.data).toMatchObject({status:'approved',payoutExecuted:false});
+    await pool.query('UPDATE laboratories SET active=false WHERE id=$1',[ids.lab]);
+    expect((await settlements.review(identity(subjectB),retry.data.id,'approve',
+      'Agreement independently checked')).data.replayed).toBe(true);
+    await pool.query('UPDATE laboratories SET active=true WHERE id=$1',[ids.lab]);
     // Persisted accounting evidence cannot be silently rewritten even by a
     // future service bug or administrator using direct SQL.
     await expect(pool.query(`
