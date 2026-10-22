@@ -179,6 +179,10 @@ function validateDocument(document: OpenAPIObject): void {
       throw new OpenApiContractError('Phase 4 bearer route missing: '+method+' '+path);
   }
 
+  const phase5Snapshot=document.paths['/api/v1/ops/pilot-readiness/snapshot']?.get;
+  if(!phase5Snapshot?.security?.some(s=>Object.hasOwn(s,'bearer')))
+    throw new OpenApiContractError('Missing authenticated Phase 5 readiness snapshot');
+
   if (!document.components?.securitySchemes?.bearer) {
     throw new OpenApiContractError('Required bearer authentication scheme is not documented');
   }

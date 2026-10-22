@@ -47,6 +47,8 @@ import { Phase4LabSettlementController } from './phase4/lab-settlement.controlle
 import { Phase4LabSettlementsService } from './phase4/lab-settlement.service';
 import { Phase4PhysicalCopyController } from './phase4/physical-copy.controller';
 import { Phase4PhysicalCopyService } from './phase4/physical-copy.service';
+import { Phase5PostureController } from './phase5/posture.controller';
+import { Phase5PostureService } from './phase5/posture.service';
 
 @Controller('health')
 class HealthController {
@@ -57,7 +59,7 @@ class HealthController {
 }
 
 @Module({
-  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController, CatalogAdminController, GuestBookingPublicController, GuestBookingStaffController, WorkQueueController, Phase3CustodyController, Phase3DispatchController, Phase3FieldAssignmentsController, Phase3OfflineSyncController, Phase3IncidentsController, Phase3ManifestController, Phase3HandoffController, Phase3AssignmentEventsController, Phase3LabAccessController, Phase3LabelController, Phase4ResultsController, Phase4FinanceController, Phase4RefundController, Phase4LabSettlementController, Phase4PhysicalCopyController],
-  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PublicRateLimitService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService, PaymentReviewService, Phase3CustodyService, Phase3DispatchService, Phase3FieldAssignmentsService, Phase3IncidentsService, Phase3ManifestService, Phase3HandoffService, Phase3AssignmentEventsService, Phase3LabAccessService, Phase3LabelService, Phase4ResultsService, Phase4FinanceService, Phase4RefundService, Phase4LabSettlementsService, Phase4PhysicalCopyService]
+  controllers: [HealthController, IdentityController, AccessController, FoundationController, BookingPatientController, BookingPublicController, PaymentPatientController, PaymentWebhookController, PatientsController, AccountProvisioningController, BookingVerificationController, AddressVerificationController, SupportController, CatalogAdminController, GuestBookingPublicController, GuestBookingStaffController, WorkQueueController, Phase3CustodyController, Phase3DispatchController, Phase3FieldAssignmentsController, Phase3OfflineSyncController, Phase3IncidentsController, Phase3ManifestController, Phase3HandoffController, Phase3AssignmentEventsController, Phase3LabAccessController, Phase3LabelController, Phase4ResultsController, Phase4FinanceController, Phase4RefundController, Phase4LabSettlementController, Phase4PhysicalCopyController, Phase5PostureController],
+  providers: [IdentityVerifier, IdentityGuard, AccessService, BookingService, PublicRateLimitService, PaymentService, PatientsService, AccountProvisioningService, BookingVerificationService, AddressesService, SupportService, CatalogAdminService, GuestBookingService, PaymentReviewService, Phase3CustodyService, Phase3DispatchService, Phase3FieldAssignmentsService, Phase3IncidentsService, Phase3ManifestService, Phase3HandoffService, Phase3AssignmentEventsService, Phase3LabAccessService, Phase3LabelService, Phase4ResultsService, Phase4FinanceService, Phase4RefundService, Phase4LabSettlementsService, Phase4PhysicalCopyService, Phase5PostureService]
 })
 export class AppModule {}
