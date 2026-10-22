@@ -45,6 +45,7 @@ cleanup(){
 }
 trap cleanup EXIT
 node scripts/verify-phase5-contract.mjs >"$LOG/01-contract.log" 2>&1
+node --test scripts/phase5-local-probe.test.mjs >"$LOG/01b-probe-tests.log" 2>&1
 if FISHER_VERIFY_LOG_DIR="$LOG/core" \
  FISHER_PHASE2_LOCAL_ACK=synthetic-only \
  FISHER_PHASE2_ACCEPTANCE_ACK=exact-commit \
@@ -78,6 +79,9 @@ done
  { echo "Phase 5 API health check failed" >&2; exit 2; }
 [[ "$(status "http://127.0.0.1:$PORT/api/v1/ops/pilot-readiness/snapshot")" == 401 ]] ||
  { echo "Unauthenticated readiness endpoint exposed" >&2; exit 2; }
+FISHER_PHASE5_LOAD_ACK=synthetic-loopback \
+ node scripts/phase5-local-probe.mjs "http://127.0.0.1:$PORT/" \
+ >"$LOG/05b-loopback-probe.json" 2>&1
 kill "$API_PID" 2>/dev/null || true
 wait "$API_PID" 2>/dev/null || true; API_PID=""
 WEB_PORT="$((46000+RANDOM%1500))"

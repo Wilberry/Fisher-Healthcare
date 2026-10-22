@@ -38,6 +38,19 @@ Run `FISHER_PHASE5_RESTORE_ACK=new-disposable-only bash scripts/phase5-disposabl
 
 **It does not test production backups, encryption keys, multi-region failover, disaster-recovery timing or real patient data.** Those require separately approved infrastructure and controlled evidence. The script never connects to an existing database or Docker Compose service.
 
+## Bounded synthetic failure and latency baseline
+
+The optional `scripts/phase5-local-probe.mjs` requires
+`FISHER_PHASE5_LOAD_ACK=synthetic-loopback` and rejects non-loopback targets,
+credentials, query strings and URL fragments. It issues at most 40 bounded
+GET requests to health (expected 200) and the protected readiness route
+(expected 401 without a token), recording only the status distribution and
+p95/max latency. It does not send patient data or mutate application state.
+
+The observations are **not** an agreed clinical or production SLA and do not
+cover sustained load, external providers, edge routing or incident response.
+Formal SLO targets and stress/load profiles must be approved separately.
+
 ## Exact-commit Phase 5 acceptance
 
 From the Phase 5 branch checkout, run:
