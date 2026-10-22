@@ -99,6 +99,10 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
     expect((await refunds.review(identity(subjectB),refundId,'approve',
       'Reviewed collected fee')).data.replayed).toBe(true);
     await pool.query("UPDATE payments SET status='refunded' WHERE id=$1",[ids.payment]);
+    expect((await refunds.request(identity(subjectA),{
+      paymentId:ids.payment,requestKey:ids.refundKey,
+      amountKobo:6000,reasonCode:'failed_collection'
+    })).data.replayed).toBe(true);
     expect((await refunds.review(identity(subjectB),refundId,'approve',
       'Reviewed collected fee')).data.replayed).toBe(true);
     await pool.query("UPDATE payments SET status='paid' WHERE id=$1",[ids.payment]);
@@ -144,8 +148,9 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
     const declined=await settlements.review(identity(subjectB),batch.data.id,'reject',
       'Agreement independently checked');
     expect(declined.data).toMatchObject({status:'rejected',payoutExecuted:false});
+    const retryKey=randomUUID();
     const retry=await settlements.propose(identity(subjectA),{
-      ...request,batchKey:randomUUID()
+      ...request,batchKey:retryKey
     });
     await pool.query('UPDATE laboratories SET active=false WHERE id=$1',[ids.lab]);
     await expect(settlements.review(identity(subjectB),retry.data.id,'approve',
@@ -162,6 +167,9 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
       'Agreement independently checked');
     expect(approved.data).toMatchObject({status:'approved',payoutExecuted:false});
     await pool.query('UPDATE laboratories SET active=false WHERE id=$1',[ids.lab]);
+    expect((await settlements.propose(identity(subjectA),{
+      ...request,batchKey:retryKey
+    })).data.replayed).toBe(true);
     expect((await settlements.review(identity(subjectB),retry.data.id,'approve',
       'Agreement independently checked')).data.replayed).toBe(true);
     await pool.query('UPDATE laboratories SET active=true WHERE id=$1',[ids.lab]);
