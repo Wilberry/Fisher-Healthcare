@@ -27,6 +27,15 @@
     "test": {
       "dependsOn": [
         "^build"
+      ],
+      "cache": false,
+      "passThroughEnv": [
+        "DATABASE_URL",
+        "FISHER_DISPOSABLE_DB_ACK",
+        "FISHER_PHASE2_BOOKING_MODE",
+        "FISHER_PHASE2_PAYMENT_MODE",
+        "FISHER_PHASE4_OPERATION_MODE",
+        "PAYSTACK_SECRET_KEY"
       ]
     }
   }
