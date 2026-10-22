@@ -129,14 +129,36 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
       'Payment reversal independently checked');
     expect(declined.data.status).toBe('rejected');
   });
+  it('denies payable creation when release timestamp lacks a signed-off release event',async()=>{
+    const extraResult=randomUUID(),extraItem=randomUUID(),extraIntake=randomUUID();
+    await pool.query(`
+      INSERT INTO order_items(id,order_id,test_id,price_kobo)
+      VALUES($1,$2,$3,10000)`,[extraItem,ids.order,ids.test]);
+    await pool.query(`
+      INSERT INTO results(id,order_id,patient_id,object_key,released_at,released_by)
+      VALUES($1,$2,$3,$4,now(),$5)`,
+      [extraResult,ids.order,ids.patient,'synthetic/results/'+extraIntake+'.pdf',ids.finance1]);
+    await pool.query(`
+      INSERT INTO phase4_result_intakes(result_id,order_item_id,specimen_id,
+        lab_id,intake_key,intake_fingerprint,document_sha256,
+        validation_reference,intake_by)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [extraResult,extraItem,ids.specimen,ids.lab,extraIntake,
+        'c'.repeat(64),'d'.repeat(64),'SYN-VALIDATED-0002',ids.finance1]);
+    await expect(settlements.addPayable(identity(subjectA),{
+      resultId:extraResult,amountKobo:100,
+      agreementReference:'SYN-AGREEMENT-0002'
+    })).rejects.toThrow();
+    const row=await pool.query(`
+      SELECT id FROM phase4_lab_payables WHERE result_id=$1`,[extraResult]);
+    expect(row.rowCount).toBe(0);
+  });
   it('records payable from a released, paid result, never from the customer list price',async()=>{
     const p={resultId:ids.result,amountKobo:2500,agreementReference:'SYN-AGREEMENT-0001'};
     await pool.query("UPDATE payments SET status='pending' WHERE id=$1",[ids.payment]);
     await expect(settlements.addPayable(identity(subjectA),p)).rejects.toThrow();
     await pool.query("UPDATE payments SET status='paid' WHERE id=$1",[ids.payment]);
-    // A timestamp alone is not independently verifiable release evidence.
-    // The event is immutable; temporarily remove it only in this disposable
-    // test before any payable/settlement has been recorded.
+    // Release evidence is immutable and cannot be removed after acceptance.
     await expect(pool.query(`
       DELETE FROM phase4_result_release_events WHERE result_id=$1`,
       [ids.result])).rejects.toThrow();
