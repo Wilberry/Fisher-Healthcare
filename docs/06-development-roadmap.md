@@ -1,6 +1,6 @@
 # Fisher Healthcare Development Roadmap
 
-**Programme status:** **Phase 4 — Laboratory, Results and Finance is in development.** Phases 1–3 are merged into `main` following local engineering acceptance. The roadmap defines the company's delivery sequence, scope and release assurance requirements. Milestone dates remain dependent on staffing, partnerships and operational capacity.
+**Programme status:** **Phase 5 — Production readiness and controlled Lagos pilot is in development.** Phases 1–4 are merged into `main` following synthetic-only engineering acceptance. The roadmap defines the company's delivery sequence, scope and release assurance requirements. Milestone dates remain dependent on staffing, partnerships and operational capacity.
 
 ## Phase 1 — Product foundation, UX and architecture
 
@@ -38,13 +38,15 @@
 
 ## Phase 4 — Laboratory, results and finance
 
-**Engineering milestone status: IN DEVELOPMENT.** Work is on `feat/phase4-lab-results-finance`.
+**Engineering milestone status: SYNTHETIC-ONLY ACCEPTED AND MERGED (22 October 2026).** Local acceptance covered 35 migrations, 217 tests (none skipped), lint, TypeScript, build, OpenAPI parity, dependency security gates and smoke checks. Merged via [PR #6](https://github.com/Wilberry/Fisher-Healthcare/pull/6) as `0db35a3ea9150fec14157b2b5998270d42941b19`. This does not authorize live clinical processing, financial transfers or physical delivery.
 
 **Planned capabilities and deliverables:** Internal laboratory onboarding and offerings, acceptance/rejection workflows, controlled result intake/release, patient dashboard result history, secure email delivery, physical-copy add-on workflow, payment reconciliation, refunds, lab payables/settlements and reporting.
 
 **Phase completion criteria:** Result access is patient-scoped and audited; dashboard/email paths tested independently; rejected specimen does not corrupt unrelated tests; financial ledger reconciles.
 
 ## Phase 5 — Production readiness and controlled Lagos pilot
+
+**Engineering programme:** Phase 5 technical controls are being developed on `feat/phase5-production-readiness`. Clinical SOPs, legal/privacy approvals, laboratory contracts, supervised pilot and public-launch authorization are independent operational release gates; technical readiness metrics do not confer these approvals.
 
 **Planned capabilities and deliverables:** Partner agreements, clinically approved SOPs, Nigerian privacy/regulatory review, security assessment, production infrastructure, encrypted backups and restore drills, incident runbooks, observability, load and failure tests, training and small supervised real-order pilot.
 
