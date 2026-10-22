@@ -158,6 +158,9 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
     await pool.query("UPDATE payments SET status='pending' WHERE id=$1",[ids.payment]);
     await expect(settlements.addPayable(identity(subjectA),p)).rejects.toThrow();
     await pool.query("UPDATE payments SET status='paid' WHERE id=$1",[ids.payment]);
+    await pool.query('UPDATE laboratories SET active=false WHERE id=$1',[ids.lab]);
+    await expect(settlements.addPayable(identity(subjectA),p)).rejects.toThrow();
+    await pool.query('UPDATE laboratories SET active=true WHERE id=$1',[ids.lab]);
     // Release evidence is immutable and cannot be removed after acceptance.
     await expect(pool.query(`
       DELETE FROM phase4_result_release_events WHERE result_id=$1`,
