@@ -146,6 +146,39 @@ function validateDocument(document: OpenAPIObject): void {
     }
   }
 
+  const phase4Operations = [
+    ['/api/v1/ops/results/intake-readiness','get'],
+    ['/api/v1/ops/results/pending','get'],
+    ['/api/v1/ops/results/intake','post'],
+    ['/api/v1/ops/results/{resultId}/release','post'],
+    ['/api/v1/patients/{patientId}/result-email-preference','get'],
+    ['/api/v1/patients/{patientId}/result-email-preference','post'],
+    ['/api/v1/patients/{patientId}/results','get'],
+    ['/api/v1/results/{resultId}','get'],
+    ['/api/v1/results/{resultId}/document','get'],
+    ['/api/v1/finance/transactions','get'],
+    ['/api/v1/finance/reconciliation','get'],
+    ['/api/v1/finance/reconciliation/runs','post'],
+    ['/api/v1/finance/refunds','get'],
+    ['/api/v1/finance/refunds','post'],
+    ['/api/v1/finance/refunds/{id}/review','post'],
+    ['/api/v1/finance/lab-payables','get'],
+    ['/api/v1/finance/lab-payables','post'],
+    ['/api/v1/finance/lab-settlements','get'],
+    ['/api/v1/finance/lab-settlements','post'],
+    ['/api/v1/finance/lab-settlements/{id}/review','post'],
+    ['/api/v1/patients/{patientId}/physical-copies','get'],
+    ['/api/v1/patients/{patientId}/physical-copies','post'],
+    ['/api/v1/patients/{patientId}/physical-copies/{id}/cancel','post'],
+    ['/api/v1/finance/physical-copies','get'],
+    ['/api/v1/finance/physical-copies/{id}/quote','post']
+  ] as const;
+  for(const [path,method] of phase4Operations){
+    const route=document.paths[path]?.[method];
+    if(!route||!route.security?.some(s=>Object.hasOwn(s,'bearer')))
+      throw new OpenApiContractError('Phase 4 bearer route missing: '+method+' '+path);
+  }
+
   if (!document.components?.securitySchemes?.bearer) {
     throw new OpenApiContractError('Required bearer authentication scheme is not documented');
   }
@@ -165,7 +198,7 @@ async function generate(): Promise<void> {
       app,
       new DocumentBuilder()
         .setTitle('Fisher Healthcare API')
-        .setDescription('Phase 1 identity, Phase 2 booking/payment, and Phase 3 dispatch/custody contracts. Phase 3 operations are disabled outside explicit synthetic test mode.')
+        .setDescription('Phase 1 identity, Phase 2 booking/payment, Phase 3 dispatch/custody and Phase 4 results contracts. Phase 3 and Phase 4 operations require explicitly enabled synthetic test mode.')
         .setVersion('0.1.0')
         .addBearerAuth()
         .build()

@@ -139,7 +139,7 @@ export class GuestBookingService implements OnModuleDestroy {
     if(row.rowCount!==1)throw new ConflictException('Guest request not eligible for assignment');
     await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
       VALUES($1,'guest.assisted_review_started','guest_booking',$2,
-       jsonb_build_object('evidenceReference',$3))`,[reviewer.id,id,reference]);
+       jsonb_build_object('evidenceReference',$3::text))`,[reviewer.id,id,reference]);
     await c.query('COMMIT');
     return {requestId:id,status:'in_review'};
    }catch(e){await c.query('ROLLBACK');throw e;}

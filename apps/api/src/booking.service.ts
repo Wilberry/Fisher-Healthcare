@@ -160,7 +160,7 @@ export class BookingService implements OnModuleDestroy {
    const d=await c.query<{id:string}>(`INSERT INTO booking_drafts(user_id,patient_id,quote_id,address_id,consent_version,consented_at)
     VALUES($1,$2,$3,$4,$5,clock_timestamp()) RETURNING id`,[userId,patientId,quoteId,addressId,policyVersion]);
    await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
-     VALUES($1,'booking.policy_acknowledged','booking_draft',$2,jsonb_build_object('version',$3))`,
+     VALUES($1,'booking.policy_acknowledged','booking_draft',$2,jsonb_build_object('version',$3::text))`,
      [userId,d.rows[0]!.id,policyVersion]);
    const h=await c.query<{expires_at:Date}>(`INSERT INTO slot_holds(draft_id,slot_id,expires_at)
     VALUES($1,$2,LEAST(clock_timestamp()+interval '5 minutes',$3::timestamptz)) RETURNING expires_at`,
@@ -280,7 +280,7 @@ export class BookingService implements OnModuleDestroy {
    await c.query(`INSERT INTO booking_schedule_changes(order_id,from_slot_id,to_slot_id,idempotency_key,actor_id)
      VALUES($1,$2,$3,$4,$5)`,[id,currentSlot,newSlotId,key,userId]);
    await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
-     VALUES($1,'booking.rescheduled','order',$2,jsonb_build_object('fromSlot',$3,'toSlot',$4))`,
+     VALUES($1,'booking.rescheduled','order',$2,jsonb_build_object('fromSlot',$3::text,'toSlot',$4::text))`,
      [userId,id,currentSlot,newSlotId]);
    return {bookingId:id,slotId:newSlotId,status:'awaiting_payment'};
   });

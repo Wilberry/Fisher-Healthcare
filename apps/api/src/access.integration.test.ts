@@ -8,7 +8,10 @@ import request from 'supertest';
 import { NestFactory } from '@nestjs/core';
 import type { INestApplication } from '@nestjs/common';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AppModule } from './module';
+import { createRequire } from 'node:module';
+// Exercise the production build, which emits Nest constructor metadata.
+// Vitest's source transform does not emit TypeScript decorator metadata.
+const { AppModule } = createRequire(import.meta.url)('../dist/module.js');
 
 const suite = process.env.FISHER_DISPOSABLE_DB_ACK === 'disposable-test-only' && process.env.DATABASE_URL ? describe : describe.skip;
 suite.sequential('authenticated resource access (disposable PostgreSQL only)', () => {

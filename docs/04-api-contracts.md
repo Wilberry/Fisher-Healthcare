@@ -55,11 +55,35 @@ No sensitive clinical data in URL query strings or public error responses.
 | GET | /patients/:patientId/relationships | Authorized relationship grants |
 | POST | /relationships/:relationshipId/revoke | Revoke delegated access |
 | GET | /patients/:patientId/results | Released result listing |
+| GET | /patients/:patientId/result-email-preference | Current self-owned result email consent |
+| POST | /patients/:patientId/result-email-preference | Revocable result-availability email opt-in/out |
+| GET | /patients/:patientId/physical-copies | Patient-owned optional physical-copy quote requests |
+| POST | /patients/:patientId/physical-copies | Request a quote for a released result at an approved address |
+| POST | /patients/:patientId/physical-copies/:id/cancel | Cancel an unquoted request |
 | GET | /results/:resultId | Authorized result metadata |
-| POST | /results/:resultId/download-ticket | Short-lived authorized document access |
+| GET | /results/:resultId/document | Audited, patient-authorized synthetic PDF download; disabled for production |
 | GET | /patients/:patientId/bookings | Authorized history |
 | GET | /patients/:patientId/addresses | Saved collection locations |
 | POST | /patients/:patientId/addresses | Save authorized address |
+
+### Phase 4 synthetic finance and physical-copy quotation
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | /finance/transactions | Authorized payment reconciliation view |
+| GET | /finance/reconciliation | Immutable reconciliation history |
+| POST | /finance/reconciliation/runs | Run guarded synthetic reconciliation |
+| GET, POST | /finance/refunds | Review and record bounded refund requests |
+| POST | /finance/refunds/:id/review | Independent approval or rejection; no provider refund |
+| GET, POST | /finance/lab-payables | Read and record synthetic agreement payables |
+| GET, POST | /finance/lab-settlements | Read and propose partner settlement batches |
+| POST | /finance/lab-settlements/:id/review | Independent settlement decision; no bank transfer |
+| GET | /finance/physical-copies | Finance-only physical-copy quotation queue |
+| POST | /finance/physical-copies/:id/quote | Record a bounded synthetic quote; never charge or dispatch |
+
+Production clinical data, document storage, real result-email delivery, refund execution,
+settlement transfers, physical-copy payment and courier handoff are not activated by
+these development endpoints.
 
 ## 4. Operations and administration
 
@@ -92,6 +116,8 @@ All `/ops/*` routes require authenticated staff roles and resource-scoped permis
 | POST | /ops/lab-manifests/:manifestId/receipt | Record lab acceptance/rejection |
 | POST | /ops/results/intake | Register controlled lab result |
 | POST | /ops/results/:resultId/release | Authorized result release |
+| GET | /ops/results/pending | MFA-protected independent release review queue |
+| GET | /ops/results/intake-readiness | Laboratory staff permission probe |
 | GET | /ops/exceptions | Operational exception queue |
 | POST | /ops/exceptions/:exceptionId/resolve | Resolution with reason |
 | GET | /ops/customers | Scoped customer support lookup |
