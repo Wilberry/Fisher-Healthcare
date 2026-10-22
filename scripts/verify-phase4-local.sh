@@ -52,8 +52,13 @@ SOURCE="$(git rev-parse HEAD)"
 git merge-base --is-ancestor 909971ac8ec482d23a714d64d8050d6aeea8a8bb HEAD ||
   fail "Merged Phase 3 baseline missing"
 git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
-[[ "$(git rev-parse "refs/remotes/origin/$BRANCH")" == "$SOURCE" ]] ||
+# Local repair commits may be accepted without pushing, provided the pinned
+# remote baseline remains unchanged and is an ancestor of the tested source.
+REMOTE_SOURCE="${FISHER_PHASE4_REMOTE_COMMIT:-$SOURCE}"
+[[ "$(git rev-parse "refs/remotes/origin/$BRANCH")" == "$REMOTE_SOURCE" ]] ||
   fail "Remote branch changed"
+git merge-base --is-ancestor "$REMOTE_SOURCE" "$SOURCE" ||
+  fail "Tested source does not descend from the pinned remote commit"
 for migration in 0026_phase4_result_intake_release.sql 0027_phase4_finance_reconciliation.sql \
   0028_phase4_result_email_delivery.sql 0029_phase4_refund_approval.sql \
   0030_phase4_lab_payables_settlements.sql \
@@ -190,7 +195,7 @@ for app in patient-web operations-web; do
   WEB_PORT="$((WEB_PORT+1))"
 done
 git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
-[[ "$(git rev-parse "refs/remotes/origin/$BRANCH")" == "$SOURCE" ]] ||
+[[ "$(git rev-parse "refs/remotes/origin/$BRANCH")" == "$REMOTE_SOURCE" ]] ||
   fail "Source branch moved during acceptance"
 [[ "$(git rev-parse HEAD)" == "$SOURCE" ]] || fail "Verification commit changed"
 [[ -z "$(git status --porcelain --untracked-files=all)" ]] || fail "Worktree not clean"

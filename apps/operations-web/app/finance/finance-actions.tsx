@@ -3,7 +3,7 @@ import {useRef,useState,type FormEvent} from 'react';
 import {useRouter} from 'next/navigation';
 type Row=Record<string,unknown>;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-export function FinanceActions({refunds,payables,batches,physicalCopies}:{
+export function FinanceActions({refunds,batches,physicalCopies}:{
  refunds:Row[];payables:Row[];batches:Row[];physicalCopies:Row[]
 }){
  const [payment,setPayment]=useState(''),[amount,setAmount]=useState('');
