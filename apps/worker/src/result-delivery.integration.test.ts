@@ -88,5 +88,27 @@ suite.sequential('Phase 4 email opt-in and revocation (disposable PostgreSQL)',(
   await pool.query(`UPDATE patient_relationships SET revoked_at=now(),can_view_results=false
     WHERE user_id=$1 AND patient_id=$2`,[ids.user,ids.patient]);
   expect(await claimResultEmail(pool,[email])).toBeNull();
+ }); it('rejects a queued timestamp-only result without Phase 4 release evidence',async()=>{
+  await pool.query(`
+    UPDATE phase4_result_delivery_intents
+      SET status='failed',lease_token=NULL,lease_expires_at=NULL
+    WHERE result_id=$1`,[ids.result]);
+  await pool.query(`
+    UPDATE patient_relationships SET revoked_at=NULL,can_view_results=true
+    WHERE user_id=$1 AND patient_id=$2`,[ids.user,ids.patient]);
+  const orphan=randomUUID();
+  await pool.query(`
+    INSERT INTO results(id,order_id,patient_id,object_key,released_at,released_by)
+    VALUES($1,$2,$3,'synthetic/results/orphan.pdf',now(),$4)`,
+    [orphan,ids.order,ids.patient,ids.user]);
+  await pool.query(`
+    INSERT INTO phase4_result_delivery_intents(result_id,channel)
+    VALUES($1,'email')`,[orphan]);
+  expect(await claimResultEmail(pool,[email])).toBeNull();
+  const record=await pool.query<{status:string;attempts:number}>(`
+    SELECT status,attempts FROM phase4_result_delivery_intents WHERE result_id=$1`,
+    [orphan]);
+  expect(record.rows[0]).toEqual({status:'pending',attempts:0});
  });
+
 });
