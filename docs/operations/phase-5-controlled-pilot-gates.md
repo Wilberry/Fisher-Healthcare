@@ -1,0 +1,51 @@
+# Phase 5 — Controlled-pilot operational gates
+
+The Phase 5 technical implementation prepares engineering evidence **without activating a real clinical service**.
+
+## Approval boundary
+
+The internal readiness snapshot always reports `pilotActivationAuthorized=false` and `productionReleaseAuthorized=false`. It has no write endpoint, override flag, rollout command, or approval-signing API. The feature requires administrator role, current staff permissions, MFA and an explicit local `fisher_test` database. It reports **only aggregate counts**, not patient, specimen or payment identifiers. Disable it outside disposable synthetic testing.
+
+A real Lagos pilot requires separately reviewed and recorded approvals from qualified people and organizations. A successful software acceptance run, or even zero outstanding incidents, **must never be interpreted as clinical or legal authorization**.
+
+## Non-technical gates owned by accountable professionals
+
+| Gate | Required evidence | Responsible authority |
+| --- | --- | --- |
+| Clinical collection and transport | Signed collection, labeling, transport, urgent-findings and escalation SOPs | Clinical lead and partner laboratories |
+| Results validation and release | Independent laboratory result validation, correction/retraction and consent processes | Accredited/authorized laboratory and clinical governance |
+| Nigerian privacy | Approved lawful basis, data flows, privacy notices, retention/deletion rules, incident handling and processing/vendor contracts | Nigerian qualified privacy/legal counsel and privacy lead |
+| Partners and operations | Executed laboratory contracts, verified personnel, Lagos zone and service rules | Business/operations and laboratories |
+| Provider integrations | Authorized identity, payments, private storage and outbound notification contracts; no test secrets | Security and infrastructure leads |
+| Recovery and incident handling | Encrypted offsite production backups, witnessed restore rehearsal with authorized synthetic or non-sensitive data, response escalation | Infrastructure, security and incident leads |
+| Pilot supervision | Named on-call owners, measured KPIs, stop/rollback criteria and sign-off | Responsible business and clinical leadership |
+
+Open items remain tracked in `docs/10-decisions-and-open-items.md`. No dates, clinical outcomes, prices, provider contracts or permissions should be assumed.
+
+## Synthetic observability baseline
+
+The administrator-only `GET /api/v1/ops/pilot-readiness/snapshot` exposes non-sensitive counts for unresolved specimen incidents, unprocessed/dead-letter outbox entries, pending result release, pending/failed result notifications, and pending financial reviews. Unavailable database measurements fail closed; no result content or patient identifiers are included.
+
+Classification `attention_required` indicates at least one unresolved incident, dead letter or failed result notification. `observed` does **not** mean safe for clinical release. Pending tasks are workload, not necessarily failures. Operational thresholds, paging rules and emergency rollback authority require explicit approval before pilot.
+
+## Disposable database recovery proof
+
+Run `FISHER_PHASE5_RESTORE_ACK=new-disposable-only bash scripts/phase5-disposable-restore-drill.sh` in a reviewed source checkout. This script:
+1. Starts one uniquely named PostgreSQL 16 container with a loopback-only port and an entirely new `fisher_test` database.
+2. Applies and checks migrations; inserts one synthetic marker with no PHI.
+3. Creates a temporary binary backup and restores to a distinct `fisher_restore_test` database in that same disposable container.
+4. Compares marker, migration registry count and migration checksums, records an evidence summary, then removes the temporary backup and only its own container.
+
+**It does not test production backups, encryption keys, multi-region failover, disaster-recovery timing or real patient data.** Those require separately approved infrastructure and controlled evidence. The script never connects to an existing database or Docker Compose service.
+
+## Exact-commit Phase 5 acceptance
+
+From the Phase 5 branch checkout, run:
+
+```bash
+FISHER_PHASE5_LOCAL_ACK=synthetic-only bash scripts/run-phase5-acceptance.sh
+```
+
+It prepares a detached verification worktree, runs the existing full local quality/security/migrations/API UI checks with the new unit and integration tests, runs the disposable recovery drill, and checks the new API/dashboard denied-access smoke. `main` is not modified, the PR is not merged, and no pilot is activated.
+
+A clean Phase 5 synthetic acceptance is only one prerequisite in the independent release authorization programme.

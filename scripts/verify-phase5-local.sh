@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# Exact-commit, synthetic-only Phase 5 source and isolated recovery acceptance.
+set -Eeuo pipefail
+umask 077
+[[ "${FISHER_PHASE5_LOCAL_ACK:-}" == "synthetic-only" ]] ||
+  { echo "Set FISHER_PHASE5_LOCAL_ACK=synthetic-only" >&2; exit 2; }
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+BRANCH=feat/phase5-production-readiness
+SHA="$(git rev-parse HEAD)"
+[[ "$(basename "$ROOT")" == Fisher-Healthcare-phase5-verification* ]] ||
+ { echo "Require an isolated phase5 verification worktree" >&2; exit 2; }
+[[ -z "$(git symbolic-ref --short -q HEAD || true)" ]] ||
+ { echo "Require a detached commit" >&2; exit 2; }
+[[ -z "$(git status --porcelain --untracked-files=all)" ]] ||
+ { echo "Source worktree must be clean" >&2; exit 2; }
+[[ "$SHA" == "${FISHER_EXPECTED_COMMIT:-}" ]] ||
+ { echo "Pinned commit mismatch" >&2; exit 2; }
+git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+[[ "$(git rev-parse "origin/$BRANCH")" == "$SHA" ]] ||
+ { echo "Remote Phase 5 branch does not match tested commit" >&2; exit 2; }
+git merge-base --is-ancestor 0db35a3ea9150fec14157b2b5998270d42941b19 HEAD ||
+ { echo "Merged Phase 4 baseline missing" >&2; exit 2; }
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+LOG="$ROOT/.verification/phase5-$STAMP-$$"
+mkdir -p "$LOG"
+CORE=NOT_RUN; RESTORE=NOT_RUN; SMOKE=NOT_RUN
+API_PID=""; WEB_PID=""
+cleanup(){
+ local code=$?
+ trap - EXIT
+ if [[ -n "$WEB_PID" ]]; then kill "$WEB_PID" 2>/dev/null || true; wait "$WEB_PID" 2>/dev/null || true; fi
+ if [[ -n "$API_PID" ]]; then kill "$API_PID" 2>/dev/null || true; wait "$API_PID" 2>/dev/null || true; fi
+ {
+   echo "Result: $([[ "$code" -eq 0 ]] && echo PASS || echo FAIL)"
+   echo "Commit: $SHA"
+   echo "Core checks: $CORE"
+   echo "Disposable restore: $RESTORE"
+   echo "Readiness smoke: $SMOKE"
+   echo "Pilot authorized: NO"
+   echo "Merge/push: NO"
+ } >"$LOG/summary.txt"
+ echo "Phase 5 acceptance evidence: $LOG/summary.txt"
+ exit "$code"
+}
+trap cleanup EXIT
+node scripts/verify-phase5-contract.mjs >"$LOG/01-contract.log" 2>&1
+if FISHER_VERIFY_LOG_DIR="$LOG/core" \
+ FISHER_PHASE2_LOCAL_ACK=synthetic-only \
+ FISHER_PHASE2_ACCEPTANCE_ACK=exact-commit \
+ FISHER_EXPECTED_COMMIT="$SHA" \
+ FISHER_PHASE4_OPERATION_MODE=synthetic-only \
+ FISHER_PHASE5_OPERATION_MODE=synthetic-only \
+ bash scripts/verify-phase2-local.sh >"$LOG/02-core.log" 2>&1; then
+ CORE=PASS
+else
+ echo "Core verification failed: $LOG/core/summary.txt" >&2; exit 2
+fi
+for entry in "Result: PASS" "Final acceptance: PASS" \
+ "Production dependency audit: PASS" "Full dependency audit: PASS"; do
+ grep -Fxq "$entry" "$LOG/core/summary.txt" ||
+  { echo "Core evidence missing: $entry" >&2; exit 2; }
+done
+node scripts/verify-phase5-contract.mjs >"$LOG/03-contract-after-generation.log" 2>&1
+FISHER_PHASE5_RESTORE_ACK=new-disposable-only \
+ bash scripts/phase5-disposable-restore-drill.sh >"$LOG/04-recovery.log" 2>&1
+RESTORE=PASS
+status(){ curl -sS --max-time 8 -o /dev/null -w '%{http_code}' "$1" 2>/dev/null || true; }
+PORT="$((42000+RANDOM%3000))"
+FISHER_API_BIND_HOST=127.0.0.1 PORT="$PORT" \
+ node apps/api/dist/main.js >"$LOG/05-api.log" 2>&1 &
+API_PID=$!
+for _i in $(seq 1 30); do
+ [[ "$(status "http://127.0.0.1:$PORT/api/v1/health")" == 200 ]] && break
+ sleep 1
+done
+[[ "$(status "http://127.0.0.1:$PORT/api/v1/health")" == 200 ]] ||
+ { echo "Phase 5 API health check failed" >&2; exit 2; }
+[[ "$(status "http://127.0.0.1:$PORT/api/v1/ops/pilot-readiness/snapshot")" == 401 ]] ||
+ { echo "Unauthenticated readiness endpoint exposed" >&2; exit 2; }
+kill "$API_PID" 2>/dev/null || true
+wait "$API_PID" 2>/dev/null || true; API_PID=""
+WEB_PORT="$((46000+RANDOM%1500))"
+pnpm --filter @fisher/operations-web exec next start -p "$WEB_PORT" -H 127.0.0.1 \
+ >"$LOG/06-web.log" 2>&1 &
+WEB_PID=$!
+for _i in $(seq 1 35); do
+ [[ "$(status "http://127.0.0.1:$WEB_PORT/")" == 200 ]] && break
+ sleep 1
+done
+[[ "$(status "http://127.0.0.1:$WEB_PORT/")" == 200 ]] ||
+ { echo "Phase 5 operations web failed startup" >&2; exit 2; }
+[[ "$(status "http://127.0.0.1:$WEB_PORT/pilot-readiness")" == 200 ]] ||
+ { echo "Synthetic readiness page failed" >&2; exit 2; }
+kill "$WEB_PID" 2>/dev/null || true
+wait "$WEB_PID" 2>/dev/null || true; WEB_PID=""
+SMOKE=PASS
+git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+[[ "$(git rev-parse "origin/$BRANCH")" == "$SHA" ]] ||
+ { echo "Phase 5 remote changed during acceptance" >&2; exit 2; }
+[[ -z "$(git status --porcelain --untracked-files=all)" ]] ||
+ { echo "Verification produced uncommitted changes" >&2; exit 2; }
+echo "PHASE5_SYNTHETIC_ACCEPTED_SHA=$SHA"
+echo "Pilot authorization remains BLOCKED pending independent approvals."
