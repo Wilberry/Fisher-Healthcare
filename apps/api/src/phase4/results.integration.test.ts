@@ -206,6 +206,29 @@ suite.sequential('Phase 4 patient-scoped results (disposable PostgreSQL only)',(
       await writeFile(privateDir+'/'+id.intakeKey+'.pdf',syntheticPdf);
     }
   });
+  it('does not disclose a timestamp-only result without the independent release event',async()=>{
+    const extraResult=randomUUID(),extraItem=randomUUID(),extraIntake=randomUUID();
+    await pool.query(`
+      INSERT INTO order_items(id,order_id,test_id,price_kobo)
+      VALUES($1,$2,$3,10000)`,[extraItem,id.order,id.test]);
+    await pool.query(`
+      INSERT INTO results(id,order_id,patient_id,object_key,released_at,released_by)
+      VALUES($1,$2,$3,$4,now(),$5)`,[
+        extraResult,id.order,id.patient,'synthetic/results/'+extraIntake+'.pdf',id.reviewUser
+      ]);
+    await pool.query(`
+      INSERT INTO phase4_result_intakes(result_id,order_item_id,specimen_id,
+        lab_id,intake_key,intake_fingerprint,document_sha256,
+        validation_reference,intake_by)
+      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,[
+        extraResult,extraItem,id.specimen,id.lab,extraIntake,
+        'c'.repeat(64),'d'.repeat(64),'SYN-VALIDATED-0002',id.labUser
+      ]);
+    const history=await service.list(identity(sub.owner),id.patient);
+    expect(history.data).toHaveLength(1);
+    await expect(service.detail(identity(sub.owner),extraResult)).rejects.toThrow();
+    await expect(service.document(identity(sub.owner),extraResult)).rejects.toThrow();
+  });
   it('requires separate explicit email opt-in and permits revocation only by self',async()=>{
     await expect(service.emailPreference(identity(sub.outsider),id.patient,true))
       .rejects.toThrow();
