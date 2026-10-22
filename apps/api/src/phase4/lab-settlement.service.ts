@@ -61,6 +61,9 @@ export class Phase4LabSettlementsService implements OnModuleDestroy{
    const source=await c.query<{lab_id:string}>(`
     SELECT i.lab_id FROM phase4_result_intakes i
     JOIN results r ON r.id=i.result_id
+    JOIN phase4_result_release_events evt ON evt.result_id=r.id
+      AND evt.released_by=r.released_by
+    JOIN laboratories lab ON lab.id=i.lab_id AND lab.active
     JOIN orders o ON o.id=r.order_id AND o.lab_id=i.lab_id
     JOIN payments p ON p.order_id=o.id AND p.status='paid'
     WHERE i.result_id=$1 AND r.released_at IS NOT NULL
@@ -173,7 +176,11 @@ export class Phase4LabSettlementsService implements OnModuleDestroy{
          (r.released_at IS NOT NULL AND r.released_by IS NOT NULL) AS released
        FROM phase4_lab_settlement_items it
        JOIN phase4_lab_payables payable ON payable.id=it.payable_id
+       JOIN phase4_result_intakes intake ON intake.result_id=payable.result_id
+         AND intake.lab_id=payable.lab_id
        JOIN results r ON r.id=payable.result_id
+       JOIN phase4_result_release_events evt ON evt.result_id=r.id
+         AND evt.released_by=r.released_by
        JOIN payments p ON p.order_id=r.order_id
        WHERE it.batch_id=$1
        FOR SHARE OF p,r,payable`,[id]);

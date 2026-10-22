@@ -66,6 +66,9 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
       [ids.result,ids.item,ids.specimen,ids.lab,ids.intake,
         'a'.repeat(64),'b'.repeat(64),'SYN-VALIDATED-0001',ids.finance1]);
+    await pool.query(`
+      INSERT INTO phase4_result_release_events(result_id,release_key,released_by)
+      VALUES($1,$2,$3)`,[ids.result,randomUUID(),ids.finance1]);
     access=new AccessService();
     refunds=new Phase4RefundService(access);
     settlements=new Phase4LabSettlementsService(access);
@@ -131,6 +134,12 @@ suite.sequential('Phase 4 independent finance approvals (disposable PostgreSQL)'
     await pool.query("UPDATE payments SET status='pending' WHERE id=$1",[ids.payment]);
     await expect(settlements.addPayable(identity(subjectA),p)).rejects.toThrow();
     await pool.query("UPDATE payments SET status='paid' WHERE id=$1",[ids.payment]);
+    // A timestamp alone is not independently verifiable release evidence.
+    // The event is immutable; temporarily remove it only in this disposable
+    // test before any payable/settlement has been recorded.
+    await expect(pool.query(`
+      DELETE FROM phase4_result_release_events WHERE result_id=$1`,
+      [ids.result])).rejects.toThrow();
     const one=await settlements.addPayable(identity(subjectA),p);
     payableId=one.data.id;
     expect(one.data.payoutExecuted).toBe(false);
