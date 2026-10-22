@@ -39,6 +39,7 @@ export async function claimResultEmail(pool:Pool,allowed:readonly string[]):Prom
         AND r.released_by IS NOT NULL
       JOIN phase4_result_release_events evt ON evt.result_id=r.id
         AND evt.released_by=r.released_by
+      JOIN phase4_result_intakes intake ON intake.result_id=r.id
       JOIN patient_relationships rel ON rel.patient_id=r.patient_id
         AND rel.can_view_results AND rel.verified_at IS NOT NULL
         AND rel.revoked_at IS NULL AND rel.relationship='self'
@@ -76,6 +77,7 @@ export async function resultClaimStillEligible(pool:Pool,claim:Claim):Promise<bo
      AND res.released_at IS NOT NULL AND res.released_by IS NOT NULL
    JOIN phase4_result_release_events evt ON evt.result_id=res.id
      AND evt.released_by=res.released_by
+   JOIN phase4_result_intakes intake ON intake.result_id=res.id
    JOIN patient_relationships rel ON rel.patient_id=res.patient_id
      AND rel.relationship='self' AND rel.can_view_results
      AND rel.verified_at IS NOT NULL AND rel.revoked_at IS NULL

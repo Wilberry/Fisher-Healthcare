@@ -8,7 +8,8 @@ const suite=process.env.FISHER_DISPOSABLE_DB_ACK==='disposable-test-only'&&
 
 suite.sequential('Phase 4 email opt-in and revocation (disposable PostgreSQL)',()=>{
  const ids={user:randomUUID(),patient:randomUUID(),lab:randomUUID(),
-   order:randomUUID(),result:randomUUID()};
+   order:randomUUID(),result:randomUUID(),test:randomUUID(),
+   item:randomUUID(),specimen:randomUUID(),intake:randomUUID()};
  const email='synthetic-result-'+randomUUID().slice(0,8)+'@example.test';
  let pool:Pool;
  beforeAll(async()=>{
@@ -30,10 +31,28 @@ suite.sequential('Phase 4 email opt-in and revocation (disposable PostgreSQL)',(
     (id,patient_id,booked_by,lab_id,status,tier,total_kobo)
     VALUES($1,$2,$3,$4,'completed','regular',0)`,
     [ids.order,ids.patient,ids.user,ids.lab]);
+  await pool.query(`
+    INSERT INTO tests(id,code,name,specimen_type,active)
+    VALUES($1,$2,'Synthetic Email Test','blood',true)`,
+    [ids.test,'SYN-EMAIL-'+ids.test.slice(0,8)]);
+  await pool.query(`
+    INSERT INTO order_items(id,order_id,test_id,price_kobo)
+    VALUES($1,$2,$3,0)`,[ids.item,ids.order,ids.test]);
+  await pool.query(`
+    INSERT INTO specimens(id,order_id,barcode,status)
+    VALUES($1,$2,$3,'lab_received')`,
+    [ids.specimen,ids.order,'SYN-EMAIL-'+ids.specimen]);
   await pool.query(`INSERT INTO results
     (id,order_id,patient_id,object_key,released_at,released_by)
     VALUES($1,$2,$3,'synthetic/results/test.pdf',now(),$4)`,
     [ids.result,ids.order,ids.patient,ids.user]);
+  await pool.query(`
+    INSERT INTO phase4_result_intakes(result_id,order_item_id,specimen_id,
+      lab_id,intake_key,intake_fingerprint,document_sha256,
+      validation_reference,intake_by)
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+    [ids.result,ids.item,ids.specimen,ids.lab,ids.intake,
+      'a'.repeat(64),'b'.repeat(64),'SYN-EMAIL-VALIDATED',ids.user]);
   await pool.query(`
     INSERT INTO phase4_result_release_events(result_id,release_key,released_by)
     VALUES($1,$2,$3)`,[ids.result,randomUUID(),ids.user]);
