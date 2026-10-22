@@ -236,6 +236,8 @@ export class Phase4ResultsService implements OnModuleDestroy {
       const records=await c.query(`
         SELECT r.id,r.released_at,item.test_id,t.name AS test_name
         FROM results r JOIN phase4_result_intakes intake ON intake.result_id=r.id
+        JOIN phase4_result_release_events evt ON evt.result_id=r.id
+          AND evt.released_by=r.released_by
         JOIN order_items item ON item.id=intake.order_item_id
         JOIN tests t ON t.id=item.test_id
         WHERE r.patient_id=$1 AND r.released_at IS NOT NULL
@@ -260,6 +262,8 @@ export class Phase4ResultsService implements OnModuleDestroy {
         FROM users u JOIN patient_relationships rel ON rel.user_id=u.id
         JOIN results r ON r.patient_id=rel.patient_id
         JOIN phase4_result_intakes intake ON intake.result_id=r.id
+        JOIN phase4_result_release_events evt ON evt.result_id=r.id
+          AND evt.released_by=r.released_by
         JOIN order_items item ON item.id=intake.order_item_id
         JOIN tests t ON t.id=item.test_id
         WHERE u.identity_subject=$1 AND r.id=$2
@@ -292,6 +296,8 @@ export class Phase4ResultsService implements OnModuleDestroy {
         FROM users u JOIN patient_relationships rel ON rel.user_id=u.id
         JOIN results r ON r.patient_id=rel.patient_id
         JOIN phase4_result_intakes intake ON intake.result_id=r.id
+        JOIN phase4_result_release_events evt ON evt.result_id=r.id
+          AND evt.released_by=r.released_by
         WHERE u.identity_subject=$1 AND r.id=$2
           AND rel.can_view_results AND rel.verified_at IS NOT NULL
           AND rel.revoked_at IS NULL AND r.released_at IS NOT NULL

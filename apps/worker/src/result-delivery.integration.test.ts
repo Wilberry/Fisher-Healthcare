@@ -34,6 +34,9 @@ suite.sequential('Phase 4 email opt-in and revocation (disposable PostgreSQL)',(
     (id,order_id,patient_id,object_key,released_at,released_by)
     VALUES($1,$2,$3,'synthetic/results/test.pdf',now(),$4)`,
     [ids.result,ids.order,ids.patient,ids.user]);
+  await pool.query(`
+    INSERT INTO phase4_result_release_events(result_id,release_key,released_by)
+    VALUES($1,$2,$3)`,[ids.result,randomUUID(),ids.user]);
   await pool.query(`INSERT INTO phase4_result_delivery_intents(result_id,channel)
     VALUES($1,'email')`,[ids.result]);
  });
