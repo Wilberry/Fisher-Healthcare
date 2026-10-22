@@ -129,7 +129,7 @@ export class CatalogAdminService implements OnModuleDestroy {
      SET approver_id=$3,evidence_reference=$4,approved_at=now()
      WHERE resource_type=$1 AND resource_id=$2`,[type,id,actor,reference]);
     await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
-     VALUES($1,'catalog.approved',$2,$3,jsonb_build_object('evidenceReference',$4))`,
+     VALUES($1,'catalog.approved',$2,$3,jsonb_build_object('evidenceReference',$4::text))`,
      [actor,type,id,reference]);
     await c.query('COMMIT');
     return {resourceId:id,resourceType:type,status:'approved',active:true};

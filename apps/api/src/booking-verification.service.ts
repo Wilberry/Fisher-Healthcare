@@ -31,7 +31,7 @@ export class BookingVerificationService implements OnModuleDestroy {
       verified_at=now(),updated_at=now() WHERE id=$1 AND verified_at IS NULL AND revoked_at IS NULL`,[relationshipId]);
     await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
      VALUES($1,'patient.booking_verified','patient_relationship',$2,
-       jsonb_build_object('evidenceReference',$3,'resultAccessGranted',false))`,
+       jsonb_build_object('evidenceReference',$3::text,'resultAccessGranted',false))`,
        [actor.rows[0].id,relationshipId,evidenceReference]);
     await c.query('COMMIT');
     return {relationshipId,canBook:true,canViewResults:false,status:'approved_for_booking'};
@@ -65,7 +65,7 @@ export class BookingVerificationService implements OnModuleDestroy {
     await c.query('UPDATE patient_addresses SET verified_at=now(),updated_at=now() WHERE id=$1',[addressId]);
     await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
      VALUES($1,'patient.address_verified','patient_address',$2,
-       jsonb_build_object('evidenceReference',$3))`,[reviewer.id,addressId,evidenceReference]);
+       jsonb_build_object('evidenceReference',$3::text))`,[reviewer.id,addressId,evidenceReference]);
     await c.query('COMMIT');
     return {addressId,verified:true};
    }catch(e){await c.query('ROLLBACK');throw e;}

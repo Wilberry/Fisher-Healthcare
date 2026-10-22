@@ -40,7 +40,7 @@ export class PaymentReviewService implements OnModuleDestroy {
     if(!r.rows[0])throw new NotFoundException('Open payment exception not found');
     await c.query(`INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
      VALUES($1,'payment.exception_acknowledged','payment_review_alert',$2,
-       jsonb_build_object('evidenceReference',$3,'refundExecuted',false))`,
+       jsonb_build_object('evidenceReference',$3::text,'refundExecuted',false))`,
      [actor.id,id,reference]);
     await c.query('COMMIT');
     return {alertId:id,status:'acknowledged',refundExecuted:false};
