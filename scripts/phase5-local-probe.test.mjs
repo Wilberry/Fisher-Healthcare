@@ -15,10 +15,10 @@ describe('bounded and non-sensitive Phase 5 local probe',()=>{
   ])assert.throws(()=>localProbeBase(url));
   assert.equal(localProbeBase('http://127.0.0.1:4000/'),'http://127.0.0.1:4000');
  });
- it('measures p95 without an invented clinical latency SLA',()=>{
+ it('measures p95 without an invented clinical latency SLA',async()=>{
   assert.deepEqual(summarizeDurations([10,30,20,40]),{
    count:4,p95Ms:40,maxMs:40});
   assert.throws(()=>summarizeDurations([]));
-  assert.throws(()=>runLocalProbe('http://localhost:4000',41));
+  await assert.rejects(()=>runLocalProbe('http://localhost:4000',41));
  });
 });
