@@ -53,6 +53,9 @@ suite.sequential('Phase 5 synthetic alert lifecycle (disposable PostgreSQL)',()=
   await expect(service.list(identity(subjects.outsider))).rejects.toThrow();
   await expect(service.acknowledge(identity(subjects.outsider),'outbox_dead_letters'))
    .rejects.toThrow();
+  await pool.query('UPDATE staff SET active=false WHERE id=$1',[ids.staff]);
+  await expect(service.evaluate(identity(subjects.admin))).rejects.toThrow();
+  await pool.query('UPDATE staff SET active=true WHERE id=$1',[ids.staff]);
  });
  it('evaluates only aggregate signals and permits acknowledgment with idempotent replay',async()=>{
   const evaluated=await service.evaluate(identity(subjects.admin));
@@ -85,6 +88,28 @@ suite.sequential('Phase 5 synthetic alert lifecycle (disposable PostgreSQL)',()=
   const serialized=JSON.stringify(current);
   expect(serialized).not.toContain(subjects.admin);
   expect(serialized).not.toContain(ids.outbox);
+ });
+ it('enforces legal state transitions and clears old acknowledgment on reopen',async()=>{
+  await pool.query(`
+    UPDATE phase5_operational_alerts
+    SET status='resolved',observed_count=0,resolved_at=now()
+    WHERE code='outbox_dead_letters'`);
+  await expect(pool.query(`
+    UPDATE phase5_operational_alerts
+    SET status='acknowledged',observed_count=1
+    WHERE code='outbox_dead_letters'`)).rejects.toThrow();
+  await pool.query(`
+    UPDATE phase5_operational_alerts
+    SET status='open',observed_count=1,
+      acknowledged_by=NULL,acknowledged_at=NULL,resolved_at=NULL
+    WHERE code='outbox_dead_letters'`);
+  const current=await pool.query<{
+    status:string;acknowledged_by:string|null;resolved_at:Date|null
+  }>(`SELECT status,acknowledged_by,resolved_at
+     FROM phase5_operational_alerts WHERE code='outbox_dead_letters'`);
+  expect(current.rows[0]).toEqual({
+    status:'open',acknowledged_by:null,resolved_at:null
+  });
  });
  it('denies invalid alert codes and direct deletion',async()=>{
   await expect(service.acknowledge(identity(subjects.admin),'patient_123'))
