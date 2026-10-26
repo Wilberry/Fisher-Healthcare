@@ -87,7 +87,7 @@ It prepares a detached verification worktree, runs the existing full local quali
 
 The verifier also emits `07-synthetic-acceptance.json`, which cross-checks
 the exact commit in the core run, successful Docker container cleanup and
-encrypted restoration, the migration count, and the 20 bounded authorized
+encrypted restoration, the 37-migration baseline, and the 20 bounded authorized
 health/unauthorized-access status probes. It **fails closed** on missing or
 inconsistent evidence. This report always records clinical and pilot release
 authorization as false and must not be presented as legal or clinical approval.

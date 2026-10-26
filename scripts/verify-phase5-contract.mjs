@@ -38,4 +38,10 @@ if(!migration.includes('phase5_alert_no_delete')||
  !migration.includes('CREATE TABLE phase5_alert_state_events')||
  !migration.includes('phase5_alert_state_events_immutable'))
  throw new Error('Missing or invalid immutable Phase 5 alert migration');
+const forward=readFileSync(
+ 'packages/database/drizzle/0036_phase5_alert_integrity_hardening.sql','utf8');
+if(!forward.includes('CREATE OR REPLACE FUNCTION phase5_guard_alert_identity')||
+ !forward.includes('Acknowledgment cannot be rewritten')||
+ !forward.includes('phase5_alert_event_count_consistency'))
+ throw new Error('Missing Phase 5 forward-only alert integrity hardening');
 console.info('PASS: protected Phase 5 snapshot OpenAPI and authorization declaration');

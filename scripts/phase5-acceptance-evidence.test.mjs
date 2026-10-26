@@ -14,7 +14,7 @@ const fixture=()=>({
   'Production dependency audit: PASS','Full dependency audit: PASS',
   'Lockfile: '+lockfileSha256,'Lockfile committed at tested revision: yes'].join('\n'),
  restoreSummary:['Result: PASS','Commit: '+sha,'Docker container removed: YES'].join('\n'),
- restoreEvidence:['Migration registry rows matched: 36',
+ restoreEvidence:['Migration registry rows matched: 37',
   'Synthetic restore marker matched: YES',
   'Backup encrypted with AES-256-GCM and ephemeral key: YES',
   'Plaintext archive written to disk: NO',

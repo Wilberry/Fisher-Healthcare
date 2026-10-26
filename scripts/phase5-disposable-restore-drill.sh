@@ -118,7 +118,7 @@ SOURCE_COUNT="$(docker exec "$CONTAINER" psql -U fisher -d fisher_test \
   -X -v ON_ERROR_STOP=1 -Atq -c 'SELECT count(*) FROM fisher_migrations')"
 RESTORE_COUNT="$(docker exec "$CONTAINER" psql -U fisher -d fisher_restore_test \
   -X -v ON_ERROR_STOP=1 -Atq -c 'SELECT count(*) FROM fisher_migrations')"
-[[ "$SOURCE_COUNT" =~ ^[0-9]+$ && "$SOURCE_COUNT" -ge 36 &&
+[[ "$SOURCE_COUNT" =~ ^[0-9]+$ && "$SOURCE_COUNT" -ge 37 &&
    "$SOURCE_COUNT" == "$RESTORE_COUNT" ]] || {
   echo "Migration registry mismatch after restore" >&2; exit 2;
 }

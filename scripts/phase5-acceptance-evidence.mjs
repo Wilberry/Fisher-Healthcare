@@ -33,7 +33,7 @@ export function buildSyntheticAcceptanceEvidence(input){
  const rows=restoreEvidence.split(/\r?\n/)
   .filter(v=>v.startsWith('Migration registry rows matched: '));
  if(rows.length!==1||!/^[0-9]+$/.test(rows[0].slice(33))||
-    Number(rows[0].slice(33))<36)
+    Number(rows[0].slice(33))<37)
   throw new Error('Migration count below Phase 5 baseline');
  if(!probe||probe.mode!=='disposable-loopback-only'||
     probe.pilotAuthorized!==false||probe.latencyIsAnApprovedSla!==false||

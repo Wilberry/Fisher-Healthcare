@@ -93,6 +93,11 @@ suite.sequential('Phase 5 synthetic alert lifecycle (disposable PostgreSQL)',()=
   expect(serialized).not.toContain(ids.outbox);
  });
  it('enforces legal state transitions and clears old acknowledgment on reopen',async()=>{
+  await expect(pool.query(`
+    UPDATE phase5_operational_alerts
+    SET status='resolved',observed_count=0,resolved_at=now(),
+        acknowledged_by=$1
+    WHERE code='outbox_dead_letters'`,[ids.outsider])).rejects.toThrow();
   await pool.query(`
     UPDATE phase5_operational_alerts
     SET status='resolved',observed_count=0,resolved_at=now()
@@ -113,6 +118,14 @@ suite.sequential('Phase 5 synthetic alert lifecycle (disposable PostgreSQL)',()=
   expect(current.rows[0]).toEqual({
     status:'open',acknowledged_by:null,resolved_at:null
   });
+ });
+ it('rejects event counts contradictory to their transition types',async()=>{
+  await expect(pool.query(`
+   INSERT INTO phase5_alert_state_events(code,event_type,observed_count,actor_id)
+   VALUES('outbox_dead_letters','resolved',1,$1)`,[ids.admin])).rejects.toThrow();
+  await expect(pool.query(`
+   INSERT INTO phase5_alert_state_events(code,event_type,observed_count,actor_id)
+   VALUES('outbox_dead_letters','opened',0,$1)`,[ids.admin])).rejects.toThrow();
  });
  it('refuses production activation and missing disposable acknowledgement',async()=>{
   const oldNode=process.env.NODE_ENV;
