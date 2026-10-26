@@ -10,6 +10,11 @@ describe('Disposable recovery source-level safeguards',()=>{
   assert.match(source,/docker ps -a --filter "label=\$RUN_LABEL"/);
   assert.match(source,/docker rm -f "\$CONTAINER"/);
  });
+ it('uses a fresh disposable database credential without printing it',()=>{
+  assert.match(source,/DB_PASSWORD=.*randomBytes\(24\)/);
+  assert.doesNotMatch(source,/fisher_phase5_disposable/);
+  assert.match(source,/unset FISHER_PHASE5_BACKUP_KEY_B64 DB_PASSWORD DATABASE_URL/);
+ });
  it('requires a tampered backup to fail without output before restoring',()=>{
   assert.match(source,/source\[source\.length-1\]\^=1/);
   assert.match(source,/Tampered archive was accepted/);

@@ -52,7 +52,7 @@ Classification `attention_required` indicates at least one unresolved incident, 
 ## Disposable database recovery proof
 
 Run `FISHER_PHASE5_RESTORE_ACK=new-disposable-only bash scripts/phase5-disposable-restore-drill.sh` in a reviewed source checkout. This script:
-1. Starts one uniquely named PostgreSQL 16 container with a loopback-only port and an entirely new `fisher_test` database.
+1. Starts one uniquely named PostgreSQL 16 container with a loopback-only port, a fresh random disposable password and an entirely new `fisher_test` database.
 2. Applies and checks migrations; inserts one synthetic marker with no PHI.
 3. Streams a binary backup through ephemeral-key AES-256-GCM authenticated
    encryption. Only the encrypted temporary archive reaches disk. The archive

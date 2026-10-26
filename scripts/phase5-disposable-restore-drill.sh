@@ -17,6 +17,8 @@ mkdir -p "$LOG_DIR"
 TMP_DIR="$(mktemp -d)"
 CONTAINER="fisher-phase5-restore-${UID}-${BASHPID}"
 CREATED=no
+# Fresh alphanumeric credential; never reuse a hardcoded test database password.
+DB_PASSWORD="$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")"
 # Unique label allows safe cleanup even if Docker run fails after creation.
 RUN_LABEL="fisher.phase5.disposable=${UID}-${BASHPID}"
 cleanup(){
@@ -32,7 +34,7 @@ cleanup(){
       code=2
     fi
   fi
-  unset FISHER_PHASE5_BACKUP_KEY_B64 || true
+  unset FISHER_PHASE5_BACKUP_KEY_B64 DB_PASSWORD DATABASE_URL || true
   rm -rf -- "$TMP_DIR"
   {
     echo "Result: $([[ "$code" -eq 0 ]] && echo PASS || echo FAIL)"
@@ -50,7 +52,7 @@ if docker run -d --name "$CONTAINER" --label "$RUN_LABEL" \
   --memory 768m --cpus 1.5 \
   -e POSTGRES_DB=fisher_test \
   -e POSTGRES_USER=fisher \
-  -e POSTGRES_PASSWORD=fisher_phase5_disposable \
+  -e POSTGRES_PASSWORD="$DB_PASSWORD" \
   -p 127.0.0.1::5432 postgres:16-alpine \
   >"$LOG_DIR/container-id.txt"; then
   CREATED=yes
@@ -71,7 +73,7 @@ done
 PORT_OUTPUT="$(docker port "$CONTAINER" 5432/tcp | grep '^127.0.0.1:' | head -n 1)"
 PORT="${PORT_OUTPUT##*:}"
 [[ "$PORT" =~ ^[0-9]+$ ]] || { echo "Invalid disposable port" >&2; exit 2; }
-export DATABASE_URL="postgresql://fisher:fisher_phase5_disposable@127.0.0.1:$PORT/fisher_test"
+export DATABASE_URL="postgresql://fisher:${DB_PASSWORD}@127.0.0.1:$PORT/fisher_test"
 export FISHER_DISPOSABLE_DB_ACK=disposable-test-only
 [[ "$(PGCONNECT_TIMEOUT=5 psql "$DATABASE_URL" -X -w -Atq -c 'select current_database()')" == fisher_test ]] ||
   { echo "Wrong source DB" >&2; exit 2; }
@@ -120,7 +122,7 @@ RESTORE_COUNT="$(docker exec "$CONTAINER" psql -U fisher -d fisher_restore_test 
    "$SOURCE_COUNT" == "$RESTORE_COUNT" ]] || {
   echo "Migration registry mismatch after restore" >&2; exit 2;
 }
-RESTORE_URL="postgresql://fisher:fisher_phase5_disposable@127.0.0.1:$PORT/fisher_restore_test"
+RESTORE_URL="postgresql://fisher:${DB_PASSWORD}@127.0.0.1:$PORT/fisher_restore_test"
 DATABASE_URL="$RESTORE_URL" pnpm --filter @fisher/database migrate:check \
   >"$LOG_DIR/restore-check.log" 2>&1
 echo "Migration registry rows matched: $SOURCE_COUNT" >"$LOG_DIR/evidence.txt"
