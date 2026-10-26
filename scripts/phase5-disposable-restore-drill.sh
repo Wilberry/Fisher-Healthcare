@@ -75,8 +75,17 @@ PORT="${PORT_OUTPUT##*:}"
 [[ "$PORT" =~ ^[0-9]+$ ]] || { echo "Invalid disposable port" >&2; exit 2; }
 export DATABASE_URL="postgresql://fisher:${DB_PASSWORD}@127.0.0.1:$PORT/fisher_test"
 export FISHER_DISPOSABLE_DB_ACK=disposable-test-only
-[[ "$(PGCONNECT_TIMEOUT=5 psql "$DATABASE_URL" -X -w -Atq -c 'select current_database()')" == fisher_test ]] ||
-  { echo "Wrong source DB" >&2; exit 2; }
+# The container's Unix socket readiness does not prove the loopback TCP port
+# is serving our new database. Bound retries also handle startup races.
+DB_READY=no
+for _attempt in $(seq 1 20); do
+  if [[ "$(PGCONNECT_TIMEOUT=3 psql "$DATABASE_URL" -X -w -v ON_ERROR_STOP=1 -Atq \
+       -c 'select current_database()' 2>/dev/null || true)" == fisher_test ]]; then
+    DB_READY=yes; break
+  fi
+  sleep 1
+done
+[[ "$DB_READY" == yes ]] || { echo "Disposable source DB TCP unavailable" >&2; exit 2; }
 FISHER_MIGRATE_ACK=apply-reviewed-migrations \
   pnpm --filter @fisher/database migrate >"$LOG_DIR/source-migrations.log" 2>&1
 pnpm --filter @fisher/database migrate:check >"$LOG_DIR/source-check.log" 2>&1

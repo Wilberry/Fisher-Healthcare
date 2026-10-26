@@ -15,6 +15,11 @@ describe('Disposable recovery source-level safeguards',()=>{
   assert.doesNotMatch(source,/fisher_phase5_disposable/);
   assert.match(source,/unset FISHER_PHASE5_BACKUP_KEY_B64 DB_PASSWORD DATABASE_URL/);
  });
+ it('checks the exact disposable source over TCP before migration',()=>{
+  assert.match(source,/PGCONNECT_TIMEOUT=3 psql "\$DATABASE_URL"/);
+  assert.match(source,/DB_READY=yes/);
+  assert.match(source,/Disposable source DB TCP unavailable/);
+ });
  it('requires a tampered backup to fail without output before restoring',()=>{
   assert.match(source,/source\[source\.length-1\]\^=1/);
   assert.match(source,/Tampered archive was accepted/);
