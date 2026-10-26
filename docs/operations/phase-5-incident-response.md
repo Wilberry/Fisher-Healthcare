@@ -14,7 +14,10 @@ incident command center, emergency clinical workflow, or legal sign-off.
    before changing any upstream patient, specimen or result state. The Phase 5
    alert itself cannot perform those changes.
 5. A later evaluation resolves the alert only when the underlying count is
-   zero. A recurrence reopens it and clears the previous acknowledgment.
+   zero. A recurrence reopens it and clears the previous acknowledgment. Every evaluated opening, resolution, recurrence
+   and acknowledgment is persisted as an append-only aggregate event, separate
+   from the current alert state. The audit also records which administrator
+   performed the transition.
 
 An acknowledged alert is **not** resolved; a resolved alert is **not** proof
 of regulatory clearance or clinical safety.
