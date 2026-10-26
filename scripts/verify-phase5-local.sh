@@ -79,6 +79,18 @@ done
  { echo "Phase 5 API health check failed" >&2; exit 2; }
 [[ "$(status "http://127.0.0.1:$PORT/api/v1/ops/pilot-readiness/snapshot")" == 401 ]] ||
  { echo "Unauthenticated readiness endpoint exposed" >&2; exit 2; }
+for path in /api/v1/ops/pilot-readiness/alerts; do
+ [[ "$(status "http://127.0.0.1:$PORT$path")" == 401 ]] ||
+  { echo "Unauthenticated alert list exposed" >&2; exit 2; }
+done
+for path in /api/v1/ops/pilot-readiness/evaluate \
+ /api/v1/ops/pilot-readiness/alerts/outbox_dead_letters/acknowledge; do
+ value="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
+  -X POST -H 'content-type: application/json' -d '{}' \
+  "http://127.0.0.1:$PORT$path" 2>/dev/null || true)"
+ [[ "$value" == 401 ]] ||
+  { echo "Unauthenticated synthetic alert mutation exposed: $path" >&2; exit 2; }
+done
 FISHER_PHASE5_LOAD_ACK=synthetic-loopback \
  node scripts/phase5-local-probe.mjs "http://127.0.0.1:$PORT/" \
  >"$LOG/05b-loopback-probe.json" 2>&1
@@ -96,6 +108,14 @@ done
  { echo "Phase 5 operations web failed startup" >&2; exit 2; }
 [[ "$(status "http://127.0.0.1:$WEB_PORT/pilot-readiness")" == 200 ]] ||
  { echo "Synthetic readiness page failed" >&2; exit 2; }
+for path in /api/phase5/evaluate \
+  /api/phase5/alerts/outbox_dead_letters/acknowledge; do
+ deny="$(curl -sS --max-time 8 -o /dev/null -w '%{http_code}' \
+  -X POST -H 'content-type: application/json' -d '{}' \
+  "http://127.0.0.1:$WEB_PORT$path" 2>/dev/null || true)"
+ [[ "$deny" == 403 ]] ||
+  { echo "Originless synthetic alert mutation accepted: $path" >&2; exit 2; }
+done
 kill "$WEB_PID" 2>/dev/null || true
 wait "$WEB_PID" 2>/dev/null || true; WEB_PID=""
 SMOKE=PASS

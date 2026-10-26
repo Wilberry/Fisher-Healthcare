@@ -22,6 +22,27 @@ A real Lagos pilot requires separately reviewed and recorded approvals from qual
 
 Open items remain tracked in `docs/10-decisions-and-open-items.md`. No dates, clinical outcomes, prices, provider contracts or permissions should be assumed.
 
+## Synthetic alert triage and acknowledgment
+
+Phase 5 records three closed, aggregate-only signals:
+`custody_incidents` (open incident count), `outbox_dead_letters`
+(dead-letter queue count), and `result_email_failures` (failed result
+notification count). An administrator with current MFA and `audit:read`
+must explicitly request evaluation. The alert lifecycle is
+`open → acknowledged → resolved`; a returning condition reopens a resolved
+alert, and an acknowledgment is idempotent only for the same actor.
+
+The operations dashboard permits evaluation and acknowledgment only through
+same-origin authenticated API proxies. No arbitrary free-text clinical notes,
+patient identifiers, specimen references, external paging or pilot-activation
+commands are accepted. An acknowledgment means that the incident has been
+noticed and assigned for investigation, **not** that it is safe or closed.
+Automatic resolution means that the aggregate count has reached zero; it is
+not clinical sign-off.
+
+See [Phase 5 synthetic incident response](phase-5-incident-response.md)
+for owner routing, evidence preservation, containment and verification steps.
+
 ## Synthetic observability baseline
 
 The administrator-only `GET /api/v1/ops/pilot-readiness/snapshot` exposes non-sensitive counts for unresolved specimen incidents, unprocessed/dead-letter outbox entries, pending result release, pending/failed result notifications, and pending financial reviews. Unavailable database measurements fail closed; no result content or patient identifiers are included.
