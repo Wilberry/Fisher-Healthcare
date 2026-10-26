@@ -55,6 +55,9 @@ suite.sequential('Phase 5 synthetic alert lifecycle (disposable PostgreSQL)',()=
    .rejects.toThrow();
   await pool.query('UPDATE staff SET active=false WHERE id=$1',[ids.staff]);
   await expect(service.evaluate(identity(subjects.admin))).rejects.toThrow();
+  await expect(service.list(identity(subjects.admin))).rejects.toThrow();
+  await expect(service.acknowledge(identity(subjects.admin),'outbox_dead_letters'))
+   .rejects.toThrow();
   await pool.query('UPDATE staff SET active=true WHERE id=$1',[ids.staff]);
  });
  it('evaluates only aggregate signals and permits acknowledgment with idempotent replay',async()=>{
@@ -110,6 +113,24 @@ suite.sequential('Phase 5 synthetic alert lifecycle (disposable PostgreSQL)',()=
   expect(current.rows[0]).toEqual({
     status:'open',acknowledged_by:null,resolved_at:null
   });
+ });
+ it('refuses production activation and missing disposable acknowledgement',async()=>{
+  const oldNode=process.env.NODE_ENV;
+  const oldAck=process.env.FISHER_DISPOSABLE_DB_ACK;
+  try{
+   process.env.NODE_ENV='production';
+   await expect(service.list(identity(subjects.admin))).rejects.toThrow();
+   await expect(service.evaluate(identity(subjects.admin))).rejects.toThrow();
+   process.env.NODE_ENV='test';
+   delete process.env.FISHER_DISPOSABLE_DB_ACK;
+   await expect(service.acknowledge(identity(subjects.admin),'outbox_dead_letters'))
+    .rejects.toThrow();
+  }finally{
+   if(oldNode===undefined)delete process.env.NODE_ENV;
+   else process.env.NODE_ENV=oldNode;
+   if(oldAck===undefined)delete process.env.FISHER_DISPOSABLE_DB_ACK;
+   else process.env.FISHER_DISPOSABLE_DB_ACK=oldAck;
+  }
  });
  it('denies invalid alert codes and direct deletion',async()=>{
   await expect(service.acknowledge(identity(subjects.admin),'patient_123'))

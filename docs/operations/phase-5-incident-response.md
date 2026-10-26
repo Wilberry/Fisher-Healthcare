@@ -54,7 +54,7 @@ reproduction steps, containment decision, audit records, resolution
 verification and outstanding actions. Keep identifiers and clinical payload
 out of exported readiness dashboards.
 
-Acceptance drills must prove unauthorized access is denied, replay does not
+Acceptance drills must also prove that deactivating an administrator immediately\nblocks snapshot, evaluation, listing, and acknowledgment; switching to production\nmode or removing disposable database acknowledgment disables mutations. Failed\narchive authentication must not yield plaintext and a partially started disposable\ncontainer must be cleaned up using its unique execution label.\n\nAcceptance drills must prove unauthorized access is denied, replay does not
 overwrite acknowledgments, resolved signals reopen upon recurrence, logs do
 not disclose protected data, and releases remain disabled in production.
 

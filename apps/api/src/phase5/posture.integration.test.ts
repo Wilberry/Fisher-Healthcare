@@ -39,6 +39,14 @@ suite.sequential('Phase 5 synthetic operational readiness',()=>{
   await expect(service.snapshot(identity(subjects.admin,false))).rejects.toThrow();
   await expect(service.snapshot(identity(subjects.denied,true))).rejects.toThrow();
  });
+ it('revokes readiness access immediately when staff is deactivated',async()=>{
+  await pool.query('UPDATE staff SET active=false WHERE id=$1',[ids.staff]);
+  try{
+   await expect(service.snapshot(identity(subjects.admin,true))).rejects.toThrow();
+  }finally{
+   await pool.query('UPDATE staff SET active=true WHERE id=$1',[ids.staff]);
+  }
+ });
  it('returns aggregates without patients, identities, specimen or clinical data',async()=>{
   const result=await service.snapshot(identity(subjects.admin,true));
   expect(result.data.pilotActivationAuthorized).toBe(false);
