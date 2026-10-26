@@ -15,10 +15,10 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 LOG_DIR="$ROOT/.verification/phase5-restore-$STAMP-$$"
 mkdir -p "$LOG_DIR"
 TMP_DIR="$(mktemp -d)"
-CONTAINER="fisher-phase5-restore-$UID-$"
+CONTAINER="fisher-phase5-restore-${UID}-${BASHPID}"
 CREATED=no
 # Unique label allows safe cleanup even if Docker run fails after creation.
-RUN_LABEL="fisher.phase5.disposable=$UID-$"
+RUN_LABEL="fisher.phase5.disposable=${UID}-${BASHPID}"
 cleanup(){
   local code=$?
   local removed=NOT_CREATED
