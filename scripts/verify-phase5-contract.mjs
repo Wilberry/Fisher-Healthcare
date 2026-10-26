@@ -33,6 +33,6 @@ if(!alerts.includes('requirePhase5SyntheticMode()')||
 const migration=readFileSync(
  'packages/database/drizzle/0035_phase5_synthetic_alert_lifecycle.sql','utf8');
 if(!migration.includes('phase5_alert_no_delete')||
- !migration.includes('END; $;\nCREATE TRIGGER phase5_alert_identity_guard'))
+ !migration.includes('END; $$;\nCREATE TRIGGER phase5_alert_identity_guard'))
  throw new Error('Missing or invalid immutable Phase 5 alert migration');
 console.info('PASS: protected Phase 5 snapshot OpenAPI and authorization declaration');
