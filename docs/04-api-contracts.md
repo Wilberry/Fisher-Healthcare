@@ -1,6 +1,6 @@
 # Planned API and endpoint specification
 
-**Status:** Programme target contract. Phases 1–3 are merged; Phase 4 is in development. This document includes planned routes. The generated [OpenAPI contract](api/openapi.json) lists implemented routes. All paths below are under `/api/v1`.
+**Status:** Programme target contract. Phases 1–4 have merged following synthetic-only engineering acceptance; Phase 5 engineering is in progress on a separate feature branch. This document includes planned routes. The generated [OpenAPI contract](api/openapi.json) lists implemented routes. All paths below are under `/api/v1`.
 
 ## 1. Conventions
 
@@ -155,6 +155,25 @@ All `/ops/*` routes require authenticated staff roles and resource-scoped permis
 | GET | /finance/reports | Aggregated financial reporting |
 | POST | /webhooks/payments/paystack | Signature-verified payment event receiver |
 | POST | /integrations/labs/:labId/results | Authenticated partner result integration, if contracted |
+
+## Phase 5 — Synthetic operational readiness and alert lifecycle
+
+These implemented development endpoints are protected by verified staff identity,
+MFA, the current active administrator role and `audit:read`. They operate only
+with explicit synthetic mode on a disposable local `fisher_test` database,
+return aggregate counts/statuses only, and cannot authorize a real pilot.
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | /ops/pilot-readiness/snapshot | Aggregate custody, background work, result delivery and finance queue counts |
+| GET | /ops/pilot-readiness/alerts | Read fixed synthetic alert status and counts, without patient identifiers |
+| POST | /ops/pilot-readiness/evaluate | Evaluate three current aggregate conditions; open, resolve or reopen internal synthetic alerts |
+| POST | /ops/pilot-readiness/alerts/:code/acknowledge | Audit acknowledgment of one existing open alert by an authorized administrator |
+
+Allowed alert codes are `custody_incidents`, `outbox_dead_letters`,
+and `result_email_failures`. Acknowledgment does not resolve the underlying
+incident or trigger external paging. Production clinical release, real provider
+integrations and Lagos pilot activation require independent authorization.
 
 ## 7. Security and behavior contracts
 
