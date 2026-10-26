@@ -65,3 +65,20 @@ CREATE TRIGGER phase5_alert_identity_guard
 CREATE TRIGGER phase5_alert_no_delete
  BEFORE DELETE ON phase5_operational_alerts
  FOR EACH ROW EXECUTE FUNCTION reject_event_mutation();
+
+-- Append-only, fixed-taxonomy evidence for administrator state transitions.
+-- No free-text fields or clinical identifiers are accepted.
+CREATE TABLE phase5_alert_state_events (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ code varchar(40) NOT NULL REFERENCES phase5_operational_alerts(code),
+ event_type varchar(20) NOT NULL
+   CHECK (event_type IN ('opened','acknowledged','resolved','reopened')),
+ observed_count integer NOT NULL CHECK(observed_count >= 0),
+ actor_id uuid NOT NULL REFERENCES users(id),
+ recorded_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX phase5_alert_state_events_order
+ ON phase5_alert_state_events(code,recorded_at,id);
+CREATE TRIGGER phase5_alert_state_events_immutable
+ BEFORE UPDATE OR DELETE ON phase5_alert_state_events
+ FOR EACH ROW EXECUTE FUNCTION reject_event_mutation();

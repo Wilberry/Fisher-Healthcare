@@ -107,8 +107,16 @@ export class Phase5AlertsService implements OnModuleDestroy{
      }
     }
    }
-   // Audit only state changes; no patient, specimen or result references.
+   // Append immutable, privacy-minimal transition history atomically
+   // with the current state and existing security audit record.
    for(const change of changes){
+    const [code,type]=change.split(':');
+    if(!isAlertCode(code)||!['opened','resolved','reopened'].includes(type))
+     throw new ServiceUnavailableException('Invalid synthetic alert transition');
+    await c.query(`
+      INSERT INTO phase5_alert_state_events(
+        code,event_type,observed_count,actor_id)
+      VALUES($1,$2,$3,$4)`,[code,type,counts[code],actor]);
     await c.query(`
      INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
      VALUES($1,'phase5.alert.state_changed','operational_alert',NULL,$2::jsonb)`,
@@ -137,6 +145,10 @@ export class Phase5AlertsService implements OnModuleDestroy{
     UPDATE phase5_operational_alerts
     SET status='acknowledged',acknowledged_by=$2,acknowledged_at=now()
     WHERE code=$1 AND status='open'`,[code,actor]);
+   await c.query(`
+    INSERT INTO phase5_alert_state_events(
+      code,event_type,observed_count,actor_id)
+    VALUES($1,'acknowledged',$2,$3)`,[code,row.observed_count,actor]);
    await c.query(`
     INSERT INTO audit_events(actor_id,action,resource_type,resource_id,metadata)
     VALUES($1,'phase5.alert.acknowledged','operational_alert',NULL,$2::jsonb)`,

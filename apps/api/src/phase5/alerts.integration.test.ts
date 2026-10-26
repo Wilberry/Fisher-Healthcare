@@ -72,6 +72,16 @@ suite.sequential('Phase 5 synthetic alert lifecycle (disposable PostgreSQL)',()=
   const record=(current.data as {code:string;status:string}[])
     .find(row=>row.code==='outbox_dead_letters');
   expect(record?.status).toBe('acknowledged');
+  const stateEvents=await pool.query<{
+    event_type:string;observed_count:number;actor_id:string
+   }>(`
+    SELECT event_type,observed_count,actor_id
+    FROM phase5_alert_state_events
+    WHERE code='outbox_dead_letters' ORDER BY recorded_at,id`);
+  expect(stateEvents.rows.some(event=>event.event_type==='opened'&&
+    event.observed_count>=1)).toBe(true);
+  expect(stateEvents.rows.some(event=>event.event_type==='acknowledged'&&
+    event.actor_id===ids.admin)).toBe(true);
   const serialized=JSON.stringify(current);
   expect(serialized).not.toContain(subjects.admin);
   expect(serialized).not.toContain(ids.outbox);
@@ -85,5 +95,8 @@ suite.sequential('Phase 5 synthetic alert lifecycle (disposable PostgreSQL)',()=
   await expect(pool.query(`
     UPDATE phase5_operational_alerts SET acknowledged_by=$1
     WHERE code='outbox_dead_letters'`,[ids.outsider])).rejects.toThrow();
+  await expect(pool.query(`
+    DELETE FROM phase5_alert_state_events WHERE code='outbox_dead_letters'`))
+   .rejects.toThrow();
  });
 });
