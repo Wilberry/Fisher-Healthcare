@@ -30,10 +30,11 @@ export function buildSyntheticAcceptanceEvidence(input){
   if(!lineEquals(restoreEvidence,evidence))
    throw new Error('Incomplete authenticated restore evidence');
  }
+ const migrationLabel='Migration registry rows matched: ';
  const rows=restoreEvidence.split(/\r?\n/)
-  .filter(v=>v.startsWith('Migration registry rows matched: '));
- if(rows.length!==1||!/^[0-9]+$/.test(rows[0].slice(33))||
-    Number(rows[0].slice(33))<37)
+  .filter(v=>v.startsWith(migrationLabel));
+ if(rows.length!==1||!/^[0-9]+$/.test(rows[0].slice(migrationLabel.length))||
+    Number(rows[0].slice(migrationLabel.length))<37)
   throw new Error('Migration count below Phase 5 baseline');
  if(!probe||probe.mode!=='disposable-loopback-only'||
     probe.pilotAuthorized!==false||probe.latencyIsAnApprovedSla!==false||
@@ -53,7 +54,7 @@ export function buildSyntheticAcceptanceEvidence(input){
  return {
   schemaVersion:2,commit,lockfileSha256,engineeringSyntheticAcceptance:'PASS',
   coreQualityChecks:'PASS',securityAuditGates:'PASS',
-  disposableMigrationsRestored:Number(rows[0].slice(33)),
+  disposableMigrationsRestored:Number(rows[0].slice(migrationLabel.length)),
   encryptedRecoveryAndCleanup:'PASS',apiAndWebSmoke:'PASS',
   boundedProbe:{requestCount:probe.count,p95Ms:probe.p95Ms,maxMs:probe.maxMs},
   sensitiveInformationIncluded:false,

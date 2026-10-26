@@ -82,6 +82,16 @@ describe('Phase 5 synthetic acceptance evidence synthesis',()=>{
   const missing={...fixture(),restoreSummary:'Result: PASS\nCommit: '+sha};
   assert.throws(()=>buildSyntheticAcceptanceEvidence(missing));
  });
+ it('requires exact migration evidence and rejects malformed registry counts',()=>{
+  const report=buildSyntheticAcceptanceEvidence(fixture());
+  assert.equal(report.disposableMigrationsRestored,37);
+  for(const invalid of ['36','not-a-number','', '37 extra']){
+   const input=fixture();
+   input.restoreEvidence=input.restoreEvidence.replace(
+    'Migration registry rows matched: 37','Migration registry rows matched: '+invalid);
+   assert.throws(()=>buildSyntheticAcceptanceEvidence(input));
+  }
+ });
  it('rejects skipped, incomplete or unauthorized probe evidence',()=>{
   const skipped={...fixture(),probe:{...fixture().probe,unauthorizedResponses:0}};
   assert.throws(()=>buildSyntheticAcceptanceEvidence(skipped));
