@@ -29,6 +29,7 @@ export class Phase5AlertsService implements OnModuleDestroy{
   const res=await c.query<{id:string}>(`
     SELECT u.id FROM users u JOIN staff st ON st.user_id=u.id
     WHERE u.identity_subject=$1 AND st.active AND st.role='administrator'
+    FOR SHARE OF st
   `,[identity.subject]);
   if(!res.rows[0])throw new ForbiddenException('Administrator access required');
   return res.rows[0].id;

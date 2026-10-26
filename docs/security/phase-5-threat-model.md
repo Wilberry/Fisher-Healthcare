@@ -5,7 +5,7 @@ No clinical use, vendor certification or privacy-law sign-off is implied.
 
 | Trust boundary or asset | Threat scenario | Existing / proposed control | Outstanding verification |
 | --- | --- | --- | --- |
-| OIDC staff identities | Forged or stale role/MFA claims | Signed JWT with issuer, audience, expiry and MFA verification; live staff-role lookup | Production IdP/rotation integration and privileged access review |
+| OIDC staff identities | Forged or stale role/MFA claims | Signed JWT with issuer, audience, expiry and MFA verification; live staff-role lookup; shared staff-row lock serializes administrative mutation against concurrent deactivation | Production IdP/rotation integration and privileged access review |
 | Patient diagnostic results | Booking authority incorrectly grants report access | Separate result permissions, release-event evidence, audited document access | Independent penetration test, patient and family consent legal review |
 | Clinical file storage | Guessable links or report content in email/logs | Private synthetic PDF checksum and protected access; generic availability notices | Approved encrypted object storage, short-lived access and delivery contract |
 | Custody and lab receipt | Out-of-order or fabricated specimen handoff | Signed-in scoped field roles, immutable handoff/receipt and manifest checks | Clinically approved SOPs, real-device process drills and personnel verification |

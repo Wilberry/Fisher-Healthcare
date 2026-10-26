@@ -29,7 +29,8 @@ const alerts=readFileSync('apps/api/src/phase5/alerts.service.ts','utf8');
 if(!alerts.includes('INSERT INTO phase5_alert_state_events')||
  !alerts.includes('requirePhase5SyntheticMode()')||
  !alerts.includes('requireStaffMfa(identity)')||
- !alerts.includes("st.role='administrator'"))
+ !alerts.includes("st.role='administrator'")||
+ !alerts.includes('FOR SHARE OF st'))
  throw new Error('Alert service missing fail-closed administrative policy');
 const migration=readFileSync(
  'packages/database/drizzle/0035_phase5_synthetic_alert_lifecycle.sql','utf8');
