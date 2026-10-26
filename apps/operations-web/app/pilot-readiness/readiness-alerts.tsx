@@ -1,22 +1,9 @@
 import {staffApi} from '../../lib/staff-auth';
 import {ReadinessAlertActions} from './readiness-alert-actions';
+import {parsePhase5History} from '../../lib/phase5-history';
 const codes=['custody_incidents','outbox_dead_letters','result_email_failures'] as const;
 type Code=(typeof codes)[number];
 type Alert={code:Code;status:'open'|'acknowledged'|'resolved';count:number};
-const events=['opened','acknowledged','resolved','reopened'] as const;
-type EventType=(typeof events)[number];
-type HistoryEvent={code:Code;eventType:EventType;count:number;at:string};
-function parseHistory(rows:Record<string,unknown>[]):HistoryEvent[]{
- return rows.filter(row=>codes.some(code=>code===row.code)&&
-    events.some(type=>type===row.event_type)&&
-    typeof row.observed_count==='number'&&
-    Number.isSafeInteger(row.observed_count)&&row.observed_count>=0&&
-    typeof row.recorded_at==='string'&&row.recorded_at.length<=40&&
-    Number.isFinite(Date.parse(row.recorded_at)))
-  .slice(0,30).map(row=>({code:row.code as Code,
-   eventType:row.event_type as EventType,count:row.observed_count as number,
-   at:row.recorded_at as string}));
-}
 function parse(rows:Record<string,unknown>[]):Alert[]{
  return rows.filter((row):row is Record<string,unknown> & {code:Code} =>
    typeof row.code==='string'&&codes.some(v=>v===row.code)&&
@@ -42,10 +29,10 @@ export async function ReadinessAlerts(){
   <h3>Recent synthetic alert transitions</h3>
   <p>At most 30 recent transitions, without staff identity or clinical identifiers.
    The record shows review history, not authorization to resume service.</p>
-  <ol>{parseHistory(response.history).map((event,index)=><li key={index}>
+  <ol>{parsePhase5History(response.history).map((event,index)=><li key={index}>
    {event.code}: {event.eventType}; count {event.count} at {event.at}
   </li>)}</ol>
-  {parseHistory(response.history).length===0&&
+  {parsePhase5History(response.history).length===0&&
    <p>No historical transitions are available.</p>}
  </section>;
 }
