@@ -46,6 +46,7 @@ cleanup(){
 trap cleanup EXIT
 node scripts/verify-phase5-contract.mjs >"$LOG/01-contract.log" 2>&1
 node --test scripts/phase5-local-probe.test.mjs >"$LOG/01b-probe-tests.log" 2>&1
+node --test scripts/phase5-archive-crypto.test.mjs >"$LOG/01c-crypto-tests.log" 2>&1
 if FISHER_VERIFY_LOG_DIR="$LOG/core" \
  FISHER_PHASE2_LOCAL_ACK=synthetic-only \
  FISHER_PHASE2_ACCEPTANCE_ACK=exact-commit \

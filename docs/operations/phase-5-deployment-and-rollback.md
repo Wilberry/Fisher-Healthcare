@@ -34,7 +34,10 @@ Before a software release candidate is considered, evidence must establish:
 4. Generated OpenAPI parity and authenticated API/BFF negative tests.
 5. Both production and full dependency audit results, including tracked
    low/moderate findings.
-6. Clean synthetic restore exercise and reproducible evidence summary.
+6. Clean synthetic restore exercise and reproducible evidence summary. The local drill also verifies temporary
+authenticated encryption and tamper rejection with an ephemeral key held only
+for the disposable test. Production key ownership, rotation and offsite
+encrypted retention still require separate infrastructure approval.
 7. Bounded local health/unauthorized access probe, with no clinical data.
 8. Signed review of changed permissions, clinical/financial invariants and
    service configurations.

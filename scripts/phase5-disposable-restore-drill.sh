@@ -67,15 +67,20 @@ TOKEN="synthetic-recovery-$STAMP-$$"
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c \
   "CREATE TABLE phase5_restore_probe (token text PRIMARY KEY); INSERT INTO phase5_restore_probe VALUES ('$TOKEN');" \
   >"$LOG_DIR/probe-source.log" 2>&1
-docker exec "$CONTAINER" pg_dump -U fisher -d fisher_test -Fc \
-  >"$TMP_DIR/synthetic-only.backup"
-test -s "$TMP_DIR/synthetic-only.backup"
-sha256sum "$TMP_DIR/synthetic-only.backup" | cut -d ' ' -f 1 \
-  >"$LOG_DIR/backup-sha256.txt"
+# Generate an ephemeral, unlogged key. Only the encrypted archive touches disk;
+# decryption is piped directly to the distinct disposable restore database.
+FISHER_PHASE5_BACKUP_KEY_B64="$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64url'))")"
+export FISHER_PHASE5_BACKUP_KEY_B64
+docker exec "$CONTAINER" pg_dump -U fisher -d fisher_test -Fc |
+  node scripts/phase5-archive-crypto.mjs encrypt >"$TMP_DIR/synthetic-only.encrypted"
+test -s "$TMP_DIR/synthetic-only.encrypted"
+sha256sum "$TMP_DIR/synthetic-only.encrypted" | cut -d ' ' -f 1 \
+  >"$LOG_DIR/encrypted-backup-sha256.txt"
 docker exec "$CONTAINER" createdb -U fisher fisher_restore_test
-docker exec -i "$CONTAINER" pg_restore --exit-on-error --no-owner --no-acl \
-  -U fisher -d fisher_restore_test <"$TMP_DIR/synthetic-only.backup" \
-  >"$LOG_DIR/restore.log" 2>&1
+node scripts/phase5-archive-crypto.mjs decrypt <"$TMP_DIR/synthetic-only.encrypted" |
+ docker exec -i "$CONTAINER" pg_restore --exit-on-error --no-owner --no-acl \
+  -U fisher -d fisher_restore_test >"$LOG_DIR/restore.log" 2>&1
+unset FISHER_PHASE5_BACKUP_KEY_B64
 RESTORED="$(docker exec "$CONTAINER" psql -U fisher -d fisher_restore_test \
   -X -v ON_ERROR_STOP=1 -Atq -c 'SELECT token FROM phase5_restore_probe')"
 [[ "$RESTORED" == "$TOKEN" ]] || { echo "Synthetic probe mismatch" >&2; exit 2; }
@@ -92,4 +97,6 @@ DATABASE_URL="$RESTORE_URL" pnpm --filter @fisher/database migrate:check \
   >"$LOG_DIR/restore-check.log" 2>&1
 echo "Migration registry rows matched: $SOURCE_COUNT" >"$LOG_DIR/evidence.txt"
 echo "Synthetic restore marker matched: YES" >>"$LOG_DIR/evidence.txt"
+echo "Backup encrypted with AES-256-GCM and ephemeral key: YES" >>"$LOG_DIR/evidence.txt"
+echo "Plaintext archive written to disk: NO" >>"$LOG_DIR/evidence.txt"
 echo "PASS: new disposable backup, independent restore, probe and checksums"
