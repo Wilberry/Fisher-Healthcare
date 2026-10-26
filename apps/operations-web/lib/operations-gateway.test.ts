@@ -83,3 +83,54 @@ describe('Phase 3 operations BFF denies untrusted browser authority',()=>{
     expect((await forwardOperationsAction(cmd(true,'not-json'),'ops/assignments')).status).toBe(400);
   });
 });
+
+describe('Phase 5 synthetic alert BFF gate',()=>{
+ beforeEach(()=>{
+  mocks.readStaffSession.mockResolvedValue(session);
+  mocks.oidcConfig.mockReturnValue({api:'https://api.example.test'});
+  mocks.verifyActiveStaff.mockResolvedValue('synthetic-dispatcher');
+ });
+ afterEach(()=>{vi.unstubAllGlobals();vi.clearAllMocks();});
+ it('rejects originless evaluation before using credentials',async()=>{
+  const response=await forwardOperationsAction(cmd(false,'{}'),
+    'ops/pilot-readiness/evaluate');
+  expect(response.status).toBe(403);
+  expect(mocks.readStaffSession).not.toHaveBeenCalled();
+ });
+ it('limits acknowledgment to fixed signal taxonomy',async()=>{
+  const response=await forwardOperationsAction(cmd(true,'{}'),
+    'ops/pilot-readiness/alerts/patient_123/acknowledge');
+  expect(response.status).toBe(404);
+  expect(mocks.verifyActiveStaff).not.toHaveBeenCalled();
+ });
+ it('denies inactive sessions before any upstream Phase 5 write',async()=>{
+  mocks.verifyActiveStaff.mockRejectedValueOnce(
+   new StaffSessionError('access_denied'));
+  const upstream=vi.fn();vi.stubGlobal('fetch',upstream);
+  const response=await forwardOperationsAction(cmd(true,'{}'),
+    'ops/pilot-readiness/evaluate');
+  expect(response.status).toBe(403);
+  expect(upstream).not.toHaveBeenCalled();
+ });
+ it('forwards only an authorized synthetic command to the pinned upstream',async()=>{
+  const upstream=vi.fn().mockResolvedValue(Response.json({data:{changes:[]}}));
+  vi.stubGlobal('fetch',upstream);
+  const response=await forwardOperationsAction(cmd(true,'{}'),
+   'ops/pilot-readiness/alerts/outbox_dead_letters/acknowledge');
+  expect(response.status).toBe(200);
+  expect(upstream).toHaveBeenCalledTimes(1);
+  const [url,init]=upstream.mock.calls[0]!;
+  expect(String(url)).toBe('https://api.example.test/api/v1/ops/pilot-readiness/alerts/outbox_dead_letters/acknowledge');
+  expect(init.headers.authorization).toBe('Bearer synthetic-not-live');
+  expect(init.method).toBe('POST');
+  expect(init.body).toBe('{}');
+ });
+ it('suppresses upstream sensitive response bodies on failure',async()=>{
+  vi.stubGlobal('fetch',vi.fn().mockResolvedValue(
+    Response.json({patientName:'never-expose'},{status:409})));
+  const response=await forwardOperationsAction(cmd(true,'{}'),
+    'ops/pilot-readiness/evaluate');
+  expect(response.status).toBe(409);
+  expect(JSON.stringify(await response.json())).not.toContain('never-expose');
+ });
+});
