@@ -1,4 +1,4 @@
-import {forwardOperationsAction} from '../../../../../../../lib/operations-gateway';
+import {forwardOperationsAction} from '../../../../../../lib/operations-gateway';
 const codes=new Set(['custody_incidents','outbox_dead_letters','result_email_failures']);
 export async function POST(request:Request,{params}:{
  params:Promise<{code:string}>

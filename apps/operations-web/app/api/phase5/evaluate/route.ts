@@ -1,4 +1,4 @@
-import {forwardOperationsAction} from '../../../../../lib/operations-gateway';
+import {forwardOperationsAction} from '../../../../lib/operations-gateway';
 export async function POST(request:Request){
  return forwardOperationsAction(request,'ops/pilot-readiness/evaluate');
 }
