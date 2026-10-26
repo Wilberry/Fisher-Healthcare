@@ -15,13 +15,15 @@ STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 LOG_DIR="$ROOT/.verification/phase5-restore-$STAMP-$$"
 mkdir -p "$LOG_DIR"
 TMP_DIR="$(mktemp -d)"
-CONTAINER="fisher-phase5-restore-$UID-$$"
+CONTAINER="fisher-phase5-restore-$UID-$"
 CREATED=no
+# Unique label allows safe cleanup even if Docker run fails after creation.
+RUN_LABEL="fisher.phase5.disposable=$UID-$"
 cleanup(){
   local code=$?
   local removed=NOT_CREATED
   trap - EXIT
-  if [[ "$CREATED" == yes ]]; then
+  if [[ "$CREATED" == yes ]] || docker ps -a --filter "label=$RUN_LABEL" --format "{{.Names}}" | grep -Fxq "$CONTAINER"; then
     docker logs --tail 80 "$CONTAINER" >"$LOG_DIR/container.log" 2>&1 || true
     if docker rm -f "$CONTAINER" >/dev/null 2>&1; then
       removed=YES
@@ -44,7 +46,7 @@ cleanup(){
   exit "$code"
 }
 trap cleanup EXIT
-if docker run -d --name "$CONTAINER" \
+if docker run -d --name "$CONTAINER" --label "$RUN_LABEL" \
   --memory 768m --cpus 1.5 \
   -e POSTGRES_DB=fisher_test \
   -e POSTGRES_USER=fisher \
@@ -53,7 +55,7 @@ if docker run -d --name "$CONTAINER" \
   >"$LOG_DIR/container-id.txt"; then
   CREATED=yes
 else
-  # Remove only a container positively associated with this fresh execution.
+  # Cleanup also checks the unique creation label, never broad container names.
   if [[ -s "$LOG_DIR/container-id.txt" ]]; then CREATED=yes; fi
   echo "Disposable PostgreSQL startup failed" >&2
   exit 2
@@ -89,6 +91,19 @@ docker exec "$CONTAINER" pg_dump -U fisher -d fisher_test -Fc |
 test -s "$TMP_DIR/synthetic-only.encrypted"
 sha256sum "$TMP_DIR/synthetic-only.encrypted" | cut -d ' ' -f 1 \
   >"$LOG_DIR/encrypted-backup-sha256.txt"
+# A one-byte changed authenticated archive must fail BEFORE pg_restore consumes it.
+node - "$TMP_DIR/synthetic-only.encrypted" "$TMP_DIR/tampered.encrypted" <<'NODE'
+const fs=require("node:fs");
+const source=fs.readFileSync(process.argv[2]);
+if(source.length<=36)process.exit(2);
+source[source.length-1]^=1;
+fs.writeFileSync(process.argv[3],source,{mode:0o600});
+NODE
+if node scripts/phase5-archive-crypto.mjs decrypt \
+  <"$TMP_DIR/tampered.encrypted" >"$TMP_DIR/tamper-output" 2>"$LOG_DIR/tamper-denied.log"; then
+  echo "Tampered archive was accepted" >&2; exit 2
+fi
+[[ ! -s "$TMP_DIR/tamper-output" ]] || { echo "Tamper exposed plaintext" >&2; exit 2; }
 docker exec "$CONTAINER" createdb -U fisher fisher_restore_test
 node scripts/phase5-archive-crypto.mjs decrypt <"$TMP_DIR/synthetic-only.encrypted" |
  docker exec -i "$CONTAINER" pg_restore --exit-on-error --no-owner --no-acl \
@@ -112,4 +127,5 @@ echo "Migration registry rows matched: $SOURCE_COUNT" >"$LOG_DIR/evidence.txt"
 echo "Synthetic restore marker matched: YES" >>"$LOG_DIR/evidence.txt"
 echo "Backup encrypted with AES-256-GCM and ephemeral key: YES" >>"$LOG_DIR/evidence.txt"
 echo "Plaintext archive written to disk: NO" >>"$LOG_DIR/evidence.txt"
+echo "Tampered encrypted archive rejected: YES" >>"$LOG_DIR/evidence.txt"
 echo "PASS: new disposable backup, independent restore, probe and checksums"

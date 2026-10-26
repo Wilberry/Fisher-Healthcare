@@ -57,8 +57,8 @@ Run `FISHER_PHASE5_RESTORE_ACK=new-disposable-only bash scripts/phase5-disposabl
 3. Streams a binary backup through ephemeral-key AES-256-GCM authenticated
    encryption. Only the encrypted temporary archive reaches disk. The archive
    is decrypted directly into a distinct `fisher_restore_test` database in
-   the same disposable container, with an authenticated-tag integrity check.
-4. Compares marker, migration registry count and migration checksums, records an evidence summary, then removes the encrypted temporary backup and only its own container.
+   the same disposable container, with an authenticated-tag integrity check. The drill also corrupts a separate encrypted copy and requires decryption to fail without producing plaintext.
+4. Compares marker, migration registry count and migration checksums, records an evidence summary, then removes the encrypted temporary backup and only its uniquely labeled container. Interrupted or partially failed starts are included in scoped cleanup.
 
 **It does not test production backups, encryption keys, multi-region failover, disaster-recovery timing or real patient data.** Those require separately approved infrastructure and controlled evidence. The script never connects to an existing database or Docker Compose service.
 

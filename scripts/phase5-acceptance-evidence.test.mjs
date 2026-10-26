@@ -17,7 +17,8 @@ const fixture=()=>({
  restoreEvidence:['Migration registry rows matched: 36',
   'Synthetic restore marker matched: YES',
   'Backup encrypted with AES-256-GCM and ephemeral key: YES',
-  'Plaintext archive written to disk: NO'].join('\n'),
+  'Plaintext archive written to disk: NO',
+  'Tampered encrypted archive rejected: YES'].join('\n'),
  probe:{mode:'disposable-loopback-only',pilotAuthorized:false,
   latencyIsAnApprovedSla:false,count:20,healthyResponses:10,
   unauthorizedResponses:10,p95Ms:23,maxMs:50},
@@ -68,6 +69,11 @@ describe('Phase 5 synthetic acceptance evidence synthesis',()=>{
  });
  it('rejects reused core results from a different commit',()=>{
   assert.throws(()=>buildSyntheticAcceptanceEvidence({...fixture(),commit:'b'.repeat(40)}));
+ });
+ it('rejects missing tamper-failure evidence',()=>{
+  const input=fixture();
+  input.restoreEvidence=input.restoreEvidence.replace('Tampered encrypted archive rejected: YES','Tampered encrypted archive rejected: NO');
+  assert.throws(()=>buildSyntheticAcceptanceEvidence(input));
  });
  it('denies absent restoration, container cleanup or encryption integrity',()=>{
   for(const key of ['restoreSummary','restoreEvidence']){

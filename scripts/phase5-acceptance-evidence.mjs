@@ -24,7 +24,8 @@ export function buildSyntheticAcceptanceEvidence(input){
  for(const evidence of [
   'Synthetic restore marker matched: YES',
   'Backup encrypted with AES-256-GCM and ephemeral key: YES',
-  'Plaintext archive written to disk: NO'
+  'Plaintext archive written to disk: NO',
+  'Tampered encrypted archive rejected: YES'
  ]){
   if(!lineEquals(restoreEvidence,evidence))
    throw new Error('Incomplete authenticated restore evidence');
