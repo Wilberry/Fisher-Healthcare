@@ -111,7 +111,8 @@ export class Phase5AlertsService implements OnModuleDestroy{
    // with the current state and existing security audit record.
    for(const change of changes){
     const [code,type]=change.split(':');
-    if(!isAlertCode(code)||!['opened','resolved','reopened'].includes(type))
+    if(!isAlertCode(code)||typeof type!=='string'||
+       !['opened','resolved','reopened'].includes(type))
      throw new ServiceUnavailableException('Invalid synthetic alert transition');
     await c.query(`
       INSERT INTO phase5_alert_state_events(
