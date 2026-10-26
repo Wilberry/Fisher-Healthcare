@@ -182,6 +182,15 @@ function validateDocument(document: OpenAPIObject): void {
   const phase5Snapshot=document.paths['/api/v1/ops/pilot-readiness/snapshot']?.get;
   if(!phase5Snapshot?.security?.some(s=>Object.hasOwn(s,'bearer')))
     throw new OpenApiContractError('Missing authenticated Phase 5 readiness snapshot');
+  for(const [route,method] of [
+    ['/api/v1/ops/pilot-readiness/alerts','get'],
+    ['/api/v1/ops/pilot-readiness/evaluate','post'],
+    ['/api/v1/ops/pilot-readiness/alerts/{code}/acknowledge','post']
+  ] as const){
+    const op=document.paths[route]?.[method];
+    if(!op?.security?.some(s=>Object.hasOwn(s,'bearer')))
+      throw new OpenApiContractError('Missing protected Phase 5 alert route '+method+' '+route);
+  }
 
   if (!document.components?.securitySchemes?.bearer) {
     throw new OpenApiContractError('Required bearer authentication scheme is not documented');

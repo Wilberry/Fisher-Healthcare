@@ -2319,6 +2319,63 @@
           }
         ]
       }
+    },
+    "/api/v1/ops/pilot-readiness/alerts": {
+      "get": {
+        "operationId": "Phase5AlertsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ops/pilot-readiness/evaluate": {
+      "post": {
+        "operationId": "Phase5AlertsController_evaluate",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/ops/pilot-readiness/alerts/{code}/acknowledge": {
+      "post": {
+        "operationId": "Phase5AlertsController_acknowledge",
+        "parameters": [
+          {
+            "name": "code",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {

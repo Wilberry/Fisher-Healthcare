@@ -11,6 +11,9 @@ CREATE TABLE phase5_operational_alerts (
   acknowledged_by uuid REFERENCES users(id),
   acknowledged_at timestamptz,
   resolved_at timestamptz,
+  CONSTRAINT phase5_alert_acknowledged_requires_actor CHECK (
+    status<>'acknowledged' OR
+    (acknowledged_by IS NOT NULL AND acknowledged_at IS NOT NULL)),
   CONSTRAINT phase5_alert_ack_pair CHECK (
     (acknowledged_by IS NULL)=(acknowledged_at IS NULL)),
   CONSTRAINT phase5_alert_resolution CHECK (
@@ -26,8 +29,21 @@ BEGIN
     NEW.first_seen_at IS DISTINCT FROM OLD.first_seen_at THEN
    RAISE EXCEPTION 'Alert identity is immutable';
  END IF;
+ IF NOT (
+    (OLD.status=NEW.status) OR
+    (OLD.status='open' AND NEW.status IN ('acknowledged','resolved')) OR
+    (OLD.status='acknowledged' AND NEW.status='resolved') OR
+    (OLD.status='resolved' AND NEW.status='open')
+ ) THEN
+   RAISE EXCEPTION 'Invalid synthetic alert transition';
+ END IF;
+ IF OLD.status='resolved' AND NEW.status='open' AND
+    (NEW.acknowledged_by IS NOT NULL OR NEW.acknowledged_at IS NOT NULL OR
+     NEW.resolved_at IS NOT NULL) THEN
+   RAISE EXCEPTION 'Reopened alert must clear historical decision';
+ END IF;
  RETURN NEW;
-END; $$;
+END; $;
 CREATE TRIGGER phase5_alert_identity_guard
  BEFORE UPDATE ON phase5_operational_alerts
  FOR EACH ROW EXECUTE FUNCTION phase5_guard_alert_identity();
