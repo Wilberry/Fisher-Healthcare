@@ -19,11 +19,18 @@ CONTAINER="fisher-phase5-restore-$UID-$$"
 CREATED=no
 cleanup(){
   local code=$?
+  local removed=NOT_CREATED
   trap - EXIT
   if [[ "$CREATED" == yes ]]; then
     docker logs --tail 80 "$CONTAINER" >"$LOG_DIR/container.log" 2>&1 || true
-    docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+    if docker rm -f "$CONTAINER" >/dev/null 2>&1; then
+      removed=YES
+    else
+      removed=FAILED
+      code=2
+    fi
   fi
+  unset FISHER_PHASE5_BACKUP_KEY_B64 || true
   rm -rf -- "$TMP_DIR"
   {
     echo "Result: $([[ "$code" -eq 0 ]] && echo PASS || echo FAIL)"
@@ -31,20 +38,26 @@ cleanup(){
     echo "Source database: fisher_test (new disposable)"
     echo "Restore database: fisher_restore_test (same disposable container)"
     echo "No customer/clinical data accessed: YES"
-    echo "Docker container retained: NO"
+    echo "Docker container removed: $removed"
   } > "$LOG_DIR/summary.txt"
   echo "Phase 5 recovery drill evidence: $LOG_DIR/summary.txt"
   exit "$code"
 }
 trap cleanup EXIT
-docker run -d --name "$CONTAINER" \
+if docker run -d --name "$CONTAINER" \
   --memory 768m --cpus 1.5 \
   -e POSTGRES_DB=fisher_test \
   -e POSTGRES_USER=fisher \
   -e POSTGRES_PASSWORD=fisher_phase5_disposable \
   -p 127.0.0.1::5432 postgres:16-alpine \
-  >"$LOG_DIR/container-id.txt"
-CREATED=yes
+  >"$LOG_DIR/container-id.txt"; then
+  CREATED=yes
+else
+  # Remove only a container positively associated with this fresh execution.
+  if [[ -s "$LOG_DIR/container-id.txt" ]]; then CREATED=yes; fi
+  echo "Disposable PostgreSQL startup failed" >&2
+  exit 2
+fi
 READY=no
 for _attempt in $(seq 1 60); do
   if docker exec "$CONTAINER" pg_isready -U fisher -d fisher_test >/dev/null 2>&1; then
