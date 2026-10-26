@@ -47,6 +47,7 @@ trap cleanup EXIT
 node scripts/verify-phase5-contract.mjs >"$LOG/01-contract.log" 2>&1
 node --test scripts/phase5-local-probe.test.mjs >"$LOG/01b-probe-tests.log" 2>&1
 node --test scripts/phase5-archive-crypto.test.mjs >"$LOG/01c-crypto-tests.log" 2>&1
+node --test scripts/phase5-acceptance-evidence.test.mjs >"$LOG/01d-evidence-tests.log" 2>&1
 if FISHER_VERIFY_LOG_DIR="$LOG/core" \
  FISHER_PHASE2_LOCAL_ACK=synthetic-only \
  FISHER_PHASE2_ACCEPTANCE_ACK=exact-commit \
@@ -120,10 +121,26 @@ done
 kill "$WEB_PID" 2>/dev/null || true
 wait "$WEB_PID" 2>/dev/null || true; WEB_PID=""
 SMOKE=PASS
+# Retain the independent restore's exact evidence path, not a guessed
+# summary from a previous run.
+RESTORE_SUMMARY="$(sed -n 's/^Phase 5 recovery drill evidence: //p' "$LOG/04-recovery.log" | tail -n 1)"
+case "$RESTORE_SUMMARY" in
+ "$ROOT"/.verification/phase5-restore-*/summary.txt) ;;
+ *) echo "Recovery evidence path not produced by this worktree" >&2; exit 2 ;;
+esac
+[[ -f "$RESTORE_SUMMARY" ]] || { echo "Recovery summary missing" >&2; exit 2; }
+RESTORE_EVIDENCE="${RESTORE_SUMMARY%/summary.txt}/evidence.txt"
+[[ -f "$RESTORE_EVIDENCE" ]] || { echo "Recovery proof missing" >&2; exit 2; }
+FISHER_PHASE5_LOCAL_ACK=synthetic-only \
+ node scripts/phase5-acceptance-evidence.mjs \
+ "$SHA" "$LOG/core/summary.txt" "$RESTORE_SUMMARY" \
+ "$RESTORE_EVIDENCE" "$LOG/05b-loopback-probe.json" \
+ >"$LOG/07-synthetic-acceptance.json"
 git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
 [[ "$(git rev-parse "origin/$BRANCH")" == "$SHA" ]] ||
  { echo "Phase 5 remote changed during acceptance" >&2; exit 2; }
 [[ -z "$(git status --porcelain --untracked-files=all)" ]] ||
  { echo "Verification produced uncommitted changes" >&2; exit 2; }
+echo "Acceptance report: $LOG/07-synthetic-acceptance.json"
 echo "PHASE5_SYNTHETIC_ACCEPTED_SHA=$SHA"
 echo "Pilot authorization remains BLOCKED pending independent approvals."

@@ -85,4 +85,11 @@ FISHER_PHASE5_LOCAL_ACK=synthetic-only bash scripts/run-phase5-acceptance.sh
 
 It prepares a detached verification worktree, runs the existing full local quality/security/migrations/API UI checks with the new unit and integration tests, runs the disposable recovery drill, and checks the new API/dashboard denied-access smoke. `main` is not modified, the PR is not merged, and no pilot is activated.
 
+The verifier also emits `07-synthetic-acceptance.json`, which cross-checks
+the exact commit in the core run, successful Docker container cleanup and
+encrypted restoration, the migration count, and the 20 bounded authorized
+health/unauthorized-access status probes. It **fails closed** on missing or
+inconsistent evidence. This report always records clinical and pilot release
+authorization as false and must not be presented as legal or clinical approval.
+
 A clean Phase 5 synthetic acceptance is only one prerequisite in the independent release authorization programme.
