@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import {Notice,SiteShell,Card} from '@fisher/ui';
 import {oidcConfig,readStaffSession,verifyActiveStaff} from '../../lib/staff-auth';
+import {ReadinessAlerts} from './readiness-alerts';
 export const dynamic='force-dynamic';
 const fields=[
  ['openCustodyIncidents','Open custody incidents'],
@@ -69,6 +70,7 @@ export default async function PilotReadiness(){
        </Card>)}</div>
      <p>Active incidents, failed notifications and dead letters require operational investigation.
        Pending queues are not, by themselves, clinical release decisions.</p>
+     <ReadinessAlerts/>
    </>}
   </div></section>
  </SiteShell>;
