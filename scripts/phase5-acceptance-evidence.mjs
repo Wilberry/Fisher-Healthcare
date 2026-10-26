@@ -1,9 +1,14 @@
 import {readFileSync} from 'node:fs';
 import {pathToFileURL} from 'node:url';
 const sha=/^[0-9a-f]{40}$/;
-function lineEquals(body,value){return body.split(/\r?\n/).includes(value);}
+function lineEquals(body,value){
+ if(typeof body!=='string')return false;
+ const prefix=value.slice(0,value.indexOf(':')+1);
+ const entries=body.split(/\r?\n/).filter(line=>line.startsWith(prefix));
+ return entries.length===1&&entries[0]===value;
+}
 export function buildSyntheticAcceptanceEvidence(input){
- const {commit,coreSummary,restoreSummary,restoreEvidence,probe,smokePassed}=input;
+ const {commit,coreSummary,restoreSummary,restoreEvidence,probe,smokeSummary,lockfileSha256}=input;
  if(typeof commit!=='string'||!sha.test(commit))
   throw new Error('Invalid pinned source commit');
  if(!lineEquals(coreSummary,'Result: PASS')||
@@ -35,9 +40,17 @@ export function buildSyntheticAcceptanceEvidence(input){
     probe.count!==20||!Number.isFinite(probe.p95Ms)||
     !Number.isFinite(probe.maxMs)||probe.p95Ms<0||probe.maxMs<probe.p95Ms)
   throw new Error('Incomplete synthetic denied-access probe');
- if(smokePassed!==true)throw new Error('Phase 5 API/UI smoke not accepted');
+ if(!lineEquals(smokeSummary,'Result: PASS')||
+    !lineEquals(smokeSummary,'Commit: '+commit)||
+    !lineEquals(smokeSummary,'API denied-access checks: PASS')||
+    !lineEquals(smokeSummary,'Web origin checks: PASS'))
+  throw new Error('Phase 5 API/UI smoke not accepted');
+ if(typeof lockfileSha256!=='string'||!/^[0-9a-f]{64}$/.test(lockfileSha256)||
+    !lineEquals(coreSummary,'Lockfile: '+lockfileSha256)||
+    !lineEquals(coreSummary,'Lockfile committed at tested revision: yes'))
+  throw new Error('Pinned dependency lockfile not proven');
  return {
-  schemaVersion:1,commit,engineeringSyntheticAcceptance:'PASS',
+  schemaVersion:2,commit,lockfileSha256,engineeringSyntheticAcceptance:'PASS',
   coreQualityChecks:'PASS',securityAuditGates:'PASS',
   disposableMigrationsRestored:Number(rows[0].slice(33)),
   encryptedRecoveryAndCleanup:'PASS',apiAndWebSmoke:'PASS',
@@ -53,14 +66,14 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
  try{
   if(process.env.FISHER_PHASE5_LOCAL_ACK!=='synthetic-only')
    throw new Error('Synthetic acceptance only');
-  if(process.argv.length!==7)
-   throw new Error('Usage: commit core restore summary evidence probe');
-  const [commit,core,restore,restoreEvidence,probe]=process.argv.slice(2);
+  if(process.argv.length!==9)
+   throw new Error('Usage: commit core restore evidence probe smoke lockfile-sha256');
+  const [commit,core,restore,restoreEvidence,probe,smoke,lockfileSha256]=process.argv.slice(2);
   const read=path=>readFileSync(path,'utf8');
   const report=buildSyntheticAcceptanceEvidence({
    commit,coreSummary:read(core),restoreSummary:read(restore),
    restoreEvidence:read(restoreEvidence),probe:JSON.parse(read(probe)),
-   smokePassed:true
+   smokeSummary:read(smoke),lockfileSha256
   });
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
  }catch{

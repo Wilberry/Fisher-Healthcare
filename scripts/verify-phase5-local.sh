@@ -121,6 +121,12 @@ done
 kill "$WEB_PID" 2>/dev/null || true
 wait "$WEB_PID" 2>/dev/null || true; WEB_PID=""
 SMOKE=PASS
+{
+ echo "Result: PASS"
+ echo "Commit: $SHA"
+ echo "API denied-access checks: PASS"
+ echo "Web origin checks: PASS"
+} >"$LOG/06-smoke-summary.txt"
 # Retain the independent restore's exact evidence path, not a guessed
 # summary from a previous run.
 RESTORE_SUMMARY="$(sed -n 's/^Phase 5 recovery drill evidence: //p' "$LOG/04-recovery.log" | tail -n 1)"
@@ -131,16 +137,18 @@ esac
 [[ -f "$RESTORE_SUMMARY" ]] || { echo "Recovery summary missing" >&2; exit 2; }
 RESTORE_EVIDENCE="${RESTORE_SUMMARY%/summary.txt}/evidence.txt"
 [[ -f "$RESTORE_EVIDENCE" ]] || { echo "Recovery proof missing" >&2; exit 2; }
-FISHER_PHASE5_LOCAL_ACK=synthetic-only \
- node scripts/phase5-acceptance-evidence.mjs \
- "$SHA" "$LOG/core/summary.txt" "$RESTORE_SUMMARY" \
- "$RESTORE_EVIDENCE" "$LOG/05b-loopback-probe.json" \
- >"$LOG/07-synthetic-acceptance.json"
 git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
 [[ "$(git rev-parse "origin/$BRANCH")" == "$SHA" ]] ||
  { echo "Phase 5 remote changed during acceptance" >&2; exit 2; }
 [[ -z "$(git status --porcelain --untracked-files=all)" ]] ||
  { echo "Verification produced uncommitted changes" >&2; exit 2; }
+FISHER_PHASE5_LOCAL_ACK=synthetic-only \
+ node scripts/phase5-acceptance-evidence.mjs \
+ "$SHA" "$LOG/core/summary.txt" "$RESTORE_SUMMARY" \
+ "$RESTORE_EVIDENCE" "$LOG/05b-loopback-probe.json" "$LOG/06-smoke-summary.txt" \
+ "$(sha256sum pnpm-lock.yaml | cut -d ' ' -f 1)" \
+ >"$LOG/07-synthetic-acceptance.json.tmp"
+mv "$LOG/07-synthetic-acceptance.json.tmp" "$LOG/07-synthetic-acceptance.json"
 echo "Acceptance report: $LOG/07-synthetic-acceptance.json"
 echo "PHASE5_SYNTHETIC_ACCEPTED_SHA=$SHA"
 echo "Pilot authorization remains BLOCKED pending independent approvals."

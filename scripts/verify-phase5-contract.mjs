@@ -34,7 +34,7 @@ if(!alerts.includes('INSERT INTO phase5_alert_state_events')||
 const migration=readFileSync(
  'packages/database/drizzle/0035_phase5_synthetic_alert_lifecycle.sql','utf8');
 if(!migration.includes('phase5_alert_no_delete')||
- !migration.includes('END; $;\nCREATE TRIGGER phase5_alert_identity_guard')||
+ !migration.includes('END; $$;\nCREATE TRIGGER phase5_alert_identity_guard')||
  !migration.includes('CREATE TABLE phase5_alert_state_events')||
  !migration.includes('phase5_alert_state_events_immutable'))
  throw new Error('Missing or invalid immutable Phase 5 alert migration');

@@ -42,6 +42,13 @@ encrypted retention still require separate infrastructure approval.
 8. Signed review of changed permissions, clinical/financial invariants and
    service configurations.
 
+The consolidated verifier publishes `07-synthetic-acceptance.json` (schema
+version 2) only after the remote branch still matches the tested commit and the
+worktree remains clean. The report binds the committed lockfile checksum and
+API/web smoke summary to that commit, rejects duplicate or contradictory summary
+fields, and requires the independent encrypted restore and container cleanup
+proofs. A partial run must never be used as acceptance evidence.
+
 These are **engineering gates**, not legal/clinical approvals.
 
 ## Deployment order — after independent authorization
