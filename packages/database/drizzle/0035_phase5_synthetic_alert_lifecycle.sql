@@ -58,7 +58,7 @@ BEGIN
    RAISE EXCEPTION 'Reopened alert must clear historical decision';
  END IF;
  RETURN NEW;
-END; $;
+END; $$;
 CREATE TRIGGER phase5_alert_identity_guard
  BEFORE UPDATE ON phase5_operational_alerts
  FOR EACH ROW EXECUTE FUNCTION phase5_guard_alert_identity();
