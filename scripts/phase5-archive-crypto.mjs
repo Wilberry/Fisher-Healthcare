@@ -35,12 +35,12 @@ export function decryptArchive(record,key){
  if(!plain.length)throw new Error('Restored backup is empty');
  return plain;
 }
-async function readBoundedStdin(){
+async function readBoundedStdin(maxBytes){
  const chunks=[];let count=0;
  for await(const input of process.stdin){
   const piece=Buffer.isBuffer(input)?input:Buffer.from(input);
   count+=piece.length;
-  if(count>MAX_BYTES)throw new Error('Synthetic backup exceeds bounded size');
+  if(count>maxBytes)throw new Error('Synthetic backup exceeds bounded size');
   chunks.push(piece);
  }
  if(!count)throw new Error('Empty synthetic backup stream');
@@ -54,7 +54,7 @@ if(process.argv[1]&&import.meta.url===pathToFileURL(process.argv[1]).href){
   if(mode!=='encrypt'&&mode!=='decrypt')
    throw new Error('Usage: encrypt|decrypt');
   const key=requireBackupKey(process.env.FISHER_PHASE5_BACKUP_KEY_B64);
-  const input=await readBoundedStdin();
+  const input=await readBoundedStdin(mode==='encrypt'?MAX_BYTES:MAX_BYTES+36);
   const output=mode==='encrypt'?encryptArchive(input,key):decryptArchive(input,key);
   process.stdout.write(output);
  }catch{
