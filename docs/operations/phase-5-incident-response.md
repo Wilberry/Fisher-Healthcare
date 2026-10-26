@@ -19,6 +19,12 @@ incident command center, emergency clinical workflow, or legal sign-off.
    from the current alert state. The audit also records which administrator
    performed the transition.
 
+The protected alert list now includes a bounded read-only timeline of the
+30 most recent aggregate state transitions. Only the fixed signal, transition
+type, count and timestamp are sent to the dashboard. Actor identities remain
+within immutable database and security audit evidence; they must not be placed
+in a public incident export.
+
 An acknowledged alert is **not** resolved; a resolved alert is **not** proof
 of regulatory clearance or clinical safety.
 

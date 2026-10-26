@@ -88,9 +88,17 @@ suite.sequential('Phase 5 synthetic alert lifecycle (disposable PostgreSQL)',()=
     event.observed_count>=1)).toBe(true);
   expect(stateEvents.rows.some(event=>event.event_type==='acknowledged'&&
     event.actor_id===ids.admin)).toBe(true);
+  expect(current.history.length).toBeLessThanOrEqual(30);
+  expect(current.history.some((event:{event_type:string})=>
+    event.event_type==='acknowledged')).toBe(true);
+  for(const entry of current.history as Record<string,unknown>[]){
+   expect(Object.keys(entry).sort()).toEqual(
+    ['code','event_type','observed_count','recorded_at'].sort());
+  }
   const serialized=JSON.stringify(current);
   expect(serialized).not.toContain(subjects.admin);
   expect(serialized).not.toContain(ids.outbox);
+  expect(serialized).not.toContain(ids.admin);
  });
  it('enforces legal state transitions and clears old acknowledgment on reopen',async()=>{
   await expect(pool.query(`

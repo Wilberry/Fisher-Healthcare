@@ -166,7 +166,7 @@ return aggregate counts/statuses only, and cannot authorize a real pilot.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | /ops/pilot-readiness/snapshot | Aggregate custody, background work, result delivery and finance queue counts |
-| GET | /ops/pilot-readiness/alerts | Read fixed synthetic alert status and counts, without patient identifiers |
+| GET | /ops/pilot-readiness/alerts | Read fixed synthetic alert status/counts and up to 30 aggregate-only immutable transitions, without patient or actor identifiers |
 | POST | /ops/pilot-readiness/evaluate | Evaluate three current aggregate conditions; open, resolve or reopen internal synthetic alerts |
 | POST | /ops/pilot-readiness/alerts/:code/acknowledge | Audit acknowledgment of one existing open alert by an authorized administrator |
 

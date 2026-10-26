@@ -53,7 +53,15 @@ export class Phase5AlertsService implements OnModuleDestroy{
        acknowledged_at,resolved_at
      FROM phase5_operational_alerts ORDER BY code ASC
    `);
-   return {data:rows.rows,scope:'disposable-synthetic-only',
+   // Bounded timeline for incident review. Never expose actor identifiers,
+   // database object IDs, arbitrary metadata or clinical row references.
+   const history=await c.query(`
+     SELECT code,event_type,observed_count,recorded_at
+     FROM phase5_alert_state_events
+     ORDER BY recorded_at DESC,id DESC LIMIT 30
+   `);
+   return {data:rows.rows,history:history.rows,
+     scope:'disposable-synthetic-only',
      externalPagingEnabled:false,pilotActivationAuthorized:false};
   });
  }

@@ -186,7 +186,8 @@ export type StaffApiState='signed_out'|'authorized'|'access_denied'|'reauth_requ
 export async function staffApi(path:string){
   const absent=(state:StaffApiState,signedIn:boolean)=>({
     signedIn,authorized:false as const,state,
-    records:[] as Record<string,unknown>[]
+    records:[] as Record<string,unknown>[],
+    history:[] as Record<string,unknown>[]
   });
   const session=await readStaffSession(),cfg=oidcConfig();
   if(!session)return absent('signed_out',false);
@@ -206,8 +207,13 @@ export async function staffApi(path:string){
     const data:unknown=await response.json();
     const rows=data&&typeof data==='object'&&'data' in data &&
       Array.isArray(data.data)?data.data:[];
+    const history=path==='ops/pilot-readiness/alerts'&&data&&
+      typeof data==='object'&&'history' in data&&Array.isArray(data.history)?
+      data.history.slice(0,30):[];
     return {signedIn:true as const,authorized:true as const,state:'authorized' as const,
       records:rows.filter((entry):entry is Record<string,unknown> =>
+        !!entry&&typeof entry==='object'&&!Array.isArray(entry)),
+      history:history.filter((entry):entry is Record<string,unknown> =>
         !!entry&&typeof entry==='object'&&!Array.isArray(entry))};
   }catch(error){
     if(error instanceof StaffSessionError)
