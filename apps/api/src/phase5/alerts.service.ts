@@ -99,19 +99,23 @@ export class Phase5AlertsService implements OnModuleDestroy{
      if(action==='resolve'){
       await c.query(`
        UPDATE phase5_operational_alerts
-       SET status='resolved',observed_count=0,resolved_at=now(),last_seen_at=now()
+       SET status='resolved',observed_count=0,
+         resolved_at=GREATEST(first_seen_at,clock_timestamp()),
+         last_seen_at=GREATEST(last_seen_at,clock_timestamp())
        WHERE code=$1`,[code]);
       changes.push(code+':resolved');
      }else if(action==='reopen'){
       await c.query(`
        UPDATE phase5_operational_alerts SET status='open',
         observed_count=$2,acknowledged_by=NULL,acknowledged_at=NULL,
-        resolved_at=NULL,last_seen_at=now() WHERE code=$1`,[code,value]);
+        resolved_at=NULL,
+        last_seen_at=GREATEST(last_seen_at,clock_timestamp()) WHERE code=$1`,[code,value]);
       changes.push(code+':reopened');
      }else{
       await c.query(`
        UPDATE phase5_operational_alerts
-       SET observed_count=$2,last_seen_at=now() WHERE code=$1`,[code,value]);
+       SET observed_count=$2,
+          last_seen_at=GREATEST(last_seen_at,clock_timestamp()) WHERE code=$1`,[code,value]);
      }
     }
    }
@@ -152,7 +156,8 @@ export class Phase5AlertsService implements OnModuleDestroy{
    if(row.status!=='open')throw new ConflictException('Only open alerts can be acknowledged');
    await c.query(`
     UPDATE phase5_operational_alerts
-    SET status='acknowledged',acknowledged_by=$2,acknowledged_at=now()
+    SET status='acknowledged',acknowledged_by=$2,
+        acknowledged_at=GREATEST(first_seen_at,clock_timestamp())
     WHERE code=$1 AND status='open'`,[code,actor]);
    await c.query(`
     INSERT INTO phase5_alert_state_events(

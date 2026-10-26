@@ -76,3 +76,10 @@ The disposable Phase 5 restore drill exercises migrations, archive/restore
 and a marker only. Full encrypted production recovery with agreed RTO/RPO,
 key custody, auditability and a witnessed rehearsal is a later independent
 approval requirement.
+
+## Concurrent evaluation chronology
+
+The alert evaluator serializes state changes and uses monotonic-with-respect-to-
+existing-row event timestamps rather than a potentially older transaction-start
+clock. This preserves the SQL chronology guard if an evaluation waits on a
+concurrent writer. Such a retry never grants release or clinical authority.
