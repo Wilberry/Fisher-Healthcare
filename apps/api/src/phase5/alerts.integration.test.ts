@@ -82,5 +82,8 @@ suite.sequential('Phase 5 synthetic alert lifecycle (disposable PostgreSQL)',()=
   await expect(pool.query(`
     DELETE FROM phase5_operational_alerts WHERE code='outbox_dead_letters'`))
    .rejects.toThrow();
+  await expect(pool.query(`
+    UPDATE phase5_operational_alerts SET acknowledged_by=$1
+    WHERE code='outbox_dead_letters'`,[ids.outsider])).rejects.toThrow();
  });
 });

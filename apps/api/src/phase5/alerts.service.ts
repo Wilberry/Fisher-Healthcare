@@ -37,7 +37,10 @@ export class Phase5AlertsService implements OnModuleDestroy{
   const c=await this.db.connect();
   try{
    await c.query('BEGIN');
-   try{const value=await fn(c);await c.query('COMMIT');return value;}
+   try{
+     await c.query("SET LOCAL lock_timeout='3000ms'");
+     await c.query("SET LOCAL statement_timeout='8000ms'");
+     const value=await fn(c);await c.query('COMMIT');return value;}
    catch(e){await c.query('ROLLBACK');throw e;}
   }finally{c.release();}
  }

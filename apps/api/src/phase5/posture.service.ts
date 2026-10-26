@@ -23,6 +23,7 @@ export class Phase5PostureService implements OnModuleDestroy{
   const client:PoolClient=await this.db.connect();
   try{
    await client.query('BEGIN READ ONLY'); // No table writes, no row locks.
+   await client.query("SET LOCAL statement_timeout='8000ms'");
    const actor=await client.query<{id:string}>(`
      SELECT usr.id FROM users usr JOIN staff st ON st.user_id=usr.id
      WHERE usr.identity_subject=$1 AND st.active AND st.role='administrator'

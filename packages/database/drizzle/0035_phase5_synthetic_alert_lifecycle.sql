@@ -14,6 +14,10 @@ CREATE TABLE phase5_operational_alerts (
   CONSTRAINT phase5_alert_acknowledged_requires_actor CHECK (
     status<>'acknowledged' OR
     (acknowledged_by IS NOT NULL AND acknowledged_at IS NOT NULL)),
+  CONSTRAINT phase5_alert_open_has_no_ack CHECK (
+    status<>'open' OR (acknowledged_by IS NULL AND acknowledged_at IS NULL)),
+  CONSTRAINT phase5_alert_resolved_has_zero_count CHECK (
+    status<>'resolved' OR observed_count=0),
   CONSTRAINT phase5_alert_ack_pair CHECK (
     (acknowledged_by IS NULL)=(acknowledged_at IS NULL)),
   CONSTRAINT phase5_alert_resolution CHECK (
@@ -36,6 +40,17 @@ BEGIN
     (OLD.status='resolved' AND NEW.status='open')
  ) THEN
    RAISE EXCEPTION 'Invalid synthetic alert transition';
+ END IF;
+ IF OLD.status='acknowledged' AND NEW.status='acknowledged' AND (
+    NEW.acknowledged_by IS DISTINCT FROM OLD.acknowledged_by OR
+    NEW.acknowledged_at IS DISTINCT FROM OLD.acknowledged_at) THEN
+   RAISE EXCEPTION 'Acknowledgment cannot be rewritten';
+ END IF;
+ IF OLD.status='resolved' AND NEW.status='resolved' AND (
+    NEW.acknowledged_by IS DISTINCT FROM OLD.acknowledged_by OR
+    NEW.acknowledged_at IS DISTINCT FROM OLD.acknowledged_at OR
+    NEW.resolved_at IS DISTINCT FROM OLD.resolved_at) THEN
+   RAISE EXCEPTION 'Resolved alert decision cannot be rewritten';
  END IF;
  IF OLD.status='resolved' AND NEW.status='open' AND
     (NEW.acknowledged_by IS NOT NULL OR NEW.acknowledged_at IS NOT NULL OR
