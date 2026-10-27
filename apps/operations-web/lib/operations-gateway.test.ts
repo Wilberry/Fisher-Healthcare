@@ -103,6 +103,19 @@ describe('Phase 5 synthetic alert BFF gate',()=>{
   expect(response.status).toBe(404);
   expect(mocks.verifyActiveStaff).not.toHaveBeenCalled();
  });
+ it('rejects unexpected synthetic alert command fields before upstream access',async()=>{
+  const upstream=vi.fn();vi.stubGlobal('fetch',upstream);
+  for(const path of ['ops/pilot-readiness/evaluate',
+    'ops/pilot-readiness/alerts/outbox_dead_letters/acknowledge']){
+   for(const body of ['{"patientId":"synthetic-patient"}',
+     '{"pilotActivationAuthorized":true}','{"notes":"private"}']){
+    const response=await forwardOperationsAction(cmd(true,body),path);
+    expect(response.status).toBe(400);
+   }
+  }
+  expect(mocks.verifyActiveStaff).not.toHaveBeenCalled();
+  expect(upstream).not.toHaveBeenCalled();
+ });
  it('denies inactive sessions before any upstream Phase 5 write',async()=>{
   mocks.verifyActiveStaff.mockRejectedValueOnce(
    new StaffSessionError('access_denied'));
