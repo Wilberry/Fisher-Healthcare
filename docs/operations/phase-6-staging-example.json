@@ -1,0 +1,20 @@
+{
+  "environment": "restricted-synthetic-staging",
+  "sourceCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "imageDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "region": "region-test-1",
+  "ingressHostname": "staging.fisher.test",
+  "databaseNetwork": "private-only",
+  "identityMode": "sandbox-only",
+  "databaseMode": "synthetic-only",
+  "outboundNotifications": false,
+  "livePayments": false,
+  "clinicalWorkflows": false,
+  "publicIngress": false,
+  "secretReferences": [
+    "ref:staging/oidc-client",
+    "ref:staging/database"
+  ],
+  "operator": "Staging operator",
+  "changeTicket": "STAGE-1001"
+}

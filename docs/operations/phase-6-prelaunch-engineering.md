@@ -19,3 +19,13 @@ This is an **inventory**, not a signature verifier, deployment gate or live syst
 5. Growth features only after legal/clinical sign-off: convenience booking, bounded lab portal, referrals and zone expansion.
 
 Decisions and externally owned requirements remain open until accountable sign-off. Do not add a deploy action to this script.
+
+## Second increment: restricted staging offline preflight
+
+`node --test scripts/phase6-staging-preflight.test.mjs` checks source contract boundaries. `node scripts/phase6-staging-preflight.mjs docs/operations/phase-6-staging-example.json` validates a synthetic example only.
+
+It requires a full source commit, immutable OCI image digest, staging-only `.test` ingress, private database network, sandbox identity, disabled external notification, disabled payments, disabled clinical workflows, and disabled public ingress. Only internal secret *references* are accepted; neither keys nor secret values belong in Git.
+
+**The example's digest, SHA, operator, region and change ticket are placeholders, not verified artifacts or accepted infrastructure choices.** This validator does not inspect DNS, container registries, firewall rules, network policy, TLS, key custody or actual cloud state. Any successful preflight still returns `deploymentAuthorized=false`, and no deployment action is connected to it.
+
+Before introducing an actual deployment workflow, approve and document the provider/region, account isolation, threat model, private network, role hierarchy, secret manager, artifact signing/provenance, staging DNS/TLS, alert ownership, recovery plan and service costs.
