@@ -1,0 +1,88 @@
+{
+  "deploymentPlan": {
+    "staging": {
+      "environment": "restricted-synthetic-staging",
+      "sourceCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "imageDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "region": "region-test-1",
+      "ingressHostname": "staging.fisher.test",
+      "databaseNetwork": "private-only",
+      "identityMode": "sandbox-only",
+      "databaseMode": "synthetic-only",
+      "outboundNotifications": false,
+      "livePayments": false,
+      "clinicalWorkflows": false,
+      "publicIngress": false,
+      "secretReferences": [
+        "ref:staging/oidc-client",
+        "ref:staging/database"
+      ],
+      "operator": "Staging operator",
+      "changeTicket": "STAGE-1001"
+    },
+    "deployment": {
+      "artifactDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "sourceCommit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "previousArtifactDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "migrationStrategy": "forward-only-reviewed",
+      "rollbackStrategy": "previous-compatible-image-only",
+      "databaseRestoreStrategy": "manual-witnessed-separate",
+      "backupEvidenceRef": "ref:recovery/verified-drill",
+      "rollbackOwner": "Rollback owner",
+      "incidentOwner": "Incident owner",
+      "changeTicket": "STAGE-1001",
+      "stagingOnly": true,
+      "externalTrafficEnabled": false,
+      "releaseWindowApproved": false
+    }
+  },
+  "secretLifecycle": {
+    "manager": "externally-managed-reference-only",
+    "references": [
+      "ref:staging/oidc-client",
+      "ref:staging/database"
+    ],
+    "rotationOwner": "Security operator",
+    "rotationProcedureRef": "ref:runbooks/rotate-staging",
+    "emergencyRevocationRef": "ref:runbooks/revoke-staging",
+    "auditLogging": true
+  },
+  "monitoring": {
+    "mode": "offline-synthetic-review",
+    "externalDeliveryEnabled": false,
+    "owner": "Incident operator",
+    "escalationRef": "ref:runbooks/escalation-staging",
+    "signals": [
+      {
+        "name": "api_unavailable",
+        "severity": "critical",
+        "playbookRef": "ref:runbooks/api_unavailable",
+        "owner": "Incident operator"
+      },
+      {
+        "name": "db_connection_failure",
+        "severity": "critical",
+        "playbookRef": "ref:runbooks/db_connection_failure",
+        "owner": "Incident operator"
+      },
+      {
+        "name": "queue_dead_letters",
+        "severity": "warning",
+        "playbookRef": "ref:runbooks/queue_dead_letters",
+        "owner": "Incident operator"
+      },
+      {
+        "name": "unauthorized_access_spike",
+        "severity": "critical",
+        "playbookRef": "ref:runbooks/unauthorized_access_spike",
+        "owner": "Incident operator"
+      },
+      {
+        "name": "restore_integrity_failure",
+        "severity": "critical",
+        "playbookRef": "ref:runbooks/restore_integrity_failure",
+        "owner": "Incident operator"
+      }
+    ]
+  }
+}

@@ -38,3 +38,12 @@ Before introducing an actual deployment workflow, approve and document the provi
 Required: identical pinned source commit and OCI image digest across staging and deployment records; a distinct pinned last-known-compatible image; forward-only reviewed migrations; application-only image rollback; separate manual witnessed database recovery; named incident and rollback owners; referenced backup evidence. The evaluator rejects activation toggles, ambiguous sources, unreviewed automatic restores and unexpected fields.
 
 This is not a real rollback rehearsal, artifact signature verification, backup inspection, or permission to deploy. The placeholders must never be used as operational inputs. Production rollback requires an approved compatibility assessment and accountable human authorization.
+
+## Fourth increment: secrets and monitoring ownership preflight
+
+Run `node --test scripts/phase6-operations-preflight.test.mjs` and
+`node scripts/phase6-operations-preflight.mjs docs/operations/phase-6-operations-example.json`.
+
+The offline validator checks that secret references exactly match the staging declaration, that lifecycle rotation/emergency revocation procedures have accountable owners, and that five operational signals have named owners and playbook references. It denies real alert delivery, live provider calls, and unrecognized configuration fields.
+
+**References are not secret values and do not prove a secret manager, alerts, monitoring agents, incident notification channels, or actual rotations exist.** The example is illustrative and unapproved. Independent staging and provider approvals remain required.
