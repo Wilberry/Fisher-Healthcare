@@ -29,3 +29,12 @@ It requires a full source commit, immutable OCI image digest, staging-only `.tes
 **The example's digest, SHA, operator, region and change ticket are placeholders, not verified artifacts or accepted infrastructure choices.** This validator does not inspect DNS, container registries, firewall rules, network policy, TLS, key custody or actual cloud state. Any successful preflight still returns `deploymentAuthorized=false`, and no deployment action is connected to it.
 
 Before introducing an actual deployment workflow, approve and document the provider/region, account isolation, threat model, private network, role hierarchy, secret manager, artifact signing/provenance, staging DNS/TLS, alert ownership, recovery plan and service costs.
+
+## Third increment: immutable artifact and rollback-plan validation
+
+`node --test scripts/phase6-rollback-preflight.test.mjs` exercises the static validator.
+`node scripts/phase6-rollback-preflight.mjs docs/operations/phase-6-rollback-example.json` validates a **placeholder-only example**.
+
+Required: identical pinned source commit and OCI image digest across staging and deployment records; a distinct pinned last-known-compatible image; forward-only reviewed migrations; application-only image rollback; separate manual witnessed database recovery; named incident and rollback owners; referenced backup evidence. The evaluator rejects activation toggles, ambiguous sources, unreviewed automatic restores and unexpected fields.
+
+This is not a real rollback rehearsal, artifact signature verification, backup inspection, or permission to deploy. The placeholders must never be used as operational inputs. Production rollback requires an approved compatibility assessment and accountable human authorization.
