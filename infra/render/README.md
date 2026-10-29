@@ -25,3 +25,7 @@ This guards an exact contract; it does not validate provider runtime support or 
 The Docker command now invokes `scripts/phase6-render-start.mjs` before starting the API. This denies missing OIDC settings, missing Postgres references, unsafe application modes and payment/email credentials in this strictly synthetic environment. The gate does not authenticate a live OIDC provider or validate database migrations. All failures are reported by field name only; credentials are never logged.
 
 Run offline: `node --test scripts/phase6-render-start.test.mjs`.
+
+## Render Blueprint compatibility correction
+
+The PostgreSQL plan uses Render's database plan identifier `basic-256mb`, not a private-service CPU/RAM plan. Resource charges are still unapproved. Review the current plan price and availability in Render before applying any Blueprint. No resources were created by this correction.
