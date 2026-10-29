@@ -47,3 +47,9 @@ Run `node --test scripts/phase6-operations-preflight.test.mjs` and
 The offline validator checks that secret references exactly match the staging declaration, that lifecycle rotation/emergency revocation procedures have accountable owners, and that five operational signals have named owners and playbook references. It denies real alert delivery, live provider calls, and unrecognized configuration fields.
 
 **References are not secret values and do not prove a secret manager, alerts, monitoring agents, incident notification channels, or actual rotations exist.** The example is illustrative and unapproved. Independent staging and provider approvals remain required.
+
+## Fifth increment: consolidated offline verification
+
+The exact-commit verifier is `scripts/verify-phase6-offline.sh`. Run it only in a clean detached worktree at the current Phase 6 branch head, using `FISHER_PHASE6_EXPECTED_SHA=<full SHA> FISHER_PHASE6_LOCAL_ACK=offline-synthetic-only bash scripts/verify-phase6-offline.sh`.
+
+It executes the four preflight unit suites, the sample staging/rollback/operations plans, and confirms the default readiness inventory remains blocked. Its JSON output is explicitly **offline static evidence**, not live infrastructure acceptance. Never use the placeholder source/image digests as deployment artifacts. It does not contact cloud providers, run application integration tests, verify secret custody, send monitoring notifications, or grant clinical release. The existing Phase 5 acceptance remains the software baseline.
