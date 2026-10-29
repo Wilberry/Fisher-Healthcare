@@ -18,7 +18,9 @@ const allow = [
   /^finance\/lab-payables$/,
   /^finance\/lab-settlements$/,
   /^finance\/lab-settlements\/[0-9a-f-]{36}\/review$/,
-  /^finance\/physical-copies\/[0-9a-f-]{36}\/quote$/
+  /^finance\/physical-copies\/[0-9a-f-]{36}\/quote$/,
+  /^ops\/pilot-readiness\/evaluate$/,
+  /^ops\/pilot-readiness\/alerts\/(?:custody_incidents|outbox_dead_letters|result_email_failures)\/acknowledge$/
 ] as const;
 
 const response = (status:number,error:string) =>
@@ -42,6 +44,10 @@ export async function forwardOperationsAction(request:Request,path:string):Promi
     const parsed:unknown=JSON.parse(payload);
     if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))
       return response(400,'Invalid operational command');
+    // Phase 5 actions have no parameters. Do not proxy arbitrary clinical
+    // details, free-text notes, actor IDs or forged release controls.
+    if(path.startsWith('ops/pilot-readiness/')&&Object.keys(parsed).length!==0)
+      return response(400,'Synthetic alert commands require an empty object');
   }catch{return response(400,'Invalid JSON');}
   try{
     const subject=await verifyActiveStaff(session.accessToken,config.api);

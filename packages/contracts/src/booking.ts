@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const uuidSchema = z.string().uuid();
 export const bookingQuoteInput = z.object({

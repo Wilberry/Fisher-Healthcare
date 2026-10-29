@@ -1,7 +1,7 @@
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 import { BadRequestException, ConflictException, Injectable, OnModuleDestroy, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { Pool } from 'pg';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { AccessService } from './access.service';
 import { type AuthenticatedIdentity,requireStaffMfa } from './identity';
 

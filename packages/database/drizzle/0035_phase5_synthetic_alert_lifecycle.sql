@@ -1,0 +1,84 @@
+-- Phase 5 engineering-only alert records; aggregate counts, never clinical content.
+-- The API hard-disables this workflow in production.
+CREATE TABLE phase5_operational_alerts (
+  code varchar(40) PRIMARY KEY
+    CHECK (code IN ('custody_incidents','outbox_dead_letters','result_email_failures')),
+  status varchar(20) NOT NULL DEFAULT 'open'
+    CHECK (status IN ('open','acknowledged','resolved')),
+  observed_count integer NOT NULL CHECK (observed_count >= 0),
+  first_seen_at timestamptz NOT NULL DEFAULT now(),
+  last_seen_at timestamptz NOT NULL DEFAULT now(),
+  acknowledged_by uuid REFERENCES users(id),
+  acknowledged_at timestamptz,
+  resolved_at timestamptz,
+  CONSTRAINT phase5_alert_acknowledged_requires_actor CHECK (
+    status<>'acknowledged' OR
+    (acknowledged_by IS NOT NULL AND acknowledged_at IS NOT NULL)),
+  CONSTRAINT phase5_alert_open_has_no_ack CHECK (
+    status<>'open' OR (acknowledged_by IS NULL AND acknowledged_at IS NULL)),
+  CONSTRAINT phase5_alert_resolved_has_zero_count CHECK (
+    status<>'resolved' OR observed_count=0),
+  CONSTRAINT phase5_alert_ack_pair CHECK (
+    (acknowledged_by IS NULL)=(acknowledged_at IS NULL)),
+  CONSTRAINT phase5_alert_resolution CHECK (
+    (status='resolved')=(resolved_at IS NOT NULL)),
+  CONSTRAINT phase5_alert_active_count CHECK (
+    status='resolved' OR observed_count > 0)
+);
+CREATE INDEX phase5_alert_queue_idx
+ ON phase5_operational_alerts(status,last_seen_at);
+CREATE FUNCTION phase5_guard_alert_identity() RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+ IF NEW.code IS DISTINCT FROM OLD.code OR
+    NEW.first_seen_at IS DISTINCT FROM OLD.first_seen_at THEN
+   RAISE EXCEPTION 'Alert identity is immutable';
+ END IF;
+ IF NOT (
+    (OLD.status=NEW.status) OR
+    (OLD.status='open' AND NEW.status IN ('acknowledged','resolved')) OR
+    (OLD.status='acknowledged' AND NEW.status='resolved') OR
+    (OLD.status='resolved' AND NEW.status='open')
+ ) THEN
+   RAISE EXCEPTION 'Invalid synthetic alert transition';
+ END IF;
+ IF OLD.status='acknowledged' AND NEW.status='acknowledged' AND (
+    NEW.acknowledged_by IS DISTINCT FROM OLD.acknowledged_by OR
+    NEW.acknowledged_at IS DISTINCT FROM OLD.acknowledged_at) THEN
+   RAISE EXCEPTION 'Acknowledgment cannot be rewritten';
+ END IF;
+ IF OLD.status='resolved' AND NEW.status='resolved' AND (
+    NEW.acknowledged_by IS DISTINCT FROM OLD.acknowledged_by OR
+    NEW.acknowledged_at IS DISTINCT FROM OLD.acknowledged_at OR
+    NEW.resolved_at IS DISTINCT FROM OLD.resolved_at) THEN
+   RAISE EXCEPTION 'Resolved alert decision cannot be rewritten';
+ END IF;
+ IF OLD.status='resolved' AND NEW.status='open' AND
+    (NEW.acknowledged_by IS NOT NULL OR NEW.acknowledged_at IS NOT NULL OR
+     NEW.resolved_at IS NOT NULL) THEN
+   RAISE EXCEPTION 'Reopened alert must clear historical decision';
+ END IF;
+ RETURN NEW;
+END; $$;
+CREATE TRIGGER phase5_alert_identity_guard
+ BEFORE UPDATE ON phase5_operational_alerts
+ FOR EACH ROW EXECUTE FUNCTION phase5_guard_alert_identity();
+CREATE TRIGGER phase5_alert_no_delete
+ BEFORE DELETE ON phase5_operational_alerts
+ FOR EACH ROW EXECUTE FUNCTION reject_event_mutation();
+
+-- Append-only, fixed-taxonomy evidence for administrator state transitions.
+-- No free-text fields or clinical identifiers are accepted.
+CREATE TABLE phase5_alert_state_events (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ code varchar(40) NOT NULL REFERENCES phase5_operational_alerts(code),
+ event_type varchar(20) NOT NULL
+   CHECK (event_type IN ('opened','acknowledged','resolved','reopened')),
+ observed_count integer NOT NULL CHECK(observed_count >= 0),
+ actor_id uuid NOT NULL REFERENCES users(id),
+ recorded_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX phase5_alert_state_events_order
+ ON phase5_alert_state_events(code,recorded_at,id);
+CREATE TRIGGER phase5_alert_state_events_immutable
+ BEFORE UPDATE OR DELETE ON phase5_alert_state_events
+ FOR EACH ROW EXECUTE FUNCTION reject_event_mutation();

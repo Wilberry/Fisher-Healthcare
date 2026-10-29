@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+# Self-contained synthetic recovery proof. Never runs against an existing DB.
+set -Eeuo pipefail
+umask 077
+[[ "${FISHER_PHASE5_RESTORE_ACK:-}" == "new-disposable-only" ]] || {
+  echo "Set FISHER_PHASE5_RESTORE_ACK=new-disposable-only" >&2; exit 2;
+}
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+for tool in git node pnpm docker psql sha256sum; do
+  command -v "$tool" >/dev/null || { echo "Missing prerequisite: $tool" >&2; exit 2; }
+done
+docker info >/dev/null 2>&1 || { echo "Docker daemon unavailable" >&2; exit 2; }
+STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+LOG_DIR="$ROOT/.verification/phase5-restore-$STAMP-$$"
+mkdir -p "$LOG_DIR"
+TMP_DIR="$(mktemp -d)"
+CONTAINER="fisher-phase5-restore-${UID}-${BASHPID}"
+CREATED=no
+# Fresh alphanumeric credential; never reuse a hardcoded test database password.
+DB_PASSWORD="$(node -e "process.stdout.write(require('node:crypto').randomBytes(24).toString('hex'))")"
+# Unique label allows safe cleanup even if Docker run fails after creation.
+RUN_LABEL="fisher.phase5.disposable=${UID}-${BASHPID}"
+cleanup(){
+  local code=$?
+  local removed=NOT_CREATED
+  trap - EXIT
+  if [[ "$CREATED" == yes ]] || docker ps -a --filter "label=$RUN_LABEL" --format "{{.Names}}" | grep -Fxq "$CONTAINER"; then
+    docker logs --tail 80 "$CONTAINER" >"$LOG_DIR/container.log" 2>&1 || true
+    if docker rm -f "$CONTAINER" >/dev/null 2>&1; then
+      removed=YES
+    else
+      removed=FAILED
+      code=2
+    fi
+  fi
+  unset FISHER_PHASE5_BACKUP_KEY_B64 DB_PASSWORD DATABASE_URL || true
+  rm -rf -- "$TMP_DIR"
+  {
+    echo "Result: $([[ "$code" -eq 0 ]] && echo PASS || echo FAIL)"
+    echo "Commit: $(git rev-parse HEAD)"
+    echo "Source database: fisher_test (new disposable)"
+    echo "Restore database: fisher_restore_test (same disposable container)"
+    echo "No customer/clinical data accessed: YES"
+    echo "Docker container removed: $removed"
+  } > "$LOG_DIR/summary.txt"
+  echo "Phase 5 recovery drill evidence: $LOG_DIR/summary.txt"
+  exit "$code"
+}
+trap cleanup EXIT
+if docker run -d --name "$CONTAINER" --label "$RUN_LABEL" \
+  --memory 768m --cpus 1.5 \
+  -e POSTGRES_DB=fisher_test \
+  -e POSTGRES_USER=fisher \
+  -e POSTGRES_PASSWORD="$DB_PASSWORD" \
+  -p 127.0.0.1::5432 postgres:16-alpine \
+  >"$LOG_DIR/container-id.txt"; then
+  CREATED=yes
+else
+  # Cleanup also checks the unique creation label, never broad container names.
+  if [[ -s "$LOG_DIR/container-id.txt" ]]; then CREATED=yes; fi
+  echo "Disposable PostgreSQL startup failed" >&2
+  exit 2
+fi
+READY=no
+for _attempt in $(seq 1 60); do
+  if docker exec "$CONTAINER" pg_isready -U fisher -d fisher_test >/dev/null 2>&1; then
+    READY=yes; break
+  fi
+  sleep 1
+done
+[[ "$READY" == yes ]] || { echo "Disposable PostgreSQL not ready" >&2; exit 2; }
+PORT_OUTPUT="$(docker port "$CONTAINER" 5432/tcp | grep '^127.0.0.1:' | head -n 1)"
+PORT="${PORT_OUTPUT##*:}"
+[[ "$PORT" =~ ^[0-9]+$ ]] || { echo "Invalid disposable port" >&2; exit 2; }
+export DATABASE_URL="postgresql://fisher:${DB_PASSWORD}@127.0.0.1:$PORT/fisher_test"
+export FISHER_DISPOSABLE_DB_ACK=disposable-test-only
+# The container's Unix socket readiness does not prove the loopback TCP port
+# is serving our new database. Bound retries also handle startup races.
+DB_READY=no
+for _attempt in $(seq 1 20); do
+  if [[ "$(PGCONNECT_TIMEOUT=3 psql "$DATABASE_URL" -X -w -v ON_ERROR_STOP=1 -Atq \
+       -c 'select current_database()' 2>/dev/null || true)" == fisher_test ]]; then
+    DB_READY=yes; break
+  fi
+  sleep 1
+done
+[[ "$DB_READY" == yes ]] || { echo "Disposable source DB TCP unavailable" >&2; exit 2; }
+FISHER_MIGRATE_ACK=apply-reviewed-migrations \
+  pnpm --filter @fisher/database migrate >"$LOG_DIR/source-migrations.log" 2>&1
+pnpm --filter @fisher/database migrate:check >"$LOG_DIR/source-check.log" 2>&1
+TOKEN="synthetic-recovery-$STAMP-$$"
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -q -c \
+  "CREATE TABLE phase5_restore_probe (token text PRIMARY KEY); INSERT INTO phase5_restore_probe VALUES ('$TOKEN');" \
+  >"$LOG_DIR/probe-source.log" 2>&1
+# Generate an ephemeral, unlogged key. Only the encrypted archive touches disk;
+# decryption is piped directly to the distinct disposable restore database.
+FISHER_PHASE5_BACKUP_KEY_B64="$(node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64url'))")"
+export FISHER_PHASE5_BACKUP_KEY_B64
+docker exec "$CONTAINER" pg_dump -U fisher -d fisher_test -Fc |
+  node scripts/phase5-archive-crypto.mjs encrypt >"$TMP_DIR/synthetic-only.encrypted"
+test -s "$TMP_DIR/synthetic-only.encrypted"
+sha256sum "$TMP_DIR/synthetic-only.encrypted" | cut -d ' ' -f 1 \
+  >"$LOG_DIR/encrypted-backup-sha256.txt"
+# A one-byte changed authenticated archive must fail BEFORE pg_restore consumes it.
+node - "$TMP_DIR/synthetic-only.encrypted" "$TMP_DIR/tampered.encrypted" <<'NODE'
+const fs=require("node:fs");
+const source=fs.readFileSync(process.argv[2]);
+if(source.length<=36)process.exit(2);
+source[source.length-1]^=1;
+fs.writeFileSync(process.argv[3],source,{mode:0o600});
+NODE
+if node scripts/phase5-archive-crypto.mjs decrypt \
+  <"$TMP_DIR/tampered.encrypted" >"$TMP_DIR/tamper-output" 2>"$LOG_DIR/tamper-denied.log"; then
+  echo "Tampered archive was accepted" >&2; exit 2
+fi
+[[ ! -s "$TMP_DIR/tamper-output" ]] || { echo "Tamper exposed plaintext" >&2; exit 2; }
+docker exec "$CONTAINER" createdb -U fisher fisher_restore_test
+node scripts/phase5-archive-crypto.mjs decrypt <"$TMP_DIR/synthetic-only.encrypted" |
+ docker exec -i "$CONTAINER" pg_restore --exit-on-error --no-owner --no-acl \
+  -U fisher -d fisher_restore_test >"$LOG_DIR/restore.log" 2>&1
+unset FISHER_PHASE5_BACKUP_KEY_B64
+RESTORED="$(docker exec "$CONTAINER" psql -U fisher -d fisher_restore_test \
+  -X -v ON_ERROR_STOP=1 -Atq -c 'SELECT token FROM phase5_restore_probe')"
+[[ "$RESTORED" == "$TOKEN" ]] || { echo "Synthetic probe mismatch" >&2; exit 2; }
+SOURCE_COUNT="$(docker exec "$CONTAINER" psql -U fisher -d fisher_test \
+  -X -v ON_ERROR_STOP=1 -Atq -c 'SELECT count(*) FROM fisher_migrations')"
+RESTORE_COUNT="$(docker exec "$CONTAINER" psql -U fisher -d fisher_restore_test \
+  -X -v ON_ERROR_STOP=1 -Atq -c 'SELECT count(*) FROM fisher_migrations')"
+[[ "$SOURCE_COUNT" =~ ^[0-9]+$ && "$SOURCE_COUNT" -ge 37 &&
+   "$SOURCE_COUNT" == "$RESTORE_COUNT" ]] || {
+  echo "Migration registry mismatch after restore" >&2; exit 2;
+}
+RESTORE_URL="postgresql://fisher:${DB_PASSWORD}@127.0.0.1:$PORT/fisher_restore_test"
+DATABASE_URL="$RESTORE_URL" pnpm --filter @fisher/database migrate:check \
+  >"$LOG_DIR/restore-check.log" 2>&1
+echo "Migration registry rows matched: $SOURCE_COUNT" >"$LOG_DIR/evidence.txt"
+echo "Synthetic restore marker matched: YES" >>"$LOG_DIR/evidence.txt"
+echo "Backup encrypted with AES-256-GCM and ephemeral key: YES" >>"$LOG_DIR/evidence.txt"
+echo "Plaintext archive written to disk: NO" >>"$LOG_DIR/evidence.txt"
+echo "Tampered encrypted archive rejected: YES" >>"$LOG_DIR/evidence.txt"
+echo "PASS: new disposable backup, independent restore, probe and checksums"
