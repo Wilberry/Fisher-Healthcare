@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "scope": "synthetic-restricted-staging",
+  "network": {
+    "isolation": "private-only",
+    "ingress": "internal-only",
+    "databaseExposure": "none",
+    "egress": "deny-by-default"
+  },
+  "services": [
+    {
+      "name": "api",
+      "imageDigestRef": "ref:images/api",
+      "network": "private",
+      "publishedPorts": [],
+      "runsAsNonRoot": true,
+      "readOnlyRootFilesystem": true,
+      "secretRef": "ref:secrets/api",
+      "resourceLimit": {
+        "cpuMillicores": 500,
+        "memoryMiB": 512
+      }
+    },
+    {
+      "name": "patient-web",
+      "imageDigestRef": "ref:images/patient-web",
+      "network": "private",
+      "publishedPorts": [],
+      "runsAsNonRoot": true,
+      "readOnlyRootFilesystem": true,
+      "secretRef": "ref:secrets/patient-web",
+      "resourceLimit": {
+        "cpuMillicores": 500,
+        "memoryMiB": 512
+      }
+    },
+    {
+      "name": "operations-web",
+      "imageDigestRef": "ref:images/operations-web",
+      "network": "private",
+      "publishedPorts": [],
+      "runsAsNonRoot": true,
+      "readOnlyRootFilesystem": true,
+      "secretRef": "ref:secrets/operations-web",
+      "resourceLimit": {
+        "cpuMillicores": 500,
+        "memoryMiB": 512
+      }
+    },
+    {
+      "name": "field-pwa",
+      "imageDigestRef": "ref:images/field-pwa",
+      "network": "private",
+      "publishedPorts": [],
+      "runsAsNonRoot": true,
+      "readOnlyRootFilesystem": true,
+      "secretRef": "ref:secrets/field-pwa",
+      "resourceLimit": {
+        "cpuMillicores": 500,
+        "memoryMiB": 512
+      }
+    },
+    {
+      "name": "worker",
+      "imageDigestRef": "ref:images/worker",
+      "network": "private",
+      "publishedPorts": [],
+      "runsAsNonRoot": true,
+      "readOnlyRootFilesystem": true,
+      "secretRef": "ref:secrets/worker",
+      "resourceLimit": {
+        "cpuMillicores": 500,
+        "memoryMiB": 512
+      }
+    },
+    {
+      "name": "postgres",
+      "imageDigestRef": "ref:images/postgres",
+      "network": "private",
+      "publishedPorts": [],
+      "runsAsNonRoot": true,
+      "readOnlyRootFilesystem": true,
+      "secretRef": "ref:secrets/postgres",
+      "resourceLimit": {
+        "cpuMillicores": 500,
+        "memoryMiB": 512
+      }
+    },
+    {
+      "name": "migrations",
+      "imageDigestRef": "ref:images/migrations",
+      "network": "private",
+      "publishedPorts": [],
+      "runsAsNonRoot": true,
+      "readOnlyRootFilesystem": true,
+      "secretRef": "ref:secrets/migrations",
+      "resourceLimit": {
+        "cpuMillicores": 500,
+        "memoryMiB": 512
+      }
+    }
+  ],
+  "backup": {
+    "mode": "planning-only",
+    "encryption": "authenticated-required",
+    "offsite": "approval-pending",
+    "restoreEvidenceRef": "ref:recovery/witnessed-test",
+    "credentialSource": "managed-reference-only"
+  },
+  "publicAccessEnabled": false
+}
