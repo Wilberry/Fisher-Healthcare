@@ -14,18 +14,15 @@ describe('Render synthetic-only blueprint static safety contract',()=>{
   assert.match(src,/property: connectionString/);
  });
  it('avoids clinical, public and payment service activation',()=>{
-  assert.doesNotMatch(src,/PAYSTACK_SECRET_KEY|RESEND_API_KEY|FISHER_PHASE2_PAYMENT_MODE\s*
-\s*value: staging/);
-  assert.match(src,/FISHER_PHASE2_PAYMENT_MODE\s*
-\s*value: disabled/);
+  assert.doesNotMatch(src,/PAYSTACK_SECRET_KEY|RESEND_API_KEY|FISHER_PHASE2_PAYMENT_MODE\s*\n\s*value: staging/);
+  assert.match(src,/FISHER_PHASE2_PAYMENT_MODE\s*\n\s*value: disabled/);
  });
- it('uses a supported Render Postgres plan separate from service compute plans',()=>{
+ it('requires supported Postgres plan identifier',()=>{
   assert.match(src,/plan: basic-256mb/);
-  assert.doesNotMatch(src,/plan: 0\\.1c-256mb/);
+  assert.doesNotMatch(src,/plan: 0[.]1c-256mb/);
  });
  it('requires OIDC supplied in dashboard, not hardcoded',()=>{
   for(const key of ['OIDC_ISSUER','OIDC_AUDIENCE','OIDC_JWKS_URI'])
-    assert.match(src,new RegExp('key: '+key+'\\s*\
-\\s*sync: false'));
+    assert.match(src,new RegExp('key: '+key+'\\s*\\n\\s*sync: false'));
  });
 });
