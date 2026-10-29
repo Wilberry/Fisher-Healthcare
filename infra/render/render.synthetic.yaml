@@ -12,7 +12,12 @@ services:
     plan: 0.5c-512mb
     dockerfilePath: ./infra/docker/Dockerfile
     dockerContext: .
+    dockerCommand: node scripts/phase6-render-start.mjs
     envVars:
+      - key: FISHER_RENDER_SYNTHETIC_ACK
+        value: private-synthetic-no-phi
+      - key: FISHER_API_BIND_HOST
+        value: 0.0.0.0
       - key: NODE_ENV
         value: production
       - key: FISHER_PHASE2_BOOKING_MODE
