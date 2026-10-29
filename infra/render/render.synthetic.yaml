@@ -1,0 +1,43 @@
+# MANUAL OPT-IN ONLY. No blueprint is created/synced by committing this file.
+# Synthetic tests ONLY. Never ingest patient records or perform real payment transactions.
+# Public web/patient interfaces are intentionally absent.
+services:
+  - type: pserv
+    name: fisher-synthetic-api-private
+    runtime: docker
+    repo: https://github.com/Wilberry/Fisher-Healthcare
+    branch: feat/phase6-render-synthetic-testing
+    autoDeployTrigger: off
+    region: frankfurt
+    plan: 0.5c-512mb
+    dockerfilePath: ./infra/docker/Dockerfile
+    dockerContext: .
+    dockerCommand: node scripts/phase6-render-start.mjs
+    envVars:
+      - key: FISHER_RENDER_SYNTHETIC_ACK
+        value: private-synthetic-no-phi
+      - key: FISHER_API_BIND_HOST
+        value: 0.0.0.0
+      - key: NODE_ENV
+        value: production
+      - key: FISHER_PHASE2_BOOKING_MODE
+        value: disabled
+      - key: FISHER_PHASE2_PAYMENT_MODE
+        value: disabled
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fisher-synthetic-postgres
+          property: connectionString
+      - key: OIDC_ISSUER
+        sync: false
+      - key: OIDC_AUDIENCE
+        sync: false
+      - key: OIDC_JWKS_URI
+        sync: false
+databases:
+  - name: fisher-synthetic-postgres
+    region: frankfurt
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+    databaseName: fisher_synthetic
+    ipAllowList: []
