@@ -29,3 +29,9 @@ Run offline: `node --test scripts/phase6-render-start.test.mjs`.
 ## Render Blueprint compatibility correction
 
 The PostgreSQL plan uses Render's database plan identifier `basic-256mb`, not a private-service CPU/RAM plan. Resource charges are still unapproved. Review the current plan price and availability in Render before applying any Blueprint. No resources were created by this correction.
+
+## Exact-commit Docker build acceptance (local only)
+
+Run `scripts/verify-render-build.sh` in a clean detached worktree after exporting `FISHER_RENDER_ACCEPTED_SHA` (the full tested commit hash) and `FISHER_RENDER_LOCAL_ACK=synthetic-build-only`. This performs nine Blueprint/startup checks, three migration/build contract tests, then a local Docker image build and inspect. It **does not** start the API, apply database migrations, connect to Render, or assert the resulting image works. Docker may download public base images and consume local disk/CPU. Evidence is written to an isolated private temporary directory, not committed.
+
+Database migrations still require a separately reviewed migration plan, a provisioned synthetic-only database, and explicit operator approval; the existing `FISHER_MIGRATE_ACK` guard must not be bypassed.
