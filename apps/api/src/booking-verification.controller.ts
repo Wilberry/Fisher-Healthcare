@@ -1,6 +1,6 @@
 import { BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiUnauthorizedResponse } from '@nestjs/swagger';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { BookingVerificationService } from './booking-verification.service';
 import { IdentityGuard, type AuthenticatedRequest } from './identity.guard';
 const evidence=z.object({evidenceReference:z.string().regex(/^[A-Za-z0-9._:-]{10,128}$/)}).strict();

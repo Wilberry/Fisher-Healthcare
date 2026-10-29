@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 const uuid=z.string().uuid();
 const code=z.string().regex(/^[A-Z0-9_-]{2,40}$/);
 const money=z.number().int().min(0).max(2147483647);
