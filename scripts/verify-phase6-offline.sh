@@ -37,7 +37,8 @@ trap cleanup EXIT
 node --test scripts/phase6-readiness-inventory.test.mjs \
  scripts/phase6-staging-preflight.test.mjs \
  scripts/phase6-rollback-preflight.test.mjs \
- scripts/phase6-operations-preflight.test.mjs >"$LOG/01-tests.log" 2>&1
+ scripts/phase6-operations-preflight.test.mjs \
+ scripts/phase6-verifier-guards.test.mjs >"$LOG/01-tests.log" 2>&1
 node scripts/phase6-staging-preflight.mjs docs/operations/phase-6-staging-example.json >"$LOG/02-staging.json"
 node scripts/phase6-rollback-preflight.mjs docs/operations/phase-6-rollback-example.json >"$LOG/03-rollback.json"
 node scripts/phase6-operations-preflight.mjs docs/operations/phase-6-operations-example.json >"$LOG/04-operations.json"
