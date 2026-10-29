@@ -1,6 +1,6 @@
 # Fisher Healthcare Development Roadmap
 
-**Programme status:** **Phase 5 — Production readiness and controlled Lagos pilot is in development.** Phases 1–4 are merged into `main` following synthetic-only engineering acceptance. The roadmap defines the company's delivery sequence, scope and release assurance requirements. Milestone dates remain dependent on staffing, partnerships and operational capacity.
+**Programme status:** **Phase 6 — Public launch engineering preparation has begun.** Phases 1–5 are merged into `main`; Phase 5 received synthetic-only engineering acceptance. Public launch and supervised pilot approvals remain outstanding. The roadmap defines the company's delivery sequence, scope and release assurance requirements. Milestone dates remain dependent on staffing, partnerships and operational capacity.
 
 ## Phase 1 — Product foundation, UX and architecture
 
@@ -46,13 +46,15 @@
 
 ## Phase 5 — Production readiness and controlled Lagos pilot
 
-**Engineering programme:** Phase 5 technical controls are being developed on `feat/phase5-production-readiness`. Clinical SOPs, legal/privacy approvals, laboratory contracts, supervised pilot and public-launch authorization are independent operational release gates; technical readiness metrics do not confer these approvals.
+**Engineering programme:** Phase 5 synthetic engineering was accepted on 29 October 2026 at `d9706b21c13a171bde55b25228dff2bbe5bdcbdc` and merged via PR #8 as `5de26fe347ac867f726b8145f2927151b70a20dc`. Clinical SOPs, legal/privacy approvals, laboratory contracts, supervised pilot and public-launch authorization are independent operational release gates; technical readiness metrics do not confer these approvals.
 
 **Planned capabilities and deliverables:** Partner agreements, clinically approved SOPs, Nigerian privacy/regulatory review, security assessment, production infrastructure, encrypted backups and restore drills, incident runbooks, observability, load and failure tests, training and small supervised real-order pilot.
 
 **Phase completion criteria:** No open critical security/patient-safety defects; documented regulatory and clinical sign-off; disaster recovery proven; pilot completion and exception handling evidenced; public launch authorization recorded.
 
 ## Phase 6 — Public launch and growth
+
+**Engineering status:** Pre-launch engineering started on `feat/phase6-launch-readiness`; the initial offline readiness inventory does not authorize release. See [Phase 6 pre-activation engineering](operations/phase-6-prelaunch-engineering.md).
 
 **Planned capabilities and deliverables:** Public Lagos availability, operational reporting, service-zone tuning, recurring booking convenience, expanded partner operations, scoped lab portal, referral processes, and additional coverage as capacity permits.
 

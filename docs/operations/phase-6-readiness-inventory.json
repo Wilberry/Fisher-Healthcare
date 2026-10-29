@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "gates": [
+    {
+      "id": "clinical_sops",
+      "status": "open",
+      "owner": "",
+      "evidenceRef": ""
+    },
+    {
+      "id": "privacy_review",
+      "status": "open",
+      "owner": "",
+      "evidenceRef": ""
+    },
+    {
+      "id": "laboratory_partners",
+      "status": "open",
+      "owner": "",
+      "evidenceRef": ""
+    },
+    {
+      "id": "staffing",
+      "status": "open",
+      "owner": "",
+      "evidenceRef": ""
+    },
+    {
+      "id": "production_infrastructure",
+      "status": "open",
+      "owner": "",
+      "evidenceRef": ""
+    },
+    {
+      "id": "secrets_and_identity",
+      "status": "open",
+      "owner": "",
+      "evidenceRef": ""
+    },
+    {
+      "id": "backup_recovery",
+      "status": "open",
+      "owner": "",
+      "evidenceRef": ""
+    },
+    {
+      "id": "incident_response",
+      "status": "open",
+      "owner": "",
+      "evidenceRef": ""
+    },
+    {
+      "id": "payments_and_delivery",
+      "status": "open",
+      "owner": "",
+      "evidenceRef": ""
+    },
+    {
+      "id": "pilot_supervision",
+      "status": "open",
+      "owner": "",
+      "evidenceRef": ""
+    }
+  ]
+}
