@@ -16,7 +16,7 @@ describe('Phase 6 offline launch-readiness inventory',()=>{
  });
  it('an evidenced checklist is not an independently authorized release',()=>{
   const doc=inventory('evidenced');
-  for(const gate of doc.gates){gate.owner='Named owner';gate.evidenceRef='register/'+gate.id;}
+  for(const gate of doc.gates){gate.owner='Named owner';gate.evidenceRef='register/item-'+String(doc.gates.indexOf(gate)+1);}
   const report=evaluatePhase6Inventory(doc);
   assert.equal(report.allEvidenceReferenced,true);
   assert.equal(report.deploymentAuthorized,false);
